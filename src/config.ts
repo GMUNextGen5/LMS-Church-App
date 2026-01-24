@@ -56,21 +56,21 @@ export const firebaseConfig = {
   // Get this from Firebase Console → Project Settings → Your apps → Web app
   
   // Public API key (safe to expose, restricted by security rules)
-  apiKey: "YOUR_FIREBASE_API_KEY",
+  apiKey: "empty",
   
   // Auth domain for OAuth redirects (format: YOUR_PROJECT_ID.firebaseapp.com)
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  authDomain: "empty",
   
   // Project identifier (your Firebase project ID)
-  projectId: "YOUR_PROJECT_ID",
+  projectId: "empty",
   
   // Cloud Storage bucket (format: YOUR_PROJECT_ID.appspot.com)
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  storageBucket: "empty",
   
   // Firebase Cloud Messaging sender ID (from Firebase Console)
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  messagingSenderId: "empty",
   
   // Unique app identifier (from Firebase Console)
-  appId: "YOUR_APP_ID"
+  appId: "empty"
 };
 
