@@ -1,0 +1,21 @@
+{
+  "name": "lms-firebase",
+  "version": "1.0.0",
+  "description": "Firebase-hosted Learning Management System with 3-tier access control",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && firebase deploy"
+  },
+  "dependencies": {
+    "firebase": "^10.13.0",
+    "@google/generative-ai": "^0.17.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "@types/node": "^22.5.0"
+  }
+}
+

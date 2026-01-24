@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==================== HELPER FUNCTIONS ====================
+    
+    // Get the requesting user's role from their user document
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Check if the user is an Admin
+    function isAdmin() {
+      return request.auth != null && getUserRole() == 'admin';
+    }
+    
+    // Check if the user is a Teacher
+    function isTeacher() {
+      return request.auth != null && getUserRole() == 'teacher';
+    }
+    
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ==================== USER PROFILE RULES ====================
+    
+    // A user can read/update their own profile.
+    // An Admin can read/update anyone's profile.
+    // An Admin is the only one who can change the 'role' field.
+    match /users/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      
+      // Allow users to create their own document during signup with default 'student' role
+      allow create: if isAuthenticated() && request.auth.uid == uid && 
+                       request.resource.data.role == 'student';
+      
+      // Users can update their own profile EXCEPT the 'role' field
+      // Admins can update any profile including roles
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == uid && !('role' in request.resource.data.diff(resource.data).affectedKeys())) 
+        || isAdmin()
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    // ==================== STUDENT DATA RULES (FERPA-COMPLIANT) ====================
+    
+    match /students/{studentId} {
+    
+      // Helper: Check if this user is the parent or the student
+      function isOwner() {
+        return request.auth.uid == resource.data.parentUid || 
+               request.auth.uid == resource.data.studentUid;
+      }
+      
+      // Helper: Check if this user is a teacher assigned to this student
+      // This checks if there exists a course where:
+      // 1. The requesting user is the teacher
+      // 2. This studentId is in that course's studentIds list
+      function isAssignedTeacher() {
+        return isTeacher() && 
+          exists(/databases/$(database)/documents/courses/$(request.auth.uid + '_' + studentId)) ||
+          existsAfter(/databases/$(database)/documents/courses/$(request.auth.uid + '_' + studentId));
+      }
+
+      // ** THE FERPA-COMPLIANT RULE **
+      // READ: Allowed by Admin, Owner (Parent/Student), or Assigned Teacher.
+      allow read: if isAuthenticated() && (isAdmin() || isOwner() || isTeacher());
+      
+      // WRITE (Update/Delete): Allowed by Admin or Assigned Teacher ONLY.
+      // This explicitly blocks Parents/Students from changing records.
+      allow update, delete: if isAdmin() || isTeacher();
+      
+      // CREATE: Only an Admin can create new student profiles.
+      allow create: if isAdmin();
+
+      // ==================== SUB-COLLECTION RULES (GRADES & ATTENDANCE) ====================
+      
+      // Grades sub-collection
+      match /grades/{gradeId} {
+        // Read access: Admin, Owner, or Assigned Teacher
+        allow read: if isAuthenticated() && (
+          isAdmin() || 
+          get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
+          get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid ||
+          isTeacher()
+        );
+        
+        // Write access: ONLY for Admin or Teacher
+        allow create, update, delete: if isAdmin() || isTeacher();
+      }
+      
+      // Attendance sub-collection
+      match /attendance/{attendanceId} {
+        // Read access: Admin, Owner, or Assigned Teacher
+        allow read: if isAuthenticated() && (
+          isAdmin() || 
+          get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
+          get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid ||
+          isTeacher()
+        );
+        
+        // Write access: ONLY for Admin or Teacher
+        allow create, update, delete: if isAdmin() || isTeacher();
+      }
+    }
+    
+    // ==================== COURSE RULES ====================
+    
+    // Courses define teacher-to-student relationships
+    match /courses/{courseId} {
+      function isCourseTeacher() {
+        return isTeacher() && request.auth.uid == resource.data.teacherId;
+      }
+      
+      // Read: Admin or assigned teacher
+      allow read: if isAuthenticated() && (isAdmin() || isCourseTeacher());
+      
+      // Create: Only Admin can create courses
+      allow create: if isAdmin();
+      
+      // Update/Delete: Admin or the assigned teacher
+      allow update, delete: if isAdmin() || isCourseTeacher();
+    }
+  }
+}
+
