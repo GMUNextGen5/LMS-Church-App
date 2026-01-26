@@ -52,25 +52,25 @@
  */
 
 export const firebaseConfig = {
-  // ⚠️ REPLACE WITH YOUR FIREBASE CONFIGURATION
-  // Get this from Firebase Console → Project Settings → Your apps → Web app
+  // ⚠️ Environment variables are loaded from Cloudflare Pages
+  // Set these in Cloudflare Pages Dashboard → Settings → Environment variables
   
   // Public API key (safe to expose, restricted by security rules)
-  apiKey: "VITE_FIREBASE_API_KEY",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
   
   // Auth domain for OAuth redirects (format: YOUR_PROJECT_ID.firebaseapp.com)
-  authDomain: "VITE_FIREBASE_AUTH_DOMAIN",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
   
   // Project identifier (your Firebase project ID)
-  projectId: "VITE_FIREBASE_PROJECT_ID",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
   
   // Cloud Storage bucket (format: YOUR_PROJECT_ID.appspot.com)
-  storageBucket: "VITE_FIREBASE_STORAGE_BUCKET",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
   
   // Firebase Cloud Messaging sender ID (from Firebase Console)
-  messagingSenderId: "VITE_FIREBASE_MESSAGING_SENDER_ID",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
   
   // Unique app identifier (from Firebase Console)
-  appId: "VITE_FIREBASE_APP_ID"
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || ""
 };
 
