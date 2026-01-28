@@ -63,18 +63,1138 @@
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        /* ==================== PREMIUM LOGIN PAGE STYLES ==================== */
+
+        :root {
+            /* Elegant White/Black/Grey/Burgundy Theme */
+            --login-bg-primary: #0a0a0a;
+            --login-bg-secondary: #141414;
+            --login-accent-1: #8B2942;
+            /* Burgundy */
+            --login-accent-2: #A03050;
+            /* Lighter burgundy */
+            --login-accent-3: #6B1D32;
+            /* Darker burgundy */
+            --login-accent-4: #C44569;
+            /* Rose burgundy */
+            --login-text-primary: #ffffff;
+            --login-text-secondary: rgba(255, 255, 255, 0.75);
+            --login-text-muted: rgba(255, 255, 255, 0.45);
+            --login-glass-bg: rgba(255, 255, 255, 0.04);
+            --login-glass-border: rgba(255, 255, 255, 0.1);
+            --login-glow: rgba(139, 41, 66, 0.5);
+            --login-grey-light: #e5e5e5;
+            --login-grey-mid: #737373;
+            --login-grey-dark: #404040;
+        }
 
         * {
-            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        /* Enhanced scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        /* ==================== ADA ACCESSIBILITY ==================== */
+        /* Clear focus outlines for keyboard navigation */
+        *:focus-visible {
+            outline: 2px solid var(--login-accent-1);
+            outline-offset: 2px;
         }
 
+        /* Skip link for keyboard users */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--login-accent-1);
+            color: #fff;
+            padding: 8px 16px;
+            z-index: 1000;
+            text-decoration: none;
+            font-weight: 600;
+            border-radius: 0 0 8px 0;
+            transition: top 0.3s ease;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+
+        /* Ensure all interactive elements have visible focus */
+        button:focus-visible,
+        input:focus-visible,
+        a:focus-visible {
+            outline: 2px solid var(--login-accent-2);
+            outline-offset: 2px;
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --login-text-secondary: rgba(255, 255, 255, 0.9);
+                --login-text-muted: rgba(255, 255, 255, 0.7);
+                --login-glass-border: rgba(255, 255, 255, 0.3);
+            }
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--login-bg-primary);
+            color: var(--login-text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ==================== ANIMATED BACKGROUND ==================== */
+        #background-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Gradient Orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            animation: orbFloat 20s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .orb-1 {
+            width: 600px;
+            height: 600px;
+            background: linear-gradient(135deg, var(--login-accent-1) 0%, var(--login-accent-2) 100%);
+            top: -200px;
+            left: -200px;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(135deg, var(--login-accent-3) 0%, var(--login-accent-4) 100%);
+            bottom: -150px;
+            right: -150px;
+            animation-delay: -5s;
+        }
+
+        .orb-3 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, var(--login-accent-2) 0%, var(--login-accent-3) 100%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -10s;
+            opacity: 0.3;
+        }
+
+        @keyframes orbFloat {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            25% {
+                transform: translate(30px, -30px) scale(1.05);
+            }
+
+            50% {
+                transform: translate(-20px, 20px) scale(0.95);
+            }
+
+            75% {
+                transform: translate(40px, 10px) scale(1.02);
+            }
+        }
+
+        /* Grid Pattern Overlay */
+        .grid-pattern {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* ==================== AUTH CONTAINER ==================== */
+        #auth-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ==================== LOGO ANIMATION ==================== */
+        .ng5-logo-container {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ng5-logo {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            z-index: 3;
+            animation: logoFloat 6s ease-in-out infinite, logoGlow 4s ease-in-out infinite alternate;
+            filter: drop-shadow(0 0 30px rgba(139, 41, 66, 0.5));
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.4s ease;
+        }
+
+        .ng5-logo:hover {
+            transform: scale(1.15) rotate(5deg);
+            filter: drop-shadow(0 0 50px rgba(139, 41, 66, 0.8));
+        }
+
+        .ng5-logo-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 160%;
+            height: 160%;
+            transform: translate(-50%, -50%);
+            background: conic-gradient(from 0deg,
+                    var(--login-accent-1),
+                    var(--login-accent-2),
+                    var(--login-accent-3),
+                    var(--login-accent-4),
+                    var(--login-accent-1));
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.6;
+            animation: glowRotate 8s linear infinite, glowPulse 4s ease-in-out infinite alternate;
+            z-index: 1;
+        }
+
+        .ng5-logo-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 110%;
+            height: 110%;
+            transform: translate(-50%, -50%);
+            border: 2px solid transparent;
+            border-radius: 50%;
+            background: linear-gradient(var(--login-bg-primary), var(--login-bg-primary)) padding-box,
+                conic-gradient(from 0deg, var(--login-accent-1), var(--login-accent-2), var(--login-accent-3), var(--login-accent-1)) border-box;
+            animation: ringRotate 10s linear infinite;
+            z-index: 2;
+        }
+
+        @keyframes logoFloat {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-12px);
+            }
+        }
+
+        @keyframes logoGlow {
+            0% {
+                filter: drop-shadow(0 0 20px rgba(139, 41, 66, 0.4));
+            }
+
+            100% {
+                filter: drop-shadow(0 0 40px rgba(139, 41, 66, 0.7));
+            }
+        }
+
+        @keyframes glowRotate {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        @keyframes glowPulse {
+            0% {
+                opacity: 0.4;
+                transform: translate(-50%, -50%) rotate(0deg) scale(0.9);
+            }
+
+            100% {
+                opacity: 0.7;
+                transform: translate(-50%, -50%) rotate(180deg) scale(1.1);
+            }
+        }
+
+        @keyframes ringRotate {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            to {
+                transform: translate(-50%, -50%) rotate(-360deg);
+            }
+        }
+
+        /* ==================== TYPOGRAPHY ==================== */
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 0.75rem;
+            line-height: 1.1;
+            text-shadow: 0 0 40px rgba(139, 41, 66, 0.3);
+            animation: titleReveal 1.2s 0.3s cubic-bezier(0.16, 1, 0.3, 1) both,
+                titleGlow 8s ease-in-out 2s infinite;
+        }
+
+        @keyframes titleReveal {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+                filter: blur(12px);
+                letter-spacing: 0.1em;
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+                filter: blur(0);
+                letter-spacing: -0.03em;
+            }
+        }
+
+        /* Subtle, slow glow pulse - elegant and refined */
+        @keyframes titleGlow {
+
+            0%,
+            100% {
+                text-shadow: 0 0 40px rgba(139, 41, 66, 0.2);
+            }
+
+            50% {
+                text-shadow: 0 0 60px rgba(139, 41, 66, 0.4), 0 0 80px rgba(139, 41, 66, 0.2);
+            }
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.25rem);
+            color: var(--login-text-secondary);
+            font-weight: 400;
+            text-align: center;
+            margin-bottom: 3rem;
+            max-width: 500px;
+            line-height: 1.6;
+            animation: subtitleReveal 1s 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        /* Typewriter container */
+        .typewriter-text {
+            display: inline;
+            overflow: hidden;
+            white-space: nowrap;
+            border-right: 2px solid var(--login-accent-1);
+            animation: typewriter 3s steps(44) 1s forwards,
+                blinkCursor 0.7s step-end infinite;
+        }
+
+        @keyframes typewriter {
+            from {
+                width: 0;
+            }
+
+            to {
+                width: 100%;
+            }
+        }
+
+        @keyframes blinkCursor {
+            50% {
+                border-color: transparent;
+            }
+        }
+
+        @keyframes subtitleReveal {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Professional badge */
+        .pro-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.8rem;
+            background: linear-gradient(135deg, rgba(139, 41, 66, 0.15), rgba(160, 48, 80, 0.15));
+            border: 1px solid rgba(139, 41, 66, 0.3);
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--login-accent-1);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+            animation: badgeReveal 0.8s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .pro-badge::before {
+            content: '✦';
+            animation: starSpin 2s linear infinite;
+        }
+
+        @keyframes badgeReveal {
+            from {
+                opacity: 0;
+                transform: translateY(-10px) scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes starSpin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ==================== GLASSMORPHIC AUTH CARD ==================== */
+        .auth-card {
+            background: var(--login-glass-bg);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--login-glass-border);
+            border-radius: 24px;
+            padding: 48px;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            overflow: hidden;
+            animation: cardReveal 1s 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.4s ease,
+                border-color 0.4s ease;
+        }
+
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .auth-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg,
+                    transparent 0deg,
+                    rgba(139, 41, 66, 0.1) 60deg,
+                    transparent 120deg);
+            animation: cardShimmer 8s linear infinite;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .auth-card:hover::after {
+            opacity: 1;
+        }
+
+        .auth-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(139, 41, 66, 0.3);
+            box-shadow:
+                0 30px 60px -15px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(139, 41, 66, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes cardReveal {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes cardShimmer {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ==================== AUTH TABS ==================== */
+        .auth-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .tab-btn {
+            position: relative;
+            background: transparent;
+            border: none;
+            padding: 12px 28px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--login-text-muted);
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .tab-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--login-accent-1), var(--login-accent-2));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+            border-radius: 12px;
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .tab-btn.active::before {
+            opacity: 1;
+        }
+
+        .tab-btn:not(.active):hover {
+            color: var(--login-text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* ==================== FORM INPUTS ==================== */
+        .input-group {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--login-text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        .input-group:focus-within label {
+            color: var(--login-accent-1);
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--login-text-primary);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .input-wrapper input::placeholder {
+            color: var(--login-text-muted);
+        }
+
+        .input-wrapper input:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .input-wrapper input:focus {
+            border-color: var(--login-accent-1);
+            background: rgba(139, 41, 66, 0.05);
+            box-shadow:
+                0 0 0 4px rgba(139, 41, 66, 0.1),
+                0 0 30px rgba(139, 41, 66, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Animated underline for inputs */
+        .input-wrapper::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--login-accent-1), var(--login-accent-2));
+            transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 2px;
+        }
+
+        .input-wrapper:focus-within::after {
+            width: 100%;
+            left: 0;
+        }
+
+        /* Input Icon */
+        .input-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--login-text-muted);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+        }
+
+        .input-wrapper:focus-within .input-icon {
+            color: var(--login-accent-1);
+            transform: translateY(-50%) scale(1.1);
+            filter: drop-shadow(0 0 8px rgba(139, 41, 66, 0.5));
+        }
+
+        .input-wrapper:hover .input-icon {
+            color: var(--login-text-secondary);
+        }
+
+        /* Password toggle button */
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--login-text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .password-toggle:hover {
+            color: var(--login-accent-1);
+            background: rgba(139, 41, 66, 0.1);
+        }
+
+        /* Valid input state */
+        .input-wrapper input:valid:not(:placeholder-shown) {
+            border-color: var(--login-accent-4);
+        }
+
+        .input-wrapper input:valid:not(:placeholder-shown)~.input-icon {
+            color: var(--login-accent-4);
+        }
+
+        /* ==================== BUTTONS ==================== */
+        .btn-primary {
+            position: relative;
+            width: 100%;
+            padding: 16px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, var(--login-accent-1) 0%, var(--login-accent-2) 100%);
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(135deg, var(--login-accent-1), var(--login-accent-3), var(--login-accent-2));
+            border-radius: 16px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            filter: blur(10px);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow:
+                0 20px 40px -15px rgba(139, 41, 66, 0.6),
+                0 0 30px rgba(139, 41, 66, 0.3);
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:hover::after {
+            opacity: 0.6;
+        }
+
+        .btn-primary:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        /* Button icon animation */
+        .btn-primary svg {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .btn-primary:hover svg {
+            transform: translateX(4px);
+        }
+
+        /* Button Loading State */
+        .btn-primary.loading {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .btn-primary.loading span {
+            opacity: 0;
+        }
+
+        .btn-primary.loading svg {
+            opacity: 0;
+        }
+
+        .btn-primary.loading::before {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: btnSpin 0.8s linear infinite;
+            left: 50%;
+            top: 50%;
+            margin-left: -12px;
+            margin-top: -12px;
+        }
+
+        @keyframes btnSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Ripple effect */
+        .btn-primary .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        .btn-secondary {
+            position: relative;
+            background: transparent;
+            color: var(--login-accent-1);
+            font-weight: 500;
+            font-size: 0.875rem;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+
+        .btn-secondary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(139, 41, 66, 0.1), rgba(160, 48, 80, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .btn-secondary:hover {
+            color: var(--login-accent-2);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary:hover::before {
+            opacity: 1;
+        }
+
+        /* ==================== ERROR MESSAGES ==================== */
+        .error-message {
+            color: #f87171;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 12px 16px;
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.2);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            animation: errorShake 0.5s ease;
+        }
+
+        @keyframes errorShake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        /* ==================== DIVIDER ==================== */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0;
+            color: var(--login-text-muted);
+            font-size: 0.8rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        }
+
+        /* ==================== FORM ANIMATIONS ==================== */
+        .form-slide-in {
+            animation: formSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes formSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Focused input wrapper glow */
+        .input-wrapper.focused::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            background: linear-gradient(135deg, var(--login-accent-1), var(--login-accent-3));
+            border-radius: 17px;
+            opacity: 0.15;
+            z-index: -1;
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+
+            0%,
+            100% {
+                opacity: 0.1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.2;
+                transform: scale(1.02);
+            }
+        }
+
+        /* Stagger animation for form elements */
+        .input-group:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .input-group:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .input-group:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .input-group {
+            animation: inputSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes inputSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Success state for validated inputs */
+        .input-wrapper.valid::after {
+            background: linear-gradient(90deg, var(--login-accent-4), var(--login-accent-3));
+        }
+
+        /* ==================== UTILITIES ==================== */
+        .hide {
+            display: none !important;
+        }
+
+        /* Screen reader only - visually hidden but accessible */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-sm {
+            font-size: 0.875rem;
+        }
+
+        .text-muted {
+            color: var(--login-text-muted);
+        }
+
+        .link {
+            color: var(--login-accent-1);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .link:hover {
+            color: var(--login-accent-2);
+            text-decoration: underline;
+        }
+
+        /* ==================== LOADING OVERLAY ==================== */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(139, 41, 66, 0.2);
+            border-top-color: var(--login-accent-1);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ==================== RESPONSIVE ==================== */
+        @media (max-width: 768px) {
+            #auth-container {
+                padding: 1.5rem;
+            }
+
+            .auth-card {
+                padding: 32px 24px;
+                border-radius: 20px;
+            }
+
+            .ng5-logo-container {
+                width: 120px;
+                height: 120px;
+            }
+
+            .ng5-logo {
+                width: 64px;
+                height: 64px;
+            }
+
+            .orb {
+                filter: blur(60px);
+                opacity: 0.4;
+            }
+
+            .orb-1 {
+                width: 400px;
+                height: 400px;
+            }
+
+            .orb-2 {
+                width: 350px;
+                height: 350px;
+            }
+
+            .orb-3 {
+                width: 300px;
+                height: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .hero-subtitle {
+                font-size: 0.95rem;
+                margin-bottom: 2rem;
+            }
+
+            .auth-card {
+                padding: 28px 20px;
+            }
+
+            .tab-btn {
+                padding: 10px 18px;
+                font-size: 0.85rem;
+            }
+
+            .input-wrapper input {
+                padding: 14px 16px;
+            }
+        }
+
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Main App Reset (when logged in) */
+
+
+        /* Dark mode overrides for main app, handled by existing CSS mostly, 
+           but ensuring they don't break the light login page */
         ::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.1);
             border-radius: 4px;
@@ -1037,18 +2157,16 @@
         }
 
         /* ==================== LIGHT MODE - ADA/WCAG 2.1 AA COMPLIANT ==================== */
-        /* 
-         * All contrast ratios verified for WCAG 2.1 AA compliance:
-         * - Normal text (< 18pt): 4.5:1 minimum
-         * - Large text (18pt+ or 14pt bold): 3:1 minimum
-         * - UI components: 3:1 minimum
-         * - Focus indicators: 3px solid borders
-         */
-
-        /* Convert white text to dark for light backgrounds */
+        /*
+                * All contrast ratios verified for WCAG 2.1 AA compliance:
+                * - Normal text (< 18pt): 4.5:1 minimum * - Large text (18pt+ or 14pt bold): 3:1 minimum * - UI
+                    components: 3:1 minimum * - Focus indicators: 3px solid borders */
+        /* Convert white text to dark for
+                    light backgrounds */
         [data-theme="light"] .text-white {
             color: #1e293b !important;
-            /* 11.7:1 on white */
+            /* 11.7:1 on
+                    white */
         }
 
         /* Preserve white text on colored backgrounds */
@@ -1098,24 +2216,28 @@
             background-color: #ffffff !important;
         }
 
-        /* Border colors - visible */
+        /* Border colors -
+                    visible */
         [data-theme="light"] .border-dark-600,
         [data-theme="light"] .border-dark-700,
         [data-theme="light"] .border-dark-800 {
             border-color: #cbd5e1 !important;
         }
 
-        /* Table styling - ADA compliant */
+        /* Table styling - ADA
+                    compliant */
         [data-theme="light"] table {
             border: 1px solid #cbd5e1;
             border-radius: 8px;
-            overflow: hidden;
+            overflow:
+                hidden;
         }
 
         [data-theme="light"] table th {
             background-color: #f1f5f9;
             color: #0f172a;
-            font-weight: 600;
+            font-weight:
+                600;
             border-bottom: 2px solid #94a3b8;
             padding: 12px;
         }
@@ -1147,7 +2269,9 @@
         }
 
         /* Focus states - 3px for visibility */
-        [data-theme="light"] input:focus,
+        [data-theme="light"
+
+        ] input:focus,
         [data-theme="light"] select:focus,
         [data-theme="light"] textarea:focus {
             border-color: #0369a1 !important;
@@ -1155,15 +2279,14 @@
             outline-offset: 0;
         }
 
-
-
-
-        /* Mobile menu - ADA compliant */
+        /*
+                    Mobile menu - ADA compliant */
         [data-theme="light"] .mobile-menu-btn,
         [data-theme="light"] .mobile-menu-btn:hover {
             background-color: #f1f5f9 !important;
             color: #1e293b !important;
-            border: 1px solid #cbd5e1;
+            border:
+                1px solid #cbd5e1;
         }
 
         /* Tab buttons - ADA compliant */
@@ -1175,7 +2298,8 @@
 
         [data-theme="light"] .tab-btn:not(.tab-active):hover {
             background: #e2e8f0;
-            color: #0369a1 !important;
+            color:
+                #0369a1 !important;
         }
 
         [data-theme="light"] .tab-btn.tab-active {
@@ -1183,7 +2307,8 @@
             background: linear-gradient(135deg, #0369a1 0%, #047857 100%);
         }
 
-        /* Dropdowns and selects - ADA compliant */
+        /* Dropdowns and selects - ADA
+                    compliant */
         [data-theme="light"] select {
             background-color: #ffffff !important;
             color: #1e293b !important;
@@ -1212,7 +2337,9 @@
         [data-theme="light"] input:disabled,
         [data-theme="light"] select:disabled,
         [data-theme="light"] textarea:disabled,
-        [data-theme="light"] button:disabled {
+        [data-theme="light"
+
+        ] button:disabled {
             opacity: 1;
             cursor: not-allowed;
             background-color: #f1f5f9 !important;
@@ -1230,7 +2357,8 @@
             color: #ffffff !important;
         }
 
-        /* Status badges - ADA compliant backgrounds and text */
+        /* Status badges
+                    - ADA compliant backgrounds and text */
         [data-theme="light"] .bg-red-500\/20 {
             background-color: #fef2f2 !important;
             border: 1px solid #fecaca;
@@ -1255,7 +2383,8 @@
         [data-theme="light"] .bg-red-500\/20 .text-red-500,
         [data-theme="light"] .bg-red-500\/20 .text-red-400 {
             color: #b91c1c !important;
-            /* 5.9:1 */
+            /*
+                    5.9:1 */
         }
 
         [data-theme="light"] .bg-green-500\/20 .text-green-500,
@@ -1270,18 +2399,24 @@
         }
 
         [data-theme="light"] .bg-yellow-500\/20 .text-yellow-500,
-        [data-theme="light"] .bg-yellow-500\/20 .text-yellow-400 {
+        [data-theme="light"
+
+        ] .bg-yellow-500\/20 .text-yellow-400 {
             color: #a16207 !important;
             /* 4.6:1 - AA compliant */
         }
 
-        /* Hover states - ADA compliant */
+        /*
+                    Hover states - ADA compliant */
         [data-theme="light"] .hover\:bg-dark-700:hover,
-        [data-theme="light"] .hover\:bg-dark-600:hover {
+        [data-theme="light"
+
+        ] .hover\:bg-dark-600:hover {
             background-color: #e2e8f0 !important;
         }
 
-        /* Dark background classes converted for light mode */
+        /* Dark background classes
+                    converted for light mode */
         [data-theme="light"] .bg-dark-900 {
             background-color: #ffffff !important;
         }
@@ -1290,7 +2425,8 @@
             background-color: #f1f5f9 !important;
         }
 
-        /* Placeholder text - ADA compliant (4.5:1 minimum) */
+        /*
+                    Placeholder text - ADA compliant (4.5:1 minimum) */
         [data-theme="light"] .placeholder-dark-400::placeholder,
         [data-theme="light"] input::placeholder,
         [data-theme="light"] textarea::placeholder {
@@ -1299,7 +2435,8 @@
             opacity: 1;
         }
 
-        /* White text preserved on colored backgrounds */
+        /* White text
+                    preserved on colored backgrounds */
         [data-theme="light"] .bg-primary-500 .text-white,
         [data-theme="light"] .bg-red-500 .text-white,
         [data-theme="light"] .bg-green-500 .text-white,
@@ -1315,7 +2452,8 @@
             background-color: #e2e8f0 !important;
         }
 
-        /* Checkbox/radio states - ADA compliant with borders */
+        /* Checkbox/radio states - ADA
+                    compliant with borders */
         [data-theme="light"] .peer:checked~.peer-checked\:bg-green-500\/20 {
             background-color: #f0fdf4 !important;
             border: 2px solid #15803d !important;
@@ -1351,13 +2489,13 @@
             border-top-color: #0369a1;
         }
 
-        /* UID dropdown - ADA compliant */
+        /* UID dropdown - ADA
+                    compliant */
         [data-theme="light"] #uid-dropdown {
             background: #ffffff !important;
             border: 1px solid #94a3b8 !important;
-            box-shadow:
-                0 10px 25px rgba(15, 23, 42, 0.15),
-                0 4px 10px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15), 0 4px 10px rgba(15, 23, 42,
+                    0.08);
         }
 
         [data-theme="light"] #uid-dropdown button {
@@ -1379,8 +2517,7 @@
         [data-theme="light"] #modal>div {
             background: #ffffff !important;
             border: 1px solid #cbd5e1;
-            box-shadow:
-                0 25px 50px rgba(15, 23, 42, 0.25),
+            box-shadow: 0 25px 50px rgba(15, 23, 42, 0.25),
                 0 10px 20px rgba(15, 23, 42, 0.15);
         }
 
@@ -1899,7 +3036,8 @@
             #ai-agent-content .glass-effect {
                 height: calc(100vh - 180px);
                 height: calc(100dvh - 180px);
-                /* Dynamic viewport height for mobile browsers */
+                /* Dynamic viewport height for mobile
+                        browsers */
             }
 
             #ai-agent-messages {
@@ -2022,9 +3160,9 @@
             }
         }
 
-        /* ========== MOBILE-FIRST RESPONSIVE STYLES ========== */
-
-        /* Touch-friendly minimum sizes */
+        /*==========MOBILE-FIRST RESPONSIVE STYLES==========*/
+        /* Touch-friendly
+                            minimum sizes */
         button,
         .btn,
         input[type="submit"] {
@@ -2096,7 +3234,8 @@
             right: 0;
         }
 
-        /* Responsive tables */
+        /* Responsive
+                            tables */
         .responsive-table-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -2107,7 +3246,8 @@
             min-width: 600px;
         }
 
-        /* Mobile spacing adjustments */
+        /* Mobile
+                            spacing adjustments */
         @media (max-width: 768px) {
             .mobile-menu-btn {
                 display: flex;
@@ -2141,7 +3281,8 @@
             form select,
             form textarea {
                 font-size: 16px;
-                /* Prevents iOS zoom */
+                /*
+                            Prevents iOS zoom */
             }
 
             /* Modal adjustments */
@@ -2160,7 +3301,8 @@
                 max-width: calc(100vw - 2rem);
             }
 
-            /* Navigation tabs scroll on mobile */
+            /* Navigation
+                            tabs scroll on mobile */
             .nav-tabs {
                 overflow-x: auto;
                 overflow-y: hidden;
@@ -2194,7 +3336,8 @@
                 font-size: 1.5rem;
             }
 
-            /* Mobile-optimized text */
+            /*
+                            Mobile-optimized text */
             .text-4xl {
                 font-size: 1.875rem;
             }
@@ -2270,7 +3413,8 @@
                 font-size: 0.7rem;
             }
 
-            /* Quick suggestions small */
+            /* Quick suggestions
+                            small */
             #ai-quick-suggestions {
                 gap: 0.5rem;
             }
@@ -2302,7 +3446,8 @@
                 display: none;
             }
 
-            /* Welcome message grid small */
+            /*
+                            Welcome message grid small */
             #ai-agent-messages .grid-cols-2 {
                 grid-template-columns: 1fr;
             }
@@ -2312,7 +3457,8 @@
                 display: none;
             }
 
-            /* Tables extra small */
+            /* Tables extra
+                            small */
             table {
                 font-size: 0.8rem;
             }
@@ -2322,7 +3468,8 @@
                 padding: 0.5rem;
             }
 
-            /* Cards grid small */
+            /* Cards grid
+                            small */
             .grid {
                 gap: 0.75rem;
             }
@@ -2337,7 +3484,8 @@
             }
         }
 
-        /* Extra small phones (< 375px) */
+        /* Extra small phones (<
+                            375px) */
         @media (max-width: 375px) {
             .lms-content {
                 padding: 0.5rem;
@@ -2459,136 +3607,160 @@
     </style>
 </head>
 
-<body class="gradient-bg min-h-screen">
+<body>
+    <!-- Animated Background Elements -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-pattern"></div>
+    <canvas id="background-canvas" aria-hidden="true"></canvas>
 
-    <!-- Authentication Container (Login/Signup) -->
-    <div id="auth-container" class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-        <!-- Auth Theme Toggle (Fixed - Top Right, only visible on auth page) -->
-        <div class="fixed top-4 right-4 z-50">
-            <button id="auth-theme-toggle-btn" class="theme-toggle" title="Toggle dark/light mode"
-                aria-label="Toggle theme">
-                <div class="theme-toggle-slider">
-                    <svg class="theme-icon moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
-                        </path>
-                    </svg>
-                    <svg class="theme-icon sun-icon hide" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
-                        </path>
-                    </svg>
-                </div>
-            </button>
-        </div>
-        <!-- Animated background elements -->
-        <div class="absolute inset-0 overflow-hidden pointer-events-none">
-            <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl animate-pulse">
-            </div>
-            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl animate-pulse"
-                style="animation-delay: 1s;"></div>
-            <div class="absolute top-1/2 left-1/2 w-64 h-64 bg-primary-400/5 rounded-full blur-2xl animate-pulse"
-                style="animation-delay: 0.5s;"></div>
+    <!-- Skip Link for Keyboard Navigation (ADA) -->
+    <a href="#login-form" class="skip-link">Skip to login form</a>
+
+    <!-- Authentication Container -->
+    <div id="auth-container" role="main" aria-label="Authentication">
+
+        <!-- Professional Badge -->
+        <div class="pro-badge">Next Generation Learning</div>
+
+        <!-- Animated Logo -->
+        <div class="ng5-logo-container">
+            <div class="ng5-logo-glow"></div>
+            <div class="ng5-logo-ring"></div>
+            <img src="/ng5-logo.png" alt="NG5 Logo" class="ng5-logo" draggable="false">
         </div>
 
-        <div class="w-full max-w-md fade-in relative z-10">
-            <!-- Logo/Header -->
-            <div class="text-center mb-8">
-                <div class="inline-block p-5 rounded-2xl bg-white mb-4 relative group shadow-lg">
-                    <img src="/ng5-logo.png" alt="NG5 Logo" class="w-16 h-16 object-contain relative z-10"
-                        loading="lazy">
-                </div>
-                <h1 class="text-4xl font-bold mb-3">
-                    <span
-                        class="bg-gradient-to-r from-primary-400 via-primary-300 to-accent-400 bg-clip-text text-transparent">Learning
-                        Management</span>
-                    <span class="text-white block mt-1">System</span>
-                </h1>
-                <p class="text-dark-300 text-lg">Secure, AI-Powered Education Platform</p>
-            </div>
+        <h1 class="hero-title">Welcome to NG5</h1>
+        <p class="hero-subtitle" id="typewriter-subtitle"></p>
 
-            <!-- Auth Tabs -->
-            <div class="flex gap-2 mb-6 p-1 rounded-xl glass-effect">
-                <button id="login-tab-btn"
-                    class="flex-1 py-3 px-4 rounded-lg font-semibold text-white transition-all tab-active">
-                    Login
-                </button>
-                <button id="signup-tab-btn"
-                    class="flex-1 py-3 px-4 rounded-lg font-semibold text-dark-300 hover:text-white transition-all">
-                    Sign Up
-                </button>
+        <!-- Auth Card with Glassmorphism -->
+        <div class="auth-card">
+            <!-- Tab Switcher -->
+            <div class="auth-tabs">
+                <button id="login-tab-btn" class="tab-btn active">Sign in</button>
+                <button id="signup-tab-btn" class="tab-btn">Create account</button>
             </div>
 
             <!-- Login Form -->
-            <div id="login-form-container" class="glass-effect rounded-2xl p-8 card-hover">
-                <form id="login-form" class="space-y-5">
-                    <div>
-                        <label class="block text-dark-200 text-sm font-semibold mb-2">Email Address</label>
-                        <input type="email" name="email" required placeholder="your.email@example.com"
-                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-dark-200 text-sm font-semibold mb-2">Password</label>
-                        <input type="password" name="password" required placeholder="••••••••"
-                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
-                    </div>
-                    <div id="login-error" class="text-red-400 text-sm hide"></div>
-                    <button type="submit"
-                        class="w-full py-4 px-4 bg-gradient-to-r from-primary-500 via-primary-400 to-accent-500 text-white font-bold rounded-xl hover:from-primary-600 hover:via-primary-500 hover:to-accent-600 transition-all shadow-lg hover:shadow-primary-500/40 hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group">
-                        <span class="relative z-10 flex items-center justify-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1">
+            <div id="login-form-container">
+                <form id="login-form" aria-labelledby="login-form-title">
+                    <h2 id="login-form-title" class="sr-only">Sign in to your account</h2>
+                    <div class="input-group">
+                        <label for="login-email">Email address</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="login-email" name="email" required placeholder="name@example.com"
+                                autocomplete="email" aria-describedby="login-email-desc">
+                            <span id="login-email-desc" class="sr-only">Enter your email address</span>
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
                                 </path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
                             </svg>
-                            Sign In
-                        </span>
-                        <div
-                            class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700">
                         </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Password</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="login-password" name="password" required
+                                placeholder="Enter your password" autocomplete="current-password"
+                                aria-describedby="login-password-desc">
+                            <span id="login-password-desc" class="sr-only">Enter your password</span>
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div id="login-error" class="error-message hide" role="alert" aria-live="polite"></div>
+                    <button type="submit" class="btn-primary" aria-label="Sign in to your account">
+                        <span>Sign in</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-left: 8px;" aria-hidden="true">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                     </button>
                 </form>
+                <div class="divider">or</div>
+                <p class="text-center text-sm text-muted">
+                    Don't have an account?
+                    <a href="#" class="link"
+                        onclick="document.getElementById('signup-tab-btn').click(); return false;">Create one</a>
+                </p>
             </div>
 
             <!-- Signup Form -->
-            <div id="signup-form-container" class="glass-effect rounded-2xl p-8 card-hover hide">
-                <form id="signup-form" class="space-y-5">
-                    <div>
-                        <label class="block text-dark-200 text-sm font-semibold mb-2">Email Address</label>
-                        <input type="email" name="email" required placeholder="your.email@example.com"
-                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-dark-200 text-sm font-semibold mb-2">Password</label>
-                        <input type="password" name="password" required minlength="6" placeholder="••••••••"
-                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-dark-200 text-sm font-semibold mb-2">Confirm Password</label>
-                        <input type="password" name="confirmPassword" required minlength="6" placeholder="••••••••"
-                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
-                    </div>
-                    <div id="signup-error" class="text-red-400 text-sm hide"></div>
-                    <button type="submit"
-                        class="w-full py-4 px-4 bg-gradient-to-r from-accent-500 via-primary-400 to-primary-500 text-white font-bold rounded-xl hover:from-accent-600 hover:via-primary-500 hover:to-primary-600 transition-all shadow-lg hover:shadow-accent-500/40 hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group">
-                        <span class="relative z-10 flex items-center justify-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z">
+            <div id="signup-form-container" class="hide">
+                <form id="signup-form">
+                    <div class="input-group">
+                        <label>Email address</label>
+                        <div class="input-wrapper">
+                            <input type="email" name="email" required placeholder="name@example.com"
+                                autocomplete="email">
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
                                 </path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
                             </svg>
-                            Create Account
-                        </span>
-                        <div
-                            class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700">
                         </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <div class="input-wrapper">
+                            <input type="password" name="password" required minlength="6"
+                                placeholder="Create a password" autocomplete="new-password">
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Confirm Password</label>
+                        <div class="input-wrapper">
+                            <input type="password" name="confirmPassword" required minlength="6"
+                                placeholder="Confirm your password" autocomplete="new-password">
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div id="signup-error" class="error-message hide"></div>
+                    <button type="submit" class="btn-primary">
+                        <span>Create account</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-left: 8px;">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="20" y1="8" x2="20" y2="14"></line>
+                            <line x1="23" y1="11" x2="17" y2="11"></line>
+                        </svg>
                     </button>
                 </form>
+                <div class="divider">or</div>
+                <p class="text-center text-sm text-muted">
+                    Already have an account?
+                    <a href="#" class="link"
+                        onclick="document.getElementById('login-tab-btn').click(); return false;">Sign in</a>
+                </p>
             </div>
+        </div>
+
+        <!-- Footer -->
+        <div
+            style="margin-top: 3rem; color: var(--login-text-muted); font-size: 0.75rem; display: flex; gap: 1.5rem; align-items: center;">
+            <span>© 2025 NG5 LMS</span>
+            <a href="#" class="link" style="font-size: 0.75rem;">Privacy</a>
+            <a href="#" class="link" style="font-size: 0.75rem;">Terms</a>
         </div>
     </div>
 
-    <!-- Main Application Container -->
+    <!-- Main Application Container (Initially Hidden) -->
     <div id="app-container" class="hide">
         <div class="lms-layout gradient-bg">
             <!-- Sidebar Overlay for Mobile -->
@@ -2687,7 +3859,8 @@
                         <button id="sidebar-student-profile-btn" class="lms-nav-item student-only hide">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
+                                </path>
                             </svg>
                             My Profile
                         </button>
@@ -2709,11 +3882,13 @@
                             class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
                             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
+                                </path>
                             </svg>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p id="sidebar-user-email" class="text-sm text-white truncate"></p>
+                            <p id="sidebar-user-email" class="text-sm text-white truncate">
+                            </p>
                             <span id="sidebar-user-role" class="text-xs text-primary-400 font-medium"></span>
                         </div>
                     </div>
@@ -2748,8 +3923,10 @@
                                 <img src="/ng5-logo.png" alt="NG5 Logo" class="w-8 h-8 object-contain" loading="lazy">
                             </div>
                             <div class="flex flex-col leading-tight">
-                                <span class="text-white font-semibold text-sm sm:text-base tracking-wide">NG5 LMS</span>
-                                <span class="text-dark-400 text-xs hidden sm:block">Industry Dashboard</span>
+                                <span class="text-white font-semibold text-sm sm:text-base tracking-wide">NG5
+                                    LMS</span>
+                                <span class="text-dark-400 text-xs hidden sm:block">Industry
+                                    Dashboard</span>
                             </div>
                         </div>
 
@@ -2836,7 +4013,8 @@
                             <div class="glass-effect rounded-2xl p-6">
                                 <div
                                     class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
-                                    <h3 class="text-xl font-bold text-white">View Student Dashboard</h3>
+                                    <h3 class="text-xl font-bold text-white">View Student
+                                        Dashboard</h3>
                                     <div class="flex-1 max-w-md">
                                         <div class="relative">
                                             <input type="text" id="dashboard-student-search"
@@ -2845,7 +4023,8 @@
                                             <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-400"
                                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z">
+                                                </path>
                                             </svg>
                                         </div>
                                     </div>
@@ -2858,8 +4037,10 @@
                                     class="mt-4 p-4 rounded-lg bg-primary-500/10 border border-primary-500/30 hide">
                                     <div class="flex items-center justify-between">
                                         <div>
-                                            <p class="text-primary-300 text-sm">Viewing dashboard for:</p>
-                                            <p id="selected-student-name" class="text-white font-semibold text-lg"></p>
+                                            <p class="text-primary-300 text-sm">Viewing
+                                                dashboard for:</p>
+                                            <p id="selected-student-name" class="text-white font-semibold text-lg">
+                                            </p>
                                             <p id="selected-student-id" class="text-dark-300 text-sm"></p>
                                         </div>
                                         <button id="clear-student-selection"
@@ -2875,7 +4056,8 @@
                             <!-- Quick Stats Cards -->
                             <div class="glass-effect rounded-2xl p-6 card-hover">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Total Students</h3>
+                                    <h3 class="text-dark-200 font-semibold">Total Students
+                                    </h3>
                                     <div class="p-3 rounded-lg bg-primary-500/20">
                                         <svg class="w-6 h-6 text-primary-400" fill="none" stroke="currentColor"
                                             viewBox="0 0 24 24">
@@ -2890,7 +4072,8 @@
 
                             <div class="glass-effect rounded-2xl p-6 card-hover teacher-only admin-only hide">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Active Courses</h3>
+                                    <h3 class="text-dark-200 font-semibold">Active Courses
+                                    </h3>
                                     <div class="p-3 rounded-lg bg-green-500/20">
                                         <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor"
                                             viewBox="0 0 24 24">
@@ -2905,7 +4088,8 @@
 
                             <div class="glass-effect rounded-2xl p-6 card-hover">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Average Grade</h3>
+                                    <h3 class="text-dark-200 font-semibold">Average Grade
+                                    </h3>
                                     <div class="p-3 rounded-lg bg-yellow-500/20">
                                         <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor"
                                             viewBox="0 0 24 24">
@@ -2915,13 +4099,16 @@
                                         </svg>
                                     </div>
                                 </div>
-                                <p id="stats-avg-grade" class="text-4xl font-bold text-white">--</p>
-                                <p class="text-dark-400 text-sm mt-2" id="stats-grade-count">0 assignments</p>
+                                <p id="stats-avg-grade" class="text-4xl font-bold text-white">--
+                                </p>
+                                <p class="text-dark-400 text-sm mt-2" id="stats-grade-count">0
+                                    assignments</p>
                             </div>
 
                             <div class="glass-effect rounded-2xl p-6 card-hover">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Letter Grade</h3>
+                                    <h3 class="text-dark-200 font-semibold">Letter Grade
+                                    </h3>
                                     <div class="p-3 rounded-lg bg-purple-500/20">
                                         <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor"
                                             viewBox="0 0 24 24">
@@ -2937,7 +4124,8 @@
                             <!-- Attendance Rate Card (shown when student selected) -->
                             <div id="dashboard-attendance-card" class="glass-effect rounded-2xl p-6 card-hover hide">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Attendance Rate</h3>
+                                    <h3 class="text-dark-200 font-semibold">Attendance Rate
+                                    </h3>
                                     <div class="p-3 rounded-lg bg-blue-500/20">
                                         <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor"
                                             viewBox="0 0 24 24">
@@ -2958,7 +4146,8 @@
 
                         <!-- Recent Activity Section -->
                         <div class="mt-8">
-                            <h3 class="text-2xl font-bold text-white mb-4">Recent Activity</h3>
+                            <h3 class="text-2xl font-bold text-white mb-4">Recent Activity
+                            </h3>
                             <div id="recent-activity" class="space-y-3">
                                 <!-- Activity items will be dynamically added here -->
                                 <div class="glass-effect rounded-xl p-4 text-dark-300">
@@ -2974,7 +4163,8 @@
                             <!-- Student Selection Sidebar -->
                             <div class="lg:col-span-1">
                                 <div class="glass-effect rounded-2xl p-6 sticky top-24">
-                                    <h3 class="text-xl font-bold text-white mb-4">Select Student</h3>
+                                    <h3 class="text-xl font-bold text-white mb-4">Select
+                                        Student</h3>
                                     <select id="student-select"
                                         class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                         <option value="">-- Select a student --</option>
@@ -3069,7 +4259,8 @@
                                 <!-- Grade Entry Form (Teacher/Admin Only) -->
                                 <div id="grade-entry-section"
                                     class="teacher-only admin-only glass-effect rounded-2xl p-6 hide">
-                                    <h3 class="text-xl font-bold text-white mb-4">Add New Grade</h3>
+                                    <h3 class="text-xl font-bold text-white mb-4">Add New
+                                        Grade</h3>
                                     <form id="grade-entry-form" class="space-y-4">
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
@@ -3086,7 +4277,8 @@
                                                     class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                                     <option value="Quiz">Quiz</option>
                                                     <option value="Test">Test</option>
-                                                    <option value="Homework">Homework</option>
+                                                    <option value="Homework">Homework
+                                                    </option>
                                                     <option value="Project">Project</option>
                                                     <option value="Exam">Exam</option>
                                                 </select>
@@ -3115,16 +4307,19 @@
 
                                 <!-- Grades Table -->
                                 <div class="glass-effect rounded-2xl p-6">
-                                    <h3 class="text-xl font-bold text-white mb-4">Grade Records</h3>
+                                    <h3 class="text-xl font-bold text-white mb-4">Grade
+                                        Records</h3>
                                     <div class="overflow-x-auto">
                                         <table id="grades-table" class="w-full">
                                             <thead>
                                                 <tr class="border-b border-dark-600">
                                                     <th class="text-left py-3 px-4 text-dark-200 font-semibold">
                                                         Assignment</th>
-                                                    <th class="text-left py-3 px-4 text-dark-200 font-semibold">Category
+                                                    <th class="text-left py-3 px-4 text-dark-200 font-semibold">
+                                                        Category
                                                     </th>
-                                                    <th class="text-center py-3 px-4 text-dark-200 font-semibold">Score
+                                                    <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                                                        Score
                                                     </th>
                                                     <th class="text-center py-3 px-4 text-dark-200 font-semibold">
                                                         Percentage</th>
@@ -3156,7 +4351,8 @@
                                     <div class="flex items-center justify-between">
                                         <div>
                                             <p class="text-dark-400 text-sm">Total Days</p>
-                                            <p id="attendance-total" class="text-2xl font-bold text-white mt-1">0</p>
+                                            <p id="attendance-total" class="text-2xl font-bold text-white mt-1">0
+                                            </p>
                                         </div>
                                         <div class="p-3 rounded-lg bg-blue-500/20">
                                             <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor"
@@ -3172,14 +4368,16 @@
                                     <div class="flex items-center justify-between">
                                         <div>
                                             <p class="text-dark-400 text-sm">Present</p>
-                                            <p id="attendance-present" class="text-2xl font-bold text-green-400 mt-1">0
+                                            <p id="attendance-present" class="text-2xl font-bold text-green-400 mt-1">
+                                                0
                                             </p>
                                         </div>
                                         <div class="p-3 rounded-lg bg-green-500/20">
                                             <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor"
                                                 viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                </path>
                                             </svg>
                                         </div>
                                     </div>
@@ -3188,7 +4386,8 @@
                                     <div class="flex items-center justify-between">
                                         <div>
                                             <p class="text-dark-400 text-sm">Absent</p>
-                                            <p id="attendance-absent" class="text-2xl font-bold text-red-400 mt-1">0</p>
+                                            <p id="attendance-absent" class="text-2xl font-bold text-red-400 mt-1">
+                                                0</p>
                                         </div>
                                         <div class="p-3 rounded-lg bg-red-500/20">
                                             <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor"
@@ -3203,15 +4402,18 @@
                                 <div class="glass-effect rounded-xl p-4">
                                     <div class="flex items-center justify-between">
                                         <div>
-                                            <p class="text-dark-400 text-sm">Attendance Rate</p>
-                                            <p id="attendance-rate" class="text-2xl font-bold text-primary-400 mt-1">0%
+                                            <p class="text-dark-400 text-sm">Attendance Rate
+                                            </p>
+                                            <p id="attendance-rate" class="text-2xl font-bold text-primary-400 mt-1">
+                                                0%
                                             </p>
                                         </div>
                                         <div class="p-3 rounded-lg bg-primary-500/20">
                                             <svg class="w-6 h-6 text-primary-400" fill="none" stroke="currentColor"
                                                 viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6">
+                                                </path>
                                             </svg>
                                         </div>
                                     </div>
@@ -3220,7 +4422,8 @@
 
                             <!-- Mark Attendance Form (Teacher/Admin Only) -->
                             <div class="teacher-only admin-only glass-effect rounded-2xl p-6 hide">
-                                <h3 class="text-xl font-bold text-white mb-4">Mark Attendance</h3>
+                                <h3 class="text-xl font-bold text-white mb-4">Mark
+                                    Attendance</h3>
                                 <form id="mark-attendance-form" class="space-y-4">
                                     <div>
                                         <label class="block text-dark-200 text-sm font-semibold mb-2">Student</label>
@@ -3246,7 +4449,8 @@
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2"
-                                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                        </path>
                                                     </svg>
                                                     <span class="text-white text-sm font-semibold">Present</span>
                                                 </div>
@@ -3275,7 +4479,8 @@
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2"
-                                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                        </path>
                                                     </svg>
                                                     <span class="text-white text-sm font-semibold">Late</span>
                                                 </div>
@@ -3315,7 +4520,8 @@
                             <!-- Attendance History -->
                             <div class="lg:col-span-2 glass-effect rounded-2xl p-6">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-xl font-bold text-white">Attendance History</h3>
+                                    <h3 class="text-xl font-bold text-white">Attendance
+                                        History</h3>
                                     <button id="refresh-attendance-btn"
                                         class="px-4 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3331,16 +4537,21 @@
                                     <table class="w-full">
                                         <thead>
                                             <tr class="text-left border-b border-dark-700">
-                                                <th class="pb-3 text-dark-300 font-semibold">Date</th>
-                                                <th class="pb-3 text-dark-300 font-semibold">Student</th>
-                                                <th class="pb-3 text-dark-300 font-semibold text-center">Status</th>
-                                                <th class="pb-3 text-dark-300 font-semibold">Notes</th>
+                                                <th class="pb-3 text-dark-300 font-semibold">
+                                                    Date</th>
+                                                <th class="pb-3 text-dark-300 font-semibold">
+                                                    Student</th>
+                                                <th class="pb-3 text-dark-300 font-semibold text-center">
+                                                    Status</th>
+                                                <th class="pb-3 text-dark-300 font-semibold">
+                                                    Notes</th>
                                             </tr>
                                         </thead>
                                         <tbody id="attendance-history-body">
                                             <tr>
                                                 <td colspan="4" class="text-center py-8 text-dark-300">
-                                                    Select a student to view attendance history
+                                                    Select a student to view attendance
+                                                    history
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -3353,20 +4564,24 @@
                     <!-- Student Registration Tab (Admin Only) -->
                     <div id="registration-content" class="tab-content admin-only hide">
                         <div class="glass-effect rounded-2xl p-6">
-                            <h3 class="text-2xl font-bold text-white mb-6">Student Registration</h3>
+                            <h3 class="text-2xl font-bold text-white mb-6">Student
+                                Registration</h3>
 
                             <!-- Instructions -->
                             <div class="mb-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
                                 <h4 class="text-blue-400 font-semibold mb-2 flex items-center gap-2">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                        </path>
                                     </svg>
                                     Registration Instructions
                                 </h4>
                                 <p class="text-sm text-dark-300">
-                                    Fill in the student information below to register a new student in the system. All
-                                    fields marked with <span class="text-red-400">*</span> are required.
+                                    Fill in the student information below to register a new
+                                    student in the system. All
+                                    fields marked with <span class="text-red-400">*</span>
+                                    are required.
                                 </p>
                             </div>
 
@@ -3431,7 +4646,8 @@
                                             <div class="flex gap-2">
                                                 <select id="student-account-select"
                                                     class="flex-1 px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                                    <option value="">-- Select Registered Account --</option>
+                                                    <option value="">-- Select Registered
+                                                        Account --</option>
                                                 </select>
                                                 <button type="button" id="refresh-accounts-btn"
                                                     class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
@@ -3447,7 +4663,8 @@
                                             </div>
                                             <button type="button" id="use-manual-uid-btn"
                                                 class="text-sm text-blue-400 hover:text-blue-300 underline">
-                                                Or enter UID manually (Cloud Functions not deployed?)
+                                                Or enter UID manually (Cloud Functions not
+                                                deployed?)
                                             </button>
                                         </div>
 
@@ -3466,9 +4683,11 @@
                                                 <ol class="ml-4 mt-1 list-decimal">
                                                     <li>Go to <a
                                                             href="https://console.firebase.google.com/project/YOUR_PROJECT_ID/authentication/users"
-                                                            target="_blank" class="underline">Firebase Console →
+                                                            target="_blank" class="underline">Firebase
+                                                            Console →
                                                             Authentication</a></li>
-                                                    <li>Find student's email in Users list</li>
+                                                    <li>Find student's email in Users list
+                                                    </li>
                                                     <li>Copy their "User UID"</li>
                                                     <li>Paste it above</li>
                                                 </ol>
@@ -3480,7 +4699,8 @@
 
                                         <p class="text-xs text-dark-400 mt-2">
                                             🔗 Student must create an account first!
-                                            <span class="text-blue-400">Get UID from Firebase Console →
+                                            <span class="text-blue-400">Get UID from
+                                                Firebase Console →
                                                 Authentication</span>
                                         </p>
                                     </div>
@@ -3498,7 +4718,8 @@
                                 </div>
 
                                 <!-- Error Message -->
-                                <div id="registration-error" class="text-red-400 text-sm hide"></div>
+                                <div id="registration-error" class="text-red-400 text-sm hide">
+                                </div>
 
                                 <!-- Success Message -->
                                 <div id="registration-success" class="text-green-400 text-sm hide"></div>
@@ -3513,17 +4734,23 @@
 
                         <!-- Registered Students List -->
                         <div class="glass-effect rounded-2xl p-6 mt-6">
-                            <h3 class="text-xl font-bold text-white mb-4">Registered Students</h3>
+                            <h3 class="text-xl font-bold text-white mb-4">Registered
+                                Students</h3>
                             <div class="overflow-x-auto">
                                 <table class="w-full">
                                     <thead>
                                         <tr class="border-b border-dark-600">
-                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">Member ID</th>
-                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">Name</th>
-                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">Year of Birth
+                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">
+                                                Member ID</th>
+                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">
+                                                Name</th>
+                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                                                Year of Birth
                                             </th>
-                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">Contact</th>
-                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">Actions</th>
+                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">
+                                                Contact</th>
+                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                                                Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="registered-students-table-body">
@@ -3578,7 +4805,8 @@
                                         </div>
 
                                         <div>
-                                            <label class="block text-dark-200 text-sm font-semibold mb-2">Year of
+                                            <label class="block text-dark-200 text-sm font-semibold mb-2">Year
+                                                of
                                                 Birth</label>
                                             <div
                                                 class="px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white">
@@ -3587,7 +4815,8 @@
                                         </div>
 
                                         <div>
-                                            <label class="block text-dark-200 text-sm font-semibold mb-2">Account ID
+                                            <label class="block text-dark-200 text-sm font-semibold mb-2">Account
+                                                ID
                                                 (UID)</label>
                                             <div
                                                 class="px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white font-mono text-sm">
@@ -3646,7 +4875,8 @@
                                                 <svg id="password-eye-icon" class="w-5 h-5" fill="none"
                                                     stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                        stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
+                                                    </path>
                                                     <path stroke-linecap="round" stroke-linejoin="round"
                                                         stroke-width="2"
                                                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
@@ -3661,8 +4891,10 @@
                                                     d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
                                                 </path>
                                             </svg>
-                                            Passwords are encrypted for security and cannot be displayed. Contact your
-                                            administrator if you need to reset your password.
+                                            Passwords are encrypted for security and cannot
+                                            be displayed. Contact your
+                                            administrator if you need to reset your
+                                            password.
                                         </p>
                                     </div>
                                 </div>
@@ -3701,7 +4933,8 @@
                                             </div>
                                             <div
                                                 class="absolute -bottom-1 -right-1 w-5 h-5 bg-accent-500 rounded-full border-2 border-dark-900 flex items-center justify-center">
-                                                <div class="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                                                <div class="w-2 h-2 bg-white rounded-full animate-ping">
+                                                </div>
                                             </div>
                                         </div>
                                         <div>
@@ -3729,7 +4962,8 @@
                                                     d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
                                                 </path>
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
+                                                </path>
                                             </svg>
                                         </button>
                                         <button id="clear-chat-btn"
@@ -3763,11 +4997,14 @@
                                         <div
                                             class="glass-effect rounded-2xl rounded-tl-sm p-5 border border-primary-500/20 hover:border-primary-500/40 transition-all">
                                             <p class="text-white font-semibold text-lg mb-2 flex items-center gap-2">
-                                                <span>👋</span> Welcome! I'm your AI Educational Advisor
+                                                <span>👋</span> Welcome! I'm your AI
+                                                Educational Advisor
                                             </p>
                                             <p class="text-dark-300 mb-4 leading-relaxed">
-                                                I have access to your complete Firebase database including student
-                                                records, grades, and attendance data. I can provide data-driven insights
+                                                I have access to your complete Firebase
+                                                database including student
+                                                records, grades, and attendance data. I can
+                                                provide data-driven insights
                                                 and recommendations.
                                             </p>
 
@@ -3786,8 +5023,10 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">Student Profiles</p>
-                                                        <p class="text-dark-400 text-xs">View & analyze records</p>
+                                                        <p class="text-white text-sm font-medium">
+                                                            Student Profiles</p>
+                                                        <p class="text-dark-400 text-xs">
+                                                            View & analyze records</p>
                                                     </div>
                                                 </div>
                                                 <div
@@ -3803,8 +5042,10 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">Grade Analytics</p>
-                                                        <p class="text-dark-400 text-xs">Performance insights</p>
+                                                        <p class="text-white text-sm font-medium">
+                                                            Grade Analytics</p>
+                                                        <p class="text-dark-400 text-xs">
+                                                            Performance insights</p>
                                                     </div>
                                                 </div>
                                                 <div
@@ -3820,8 +5061,10 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">Attendance</p>
-                                                        <p class="text-dark-400 text-xs">Track patterns</p>
+                                                        <p class="text-white text-sm font-medium">
+                                                            Attendance</p>
+                                                        <p class="text-dark-400 text-xs">
+                                                            Track patterns</p>
                                                     </div>
                                                 </div>
                                                 <div
@@ -3836,13 +5079,16 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">Trends</p>
-                                                        <p class="text-dark-400 text-xs">Predictive analysis</p>
+                                                        <p class="text-white text-sm font-medium">
+                                                            Trends</p>
+                                                        <p class="text-dark-400 text-xs">
+                                                            Predictive analysis</p>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <p class="text-dark-500 text-xs mt-2 ml-2">Just now</p>
+                                        <p class="text-dark-500 text-xs mt-2 ml-2">Just now
+                                        </p>
                                     </div>
                                 </div>
 
@@ -3852,7 +5098,8 @@
                                     <p class="w-full text-dark-400 text-sm mb-1 flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                                d="M13 10V3L4 14h7v7l9-11h-7z">
+                                            </path>
                                         </svg>
                                         Quick questions to get started:
                                     </p>
@@ -3911,7 +5158,8 @@
                                             Be specific for better results
                                         </span>
                                     </div>
-                                    <span id="ai-char-count" class="text-dark-500 text-xs">0 / 500</span>
+                                    <span id="ai-char-count" class="text-dark-500 text-xs">0
+                                        / 500</span>
                                 </div>
 
                                 <div class="flex gap-3 items-end">
@@ -3953,7 +5201,8 @@
                     <div id="users-content" class="tab-content admin-only hide">
                         <div class="glass-effect rounded-2xl p-6">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="text-2xl font-bold text-white">User Management</h3>
+                                <h3 class="text-2xl font-bold text-white">User Management
+                                </h3>
                                 <button id="refresh-users-btn"
                                     class="px-4 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-all">
                                     <span class="flex items-center gap-2">
@@ -3969,7 +5218,8 @@
 
                             <div class="mb-4 p-4 bg-primary-500/10 border border-primary-500/30 rounded-lg">
                                 <p class="text-sm text-primary-300">
-                                    <strong>Automated:</strong> New users automatically get "Student" role when they
+                                    <strong>Automated:</strong> New users automatically get
+                                    "Student" role when they
                                     sign up.
                                     Use this panel to promote users to Teacher or Admin.
                                 </p>
@@ -3979,17 +5229,22 @@
                                 <table class="w-full">
                                     <thead>
                                         <tr class="border-b border-dark-600">
-                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">Email</th>
-                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">Current Role
+                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">
+                                                Email</th>
+                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                                                Current Role
                                             </th>
-                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">User ID</th>
-                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">Actions</th>
+                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                                                User ID</th>
+                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                                                Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="users-table-body">
                                         <tr>
                                             <td colspan="4" class="text-center py-8 text-dark-300">
-                                                <div class="loading-spinner mx-auto mb-2"></div>
+                                                <div class="loading-spinner mx-auto mb-2">
+                                                </div>
                                                 Loading users...
                                             </td>
                                         </tr>
@@ -4017,7 +5272,8 @@
         class="fixed inset-0 bg-dark-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 hide">
         <div class="glass-effect rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div class="flex justify-between items-start mb-4">
-                <h3 id="ai-modal-title" class="text-2xl font-bold text-white">AI Results</h3>
+                <h3 id="ai-modal-title" class="text-2xl font-bold text-white">AI Results
+                </h3>
                 <button id="ai-modal-close" class="p-2 rounded-lg hover:bg-dark-700 transition-all">
                     <svg class="w-6 h-6 text-dark-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
@@ -5988,6 +7244,101 @@
         window.copyAIResponse = copyAIResponse;
 
         console.log('✨ [AI] AI Assistant enhancements loaded');
+    </script>
+
+    <!-- Login Page Premium Animations -->
+    <script>
+        (function initLoginAnimations() {
+            // Typewriter effect
+            const subtitleEl = document.getElementById('typewriter-subtitle');
+            if (subtitleEl) {
+                const text = 'Experience the next generation of intelligent learning';
+                let i = 0;
+                subtitleEl.style.borderRight = '2px solid var(--login-accent-1, #8B2942)';
+
+                function typeWriter() {
+                    if (i < text.length) {
+                        subtitleEl.textContent += text.charAt(i);
+                        i++;
+                        setTimeout(typeWriter, 50);
+                    } else {
+                        // Remove cursor after typing completes
+                        setTimeout(() => {
+                            subtitleEl.style.borderRight = 'none';
+                        }, 1500);
+                    }
+                }
+
+                // Start after initial animations
+                setTimeout(typeWriter, 1200);
+            }
+
+            // Button ripple effect
+            document.querySelectorAll('.btn-primary').forEach(button => {
+                button.addEventListener('click', function (e) {
+                    const rect = this.getBoundingClientRect();
+                    const ripple = document.createElement('span');
+                    ripple.className = 'ripple';
+                    ripple.style.left = (e.clientX - rect.left) + 'px';
+                    ripple.style.top = (e.clientY - rect.top) + 'px';
+                    this.appendChild(ripple);
+                    setTimeout(() => ripple.remove(), 600);
+                });
+            });
+
+            // Enhanced input focus animations
+            document.querySelectorAll('.input-wrapper input').forEach(input => {
+                input.addEventListener('focus', function () {
+                    this.parentElement.classList.add('focused');
+                });
+                input.addEventListener('blur', function () {
+                    this.parentElement.classList.remove('focused');
+                });
+            });
+
+            // Magnetic effect on logo hover
+            const logoContainer = document.querySelector('.ng5-logo-container');
+            const logo = document.querySelector('.ng5-logo');
+            if (logoContainer && logo) {
+                logoContainer.addEventListener('mousemove', (e) => {
+                    const rect = logoContainer.getBoundingClientRect();
+                    const x = e.clientX - rect.left - rect.width / 2;
+                    const y = e.clientY - rect.top - rect.height / 2;
+
+                    logo.style.transform = `translate(${x * 0.1}px, ${y * 0.1}px)`;
+                });
+
+                logoContainer.addEventListener('mouseleave', () => {
+                    logo.style.transform = '';
+                });
+            }
+
+            // Tab switching animation
+            const tabs = document.querySelectorAll('.tab-btn');
+            const loginForm = document.getElementById('login-form-container');
+            const signupForm = document.getElementById('signup-form-container');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function () {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+
+                    if (this.id === 'login-tab-btn') {
+                        signupForm?.classList.add('hide');
+                        loginForm?.classList.remove('hide');
+                        loginForm?.classList.add('form-slide-in');
+                        setTimeout(() => loginForm?.classList.remove('form-slide-in'), 400);
+                    } else {
+                        loginForm?.classList.add('hide');
+                        signupForm?.classList.remove('hide');
+                        signupForm?.classList.add('form-slide-in');
+                        setTimeout(() => signupForm?.classList.remove('form-slide-in'), 400);
+                    }
+                });
+            });
+
+            console.log('✨ [Login] Premium animations initialized');
+        })();
     </script>
 
     <script type="module" src="/src/main.ts"></script>

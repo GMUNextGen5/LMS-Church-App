@@ -313,10 +313,11 @@
 import './firebase';
 import { auth } from './firebase';
 import { initAuth, signUp, signIn, logout } from './auth';
-import { 
-  initUI, 
-  showAuthContainer, 
-  showAppContainer, 
+import { ParticleSystem } from './particles';
+import {
+  initUI,
+  showAuthContainer,
+  showAppContainer,
   configureUIForRole,
   showError,
   clearError,
@@ -326,11 +327,12 @@ import {
   logoutBtn,
   loginError,
   signupError,
-  getCurrentUserRole
+  getCurrentUserRole,
+  sanitizeHTML  // SECURITY: Import sanitizeHTML for XSS protection
 } from './ui';
-import { 
-  fetchStudents, 
-  addGrade, 
+import {
+  fetchStudents,
+  addGrade,
   deleteGrade,
   listenToGrades,
   exportGradesToCSV,
@@ -349,17 +351,17 @@ let gradesUnsubscribe: (() => void) | null = null;
 // Initialize the application
 async function init(): Promise<void> {
   console.log('🚀 Initializing LMS Application...');
-  
+
   // Initialize UI event listeners
   initUI();
-  
+
   // Initialize authentication state
   initAuth(handleAuthStateChange);
-  
+
   // Setup form handlers
   setupAuthForms();
   setupAppForms();
-  
+
   // Listen for tab switches to load data
   document.addEventListener('tab-switched', async (e: any) => {
     const tab = e.detail?.tab;
@@ -371,8 +373,15 @@ async function init(): Promise<void> {
       await loadRecentActivity();
     }
   });
-  
+
   console.log('✅ Application initialized');
+
+  // Initialize particles
+  try {
+    new ParticleSystem('background-canvas');
+  } catch (e) {
+    console.log('Background canvas not found or already initialized');
+  }
 }
 
 // Handle authentication state changes
@@ -381,16 +390,16 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     // User is logged in
     showAppContainer();
     configureUIForRole(user);
-    
+
     // Update sidebar user info
     const userRole = getCurrentUserRole();
     if (typeof (window as any).updateSidebarUserInfo === 'function') {
       (window as any).updateSidebarUserInfo(user.email, userRole);
     }
-    
+
     // Load initial data
     await loadDashboardData();
-    
+
     // Ensure dashboard is the default active tab
     document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.add('hide');
@@ -399,7 +408,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     if (dashboardContent) {
       dashboardContent.classList.remove('hide');
     }
-    
+
     // Ensure dashboard tab button is active (old tabs)
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.remove('tab-active');
@@ -410,7 +419,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       dashboardTabBtn.classList.add('tab-active');
       dashboardTabBtn.classList.remove('text-dark-300');
     }
-    
+
     // Ensure sidebar nav item is active (new sidebar)
     document.querySelectorAll('.lms-nav-item[data-tab]').forEach(item => {
       item.classList.remove('active');
@@ -419,7 +428,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     if (dashboardNavItem) {
       dashboardNavItem.classList.add('active');
     }
-    
+
     // Update breadcrumb
     const breadcrumb = document.getElementById('breadcrumb-current');
     if (breadcrumb) {
@@ -438,11 +447,11 @@ function setupAuthForms(): void {
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError(loginError);
-    
+
     const formData = new FormData(loginForm);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
-    
+
     try {
       await signIn(email, password);
       loginForm.reset();
@@ -450,38 +459,38 @@ function setupAuthForms(): void {
       showError(loginError, error.message);
     }
   });
-  
+
   // Signup form
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError(signupError);
-    
+
     const formData = new FormData(signupForm);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
-    
+
     // Validate passwords match
     if (password !== confirmPassword) {
       showError(signupError, 'Passwords do not match');
       return;
     }
-    
+
     try {
       console.log('🚀 [Signup] Starting signup process...');
       const uid = await signUp(email, password);
-      
+
       // Show UID to user immediately after signup
       console.log('🎉 [Signup] Account created! Displaying UID to user...');
       showUidModal(uid, email);
-      
+
       signupForm.reset();
     } catch (error: any) {
       console.error('❌ [Signup] Signup failed:', error);
       showError(signupError, error.message);
     }
   });
-  
+
   // Logout button
   logoutBtn.addEventListener('click', async () => {
     try {
@@ -499,14 +508,14 @@ function setupAppForms(): void {
   if (studentRegForm) {
     studentRegForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const errorEl = document.getElementById('registration-error')!;
       const successEl = document.getElementById('registration-success')!;
       errorEl.classList.add('hide');
       successEl.classList.add('hide');
-      
+
       const formData = new FormData(studentRegForm);
-      
+
       // DEBUG: Log form data to check what we're submitting
       console.log('📝 [Student Registration] Form data:', {
         name: formData.get('studentName'),
@@ -517,7 +526,7 @@ function setupAppForms(): void {
         studentUid: formData.get('studentUid'),
         notes: formData.get('notes')
       });
-      
+
       const studentData = {
         name: formData.get('studentName') as string,
         memberId: formData.get('memberId') as string,
@@ -528,24 +537,24 @@ function setupAppForms(): void {
         parentUid: formData.get('studentUid') as string, // Same as studentUid for now
         notes: formData.get('notes') as string || ''
       };
-      
+
       try {
         const { showLoading } = await import('./ui');
         const { createStudent } = await import('./data');
-        
+
         showLoading();
-        
+
         const studentId = await createStudent(studentData);
-        
+
         successEl.textContent = `✅ Student "${studentData.name}" registered successfully! (ID: ${studentId})`;
         successEl.classList.remove('hide');
-        
+
         studentRegForm.reset();
-        
+
         // Reload students list
         await loadDashboardData();
         await loadRegisteredStudents();
-        
+
         console.log('✅ Student registered successfully');
       } catch (error: any) {
         console.error('Error registering student:', error);
@@ -557,13 +566,13 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Student selection
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement;
   studentSelect.addEventListener('change', (e) => {
     const target = e.target as HTMLSelectElement;
     selectedStudentId = target.value;
-    
+
     // Show/hide PDF report buttons
     const pdfSection = document.getElementById('pdf-report-section');
     if (pdfSection) {
@@ -575,25 +584,25 @@ function setupAppForms(): void {
         console.log('📄 [PDF] PDF buttons hidden');
       }
     }
-    
+
     if (selectedStudentId) {
       loadStudentGrades(selectedStudentId);
     } else {
       displayGrades([]);
     }
   });
-  
+
   // Grade entry form (Teacher/Admin only)
   const gradeEntryForm = document.getElementById('grade-entry-form') as HTMLFormElement;
   if (gradeEntryForm) {
     gradeEntryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       if (!selectedStudentId) {
         alert('Please select a student first');
         return;
       }
-      
+
       const formData = new FormData(gradeEntryForm);
       const gradeData = {
         assignmentName: formData.get('assignmentName') as string,
@@ -603,7 +612,7 @@ function setupAppForms(): void {
         teacherId: '', // Will be set by addGrade function
         date: new Date().toISOString()
       };
-      
+
       try {
         await addGrade(selectedStudentId, gradeData);
         gradeEntryForm.reset();
@@ -613,7 +622,7 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Export CSV button
   const exportCsvBtn = document.getElementById('export-csv-btn');
   if (exportCsvBtn) {
@@ -622,14 +631,14 @@ function setupAppForms(): void {
         alert('No grades to export. Please select a student with grades.');
         return;
       }
-      
+
       const student = currentStudents.find(s => s.id === selectedStudentId);
       const studentName = student ? student.name : 'Unknown';
-      
+
       exportGradesToCSV(currentGrades, studentName);
     });
   }
-  
+
   // AI Summary button (Student only)
   const aiSummaryBtn = document.getElementById('ai-summary-btn');
   if (aiSummaryBtn) {
@@ -638,11 +647,11 @@ function setupAppForms(): void {
         alert('Please select a student first');
         return;
       }
-      
+
       await generatePerformanceSummary(selectedStudentId);
     });
   }
-  
+
   // Study Tips button (Student only)
   const studyTipsBtn = document.getElementById('study-tips-btn');
   if (studyTipsBtn) {
@@ -651,11 +660,11 @@ function setupAppForms(): void {
         alert('Please select a student first');
         return;
       }
-      
+
       await generateStudyTips(selectedStudentId);
     });
   }
-  
+
   // Refresh Users button (Admin only)
   const refreshUsersBtn = document.getElementById('refresh-users-btn');
   if (refreshUsersBtn) {
@@ -663,7 +672,7 @@ function setupAppForms(): void {
       await loadAllUsers();
     });
   }
-  
+
   // Refresh Accounts button for student registration
   const refreshAccountsBtn = document.getElementById('refresh-accounts-btn');
   if (refreshAccountsBtn) {
@@ -671,34 +680,34 @@ function setupAppForms(): void {
       await populateStudentAccountDropdown();
     });
   }
-  
+
   // AI Agent Chat (Admin only)
   setupAIAgentChat();
-  
+
   // Toggle between dropdown and manual UID input
   const useManualBtn = document.getElementById('use-manual-uid-btn');
   const useDropdownBtn = document.getElementById('use-dropdown-btn');
   const dropdownMethod = document.getElementById('dropdown-method');
   const manualMethod = document.getElementById('manual-method');
-  
+
   if (useManualBtn && useDropdownBtn && dropdownMethod && manualMethod) {
     useManualBtn.addEventListener('click', () => {
       console.log('💡 [UID Input] Switching to manual UID entry mode');
       dropdownMethod.classList.add('hide');
       manualMethod.classList.remove('hide');
     });
-    
+
     useDropdownBtn.addEventListener('click', () => {
       console.log('💡 [UID Input] Switching back to dropdown mode');
       manualMethod.classList.add('hide');
       dropdownMethod.classList.remove('hide');
     });
   }
-  
+
   // Sync dropdown selection to hidden field
   const accountSelect = document.getElementById('student-account-select') as HTMLSelectElement;
   const finalUidInput = document.getElementById('final-student-uid') as HTMLInputElement;
-  
+
   if (accountSelect && finalUidInput) {
     accountSelect.addEventListener('change', () => {
       const selectedUid = accountSelect.value;
@@ -706,7 +715,7 @@ function setupAppForms(): void {
       console.log('🔗 [UID Input] Dropdown selected UID:', selectedUid);
     });
   }
-  
+
   // Sync manual input to hidden field
   const manualUidInput = document.getElementById('manual-student-uid') as HTMLInputElement;
   if (manualUidInput && finalUidInput) {
@@ -716,7 +725,7 @@ function setupAppForms(): void {
       console.log('✏️ [UID Input] Manual UID entered:', manualUid);
     });
   }
-  
+
   // Mark Attendance Form (Teacher/Admin only)
   const markAttendanceForm = document.getElementById('mark-attendance-form') as HTMLFormElement;
   if (markAttendanceForm) {
@@ -725,49 +734,49 @@ function setupAppForms(): void {
     if (dateInput) {
       dateInput.valueAsDate = new Date();
     }
-    
+
     markAttendanceForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const errorEl = document.getElementById('mark-attendance-error')!;
       const successEl = document.getElementById('mark-attendance-success')!;
       errorEl.classList.add('hide');
       successEl.classList.add('hide');
-      
+
       const formData = new FormData(markAttendanceForm);
       const studentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
       const attendanceStudentId = studentSelect.value;
-      
+
       if (!attendanceStudentId) {
         errorEl.textContent = 'Please select a student';
         errorEl.classList.remove('hide');
         return;
       }
-      
+
       const attendanceData = {
         date: formData.get('date') as string,
         status: formData.get('status') as 'present' | 'absent' | 'late' | 'excused',
         notes: formData.get('notes') as string || '',
         markedBy: '' // Will be filled by the backend
       };
-      
+
       try {
         const { showLoading } = await import('./ui');
         showLoading();
-        
+
         await markAttendance(attendanceStudentId, attendanceData);
-        
+
         successEl.textContent = '✅ Attendance marked successfully!';
         successEl.classList.remove('hide');
-        
+
         markAttendanceForm.reset();
         dateInput.valueAsDate = new Date();
-        
+
         // Reload attendance if viewing this student
         if (selectedStudentId === attendanceStudentId) {
           await loadStudentAttendance(attendanceStudentId);
         }
-        
+
         console.log('✅ Attendance marked successfully');
       } catch (error: any) {
         console.error('Error marking attendance:', error);
@@ -779,14 +788,14 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Attendance student selector change
   const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
   if (attendanceStudentSelect) {
     attendanceStudentSelect.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const studentId = target.value;
-      
+
       if (studentId) {
         await loadStudentAttendance(studentId);
       } else {
@@ -794,7 +803,7 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Refresh Attendance button
   const refreshAttendanceBtn = document.getElementById('refresh-attendance-btn');
   if (refreshAttendanceBtn) {
@@ -806,7 +815,7 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Dashboard student selection (Admin/Teacher)
   const dashboardStudentSelect = document.getElementById('dashboard-student-select') as HTMLSelectElement;
   const dashboardStudentSearch = document.getElementById('dashboard-student-search') as HTMLInputElement;
@@ -815,13 +824,13 @@ function setupAppForms(): void {
   const selectedStudentIdEl = document.getElementById('selected-student-id');
   const clearStudentSelection = document.getElementById('clear-student-selection');
   const dashboardAttendanceCard = document.getElementById('dashboard-attendance-card');
-  
+
   // Dashboard student select change
   if (dashboardStudentSelect) {
     dashboardStudentSelect.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const studentId = target.value;
-      
+
       if (studentId) {
         const student = currentStudents.find(s => s.id === studentId);
         if (student) {
@@ -831,11 +840,11 @@ function setupAppForms(): void {
             selectedStudentIdEl.textContent = `Member ID: ${student.memberId || 'N/A'}`;
             selectedStudentInfo.classList.remove('hide');
           }
-          
+
           // Load student data
           await loadStudentGrades(studentId);
           await loadStudentAttendance(studentId);
-          
+
           // Update dashboard stats for selected student
           updateDashboardStatsForStudent(studentId);
         }
@@ -853,30 +862,30 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Dashboard student search
   if (dashboardStudentSearch && dashboardStudentSelect) {
     dashboardStudentSearch.addEventListener('input', (e) => {
       const searchTerm = (e.target as HTMLInputElement).value.toLowerCase().trim();
       const options = dashboardStudentSelect.querySelectorAll('option');
-      
+
       options.forEach(option => {
         if (option.value === '') {
           // Keep the default option visible
           return;
         }
-        
+
         const name = option.getAttribute('data-name') || '';
         const memberId = option.getAttribute('data-member-id') || '';
         const text = option.textContent?.toLowerCase() || '';
-        
+
         if (searchTerm === '' || name.includes(searchTerm) || memberId.includes(searchTerm) || text.includes(searchTerm)) {
           option.style.display = '';
         } else {
           option.style.display = 'none';
         }
       });
-      
+
       // If search matches exactly one option, highlight it
       const visibleOptions = Array.from(options).filter(opt => opt.style.display !== 'none' && opt.value !== '');
       if (visibleOptions.length === 1 && searchTerm) {
@@ -885,7 +894,7 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Clear student selection button
   if (clearStudentSelection) {
     clearStudentSelection.addEventListener('click', () => {
@@ -898,7 +907,7 @@ function setupAppForms(): void {
       }
     });
   }
-  
+
   // Student Profile button (Student only)
   const studentProfileBtn = document.getElementById('student-profile-btn');
   if (studentProfileBtn) {
@@ -907,18 +916,18 @@ function setupAppForms(): void {
       document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.add('hide');
       });
-      
+
       // Show student profile content
       const profileContent = document.getElementById('student-profile-content');
       if (profileContent) {
         profileContent.classList.remove('hide');
       }
-      
+
       // Load student profile data
       loadStudentProfile();
     });
   }
-  
+
 }
 
 /**
@@ -933,28 +942,28 @@ async function loadDashboardData(): Promise<void> {
   try {
     // Load students
     currentStudents = await fetchStudents();
-    
+
     // Update student dropdown
     updateStudentSelect();
-    
+
     // Update dashboard stats
     updateDashboardStats();
-    
+
     // Load recent activity for dashboard
     await loadRecentActivity();
-    
+
     // Load registered students table if on registration tab
     await loadRegisteredStudents();
-    
+
     // Load users table if on user management tab
     await loadAllUsers();
-    
+
     // Populate student account dropdown for registration
     await populateStudentAccountDropdown();
-    
+
     // Display UID for students in dashboard
     displayStudentUid();
-    
+
     console.log('✅ Dashboard data loaded');
   } catch (error) {
     console.error('Error loading dashboard data:', error);
@@ -965,14 +974,14 @@ async function loadDashboardData(): Promise<void> {
 async function loadRegisteredStudents(): Promise<void> {
   const tableBody = document.getElementById('registered-students-table-body');
   if (!tableBody) return;
-  
+
   try {
     const { getCurrentUserRole } = await import('./ui');
     const role = getCurrentUserRole();
-    
+
     // Only show for admins
     if (role !== 'admin') return;
-    
+
     if (currentStudents.length === 0) {
       tableBody.innerHTML = `
         <tr>
@@ -983,7 +992,7 @@ async function loadRegisteredStudents(): Promise<void> {
       `;
       return;
     }
-    
+
     tableBody.innerHTML = currentStudents.map(student => `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
         <td class="py-3 px-4 text-white font-semibold">${student.memberId || 'N/A'}</td>
@@ -1012,16 +1021,16 @@ async function loadRegisteredStudents(): Promise<void> {
 async function loadAllUsers(): Promise<void> {
   const tableBody = document.getElementById('users-table-body');
   if (!tableBody) return;
-  
+
   try {
     const { getCurrentUserRole } = await import('./ui');
     const role = getCurrentUserRole();
-    
+
     // Only load for admins
     if (role !== 'admin') return;
-    
+
     const { functions, httpsCallable } = await import('./firebase');
-    
+
     tableBody.innerHTML = `
       <tr>
         <td colspan="4" class="text-center py-8 text-dark-300">
@@ -1030,12 +1039,12 @@ async function loadAllUsers(): Promise<void> {
         </td>
       </tr>
     `;
-    
+
     const getAllUsers = httpsCallable(functions, 'getAllUsers');
     const result = await getAllUsers({});
     const data = result.data as any;
     const users = data.users || [];
-    
+
     if (users.length === 0) {
       tableBody.innerHTML = `
         <tr>
@@ -1046,7 +1055,7 @@ async function loadAllUsers(): Promise<void> {
       `;
       return;
     }
-    
+
     // Get role badge color
     const getRoleBadgeClass = (role: string) => {
       switch (role) {
@@ -1056,7 +1065,7 @@ async function loadAllUsers(): Promise<void> {
         default: return 'bg-gray-500/20 text-gray-400';
       }
     };
-    
+
     tableBody.innerHTML = users.map((user: any) => `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
         <td class="py-3 px-4 text-white">${user.email}</td>
@@ -1076,7 +1085,7 @@ async function loadAllUsers(): Promise<void> {
         </td>
       </tr>
     `).join('');
-    
+
     console.log('✅ Loaded', users.length, 'users');
   } catch (error) {
     console.error('Error loading users:', error);
@@ -1110,65 +1119,65 @@ async function populateStudentAccountDropdown(): Promise<void> {
     console.log('⚠️ [populateStudentAccountDropdown] student-account-select element not found');
     return;
   }
-  
+
   try {
     const { getCurrentUserRole } = await import('./ui');
     const role = getCurrentUserRole();
-    
+
     // Only populate for admins
     if (role !== 'admin') {
       console.log('⚠️ [populateStudentAccountDropdown] User is not admin, skipping');
       return;
     }
-    
+
     console.log('🔍 [populateStudentAccountDropdown] Attempting to fetch registered accounts...');
-    
+
     const { functions, httpsCallable } = await import('./firebase');
     const getAllUsers = httpsCallable(functions, 'getAllUsers');
-    
+
     // Set a timeout to prevent hanging
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Request timed out')), 5000);
     });
-    
+
     const result: any = await Promise.race([
       getAllUsers({}),
       timeoutPromise
     ]);
-    
+
     const data = result.data as any;
     const users = data.users || [];
-    
+
     // Clear existing options except the default
     accountSelect.innerHTML = '<option value="">-- Select Registered Account --</option>';
-    
+
     // Add all users (sorted by email)
     users.sort((a: any, b: any) => a.email.localeCompare(b.email));
-    
+
     users.forEach((user: any) => {
       const option = document.createElement('option');
       option.value = user.uid;
-      
+
       // Show email, display name (if any), and role
       let displayText = user.email;
       if (user.displayName) {
         displayText += ` (${user.displayName})`;
       }
       displayText += ` - ${user.role}`;
-      
+
       option.textContent = displayText;
       accountSelect.appendChild(option);
     });
-    
+
     console.log(`✅ [populateStudentAccountDropdown] Loaded ${users.length} accounts into dropdown`);
     console.log('💡 [populateStudentAccountDropdown] Dropdown ready! Students must create an account BEFORE linking.');
-    
+
   } catch (error: any) {
     // Fail silently if Cloud Functions aren't deployed
     console.warn('⚠️ [populateStudentAccountDropdown] Could not load accounts from Cloud Functions');
     console.warn('   This is expected if Cloud Functions are not deployed (requires Blaze plan)');
     console.warn('   👉 Use "Enter UID manually" option below the dropdown');
-    
+
     // Update dropdown to show helpful message
     accountSelect.innerHTML = '<option value="">Cloud Functions not deployed - use manual entry</option>';
   }
@@ -1186,14 +1195,14 @@ async function populateStudentAccountDropdown(): Promise<void> {
  */
 function updateStudentSelect(): void {
   console.log(`🔄 [updateStudentSelect] Updating dropdowns with ${currentStudents.length} students`);
-  
+
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement;
   const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
   const dashboardStudentSelect = document.getElementById('dashboard-student-select') as HTMLSelectElement;
-  
+
   // Clear existing options (except the default)
   studentSelect.innerHTML = '<option value="">-- Select a student --</option>';
-  
+
   // Add student options to grades dropdown
   currentStudents.forEach(student => {
     const option = document.createElement('option');
@@ -1202,7 +1211,7 @@ function updateStudentSelect(): void {
     studentSelect.appendChild(option);
   });
   console.log(`✅ [updateStudentSelect] Added ${currentStudents.length} students to grades dropdown`);
-  
+
   // Also update attendance student select
   if (attendanceStudentSelect) {
     attendanceStudentSelect.innerHTML = '<option value="">-- Select a student --</option>';
@@ -1214,7 +1223,7 @@ function updateStudentSelect(): void {
     });
     console.log(`✅ [updateStudentSelect] Added ${currentStudents.length} students to attendance dropdown`);
   }
-  
+
   // Update dashboard student select (admin/teacher only)
   if (dashboardStudentSelect) {
     dashboardStudentSelect.innerHTML = '<option value="">-- Select a student --</option>';
@@ -1228,11 +1237,11 @@ function updateStudentSelect(): void {
     });
     console.log(`✅ [updateStudentSelect] Added ${currentStudents.length} students to dashboard dropdown`);
   }
-  
+
   // AUTO-SELECT for students: If user is a student, select their own record automatically
   const userRole = getCurrentUserRole();
   console.log(`👤 [updateStudentSelect] Current user role: ${userRole}`);
-  
+
   if (userRole === 'student' && currentStudents.length === 1) {
     // Student should only have 1 record (their own)
     const ownRecord = currentStudents[0];
@@ -1240,21 +1249,21 @@ function updateStudentSelect(): void {
       id: ownRecord.id,
       name: ownRecord.name
     });
-    
+
     // Set the dropdown value
     studentSelect.value = ownRecord.id;
     selectedStudentId = ownRecord.id;
-    
+
     // Also set attendance dropdown if it exists
     if (attendanceStudentSelect) {
       attendanceStudentSelect.value = ownRecord.id;
       attendanceStudentSelect.disabled = true;
     }
-    
+
     // Automatically load their grades and attendance
     loadStudentGrades(ownRecord.id);
     loadStudentAttendance(ownRecord.id);
-    
+
     // Disable the dropdown so they can't change it
     studentSelect.disabled = true;
     console.log(`🔒 [updateStudentSelect] Dropdown locked to student's own record`);
@@ -1265,7 +1274,7 @@ function updateStudentSelect(): void {
       attendanceStudentSelect.disabled = false;
     }
   }
-  
+
   // Initialize PDF report buttons after dropdown is populated
   setTimeout(() => {
     if (typeof (window as any).setupPDFReportGeneration === 'function') {
@@ -1282,7 +1291,7 @@ async function loadStudentGrades(studentId: string): Promise<void> {
     if (gradesUnsubscribe) {
       gradesUnsubscribe();
     }
-    
+
     // Set up real-time listener for grades
     gradesUnsubscribe = listenToGrades(studentId, (grades) => {
       currentGrades = grades;
@@ -1292,7 +1301,7 @@ async function loadStudentGrades(studentId: string): Promise<void> {
       // Update dashboard stats
       updateDashboardStats();
     });
-    
+
     console.log('✅ Loaded grades for student:', studentId);
   } catch (error) {
     console.error('Error loading student grades:', error);
@@ -1303,7 +1312,7 @@ async function loadStudentGrades(studentId: string): Promise<void> {
 // Display grades in the table
 function displayGrades(grades: Grade[]): void {
   const gradesTableBody = document.getElementById('grades-table-body')!;
-  
+
   if (grades.length === 0) {
     gradesTableBody.innerHTML = `
       <tr>
@@ -1314,14 +1323,14 @@ function displayGrades(grades: Grade[]): void {
     `;
     return;
   }
-  
+
   const userRole = getCurrentUserRole();
   const showActions = userRole === 'teacher' || userRole === 'admin';
-  
+
   gradesTableBody.innerHTML = grades.map(grade => {
     const percentage = ((grade.score / grade.totalPoints) * 100).toFixed(1);
     const percentageClass = parseFloat(percentage) >= 70 ? 'text-green-400' : 'text-red-400';
-    
+
     return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
         <td class="py-3 px-4 text-white">${grade.assignmentName}</td>
@@ -1348,7 +1357,7 @@ function displayGrades(grades: Grade[]): void {
   if (!confirm('Are you sure you want to delete this grade?')) {
     return;
   }
-  
+
   try {
     await deleteGrade(studentId, gradeId);
     console.log('✅ Grade deleted successfully');
@@ -1362,14 +1371,14 @@ function displayGrades(grades: Grade[]): void {
   if (!confirm('Are you sure you want to delete this student? This will also delete all their grades and attendance records.')) {
     return;
   }
-  
+
   try {
     const { deleteStudent } = await import('./data');
     await deleteStudent(studentId);
-    
+
     // Reload data
     await loadDashboardData();
-    
+
     alert('✅ Student deleted successfully');
     console.log('✅ Student deleted successfully');
   } catch (error: any) {
@@ -1380,38 +1389,38 @@ function displayGrades(grades: Grade[]): void {
 // Change user role handler (exposed to window for onclick)
 (window as any).handleChangeRole = async (userId: string, currentRole: string) => {
   const newRole = prompt(`Change role for this user.\n\nCurrent role: ${currentRole}\n\nEnter new role (admin, teacher, or student):`, currentRole);
-  
+
   if (!newRole) return;
-  
+
   const roleNormalized = newRole.trim().toLowerCase();
-  
+
   if (!['admin', 'teacher', 'student'].includes(roleNormalized)) {
     alert('Invalid role. Must be: admin, teacher, or student');
     return;
   }
-  
+
   if (roleNormalized === currentRole) {
     alert('No change - same role');
     return;
   }
-  
+
   try {
     const { functions, httpsCallable } = await import('./firebase');
     const { showLoading } = await import('./ui');
-    
+
     showLoading();
-    
+
     const updateUserRole = httpsCallable(functions, 'updateUserRole');
     const result = await updateUserRole({
       targetUserId: userId,
       newRole: roleNormalized
     });
-    
+
     console.log('✅ Role updated:', result.data);
-    
+
     // Reload users table
     await loadAllUsers();
-    
+
     alert(`✅ User role changed to ${roleNormalized}`);
   } catch (error: any) {
     console.error('Error changing role:', error);
@@ -1454,24 +1463,24 @@ function updateDashboardStats(): void {
   const avgGradeEl = document.getElementById('stats-avg-grade');
   const letterGradeEl = document.getElementById('stats-letter-grade');
   const gradeCountEl = document.getElementById('stats-grade-count');
-  
+
   if (totalStudentsEl) {
     totalStudentsEl.textContent = currentStudents.length.toString();
   }
-  
+
   if (avgGradeEl && currentGrades.length > 0) {
     const avgPercentage = currentGrades.reduce((sum, grade) => {
       return sum + (grade.score / grade.totalPoints) * 100;
     }, 0) / currentGrades.length;
-    
+
     avgGradeEl.textContent = avgPercentage.toFixed(1) + '%';
-    
+
     // Update grade count
     if (gradeCountEl) {
       const count = currentGrades.length;
       gradeCountEl.textContent = `${count} assignment${count !== 1 ? 's' : ''}`;
     }
-    
+
     // Update letter grade
     if (letterGradeEl) {
       const letterGrade = getLetterGrade(avgPercentage);
@@ -1498,13 +1507,13 @@ function updateDashboardStats(): void {
 async function updateDashboardStatsForStudent(studentId: string): Promise<void> {
   const student = currentStudents.find(s => s.id === studentId);
   if (!student) return;
-  
+
   // Update attendance card
   const dashboardAttendanceCard = document.getElementById('dashboard-attendance-card');
   const dashboardAttendanceRate = document.getElementById('dashboard-attendance-rate');
   const dashboardAttendancePresent = document.getElementById('dashboard-attendance-present');
   const dashboardAttendanceAbsent = document.getElementById('dashboard-attendance-absent');
-  
+
   if (currentAttendance.length > 0) {
     const present = currentAttendance.filter(a => a.status === 'present').length;
     const absent = currentAttendance.filter(a => a.status === 'absent').length;
@@ -1513,7 +1522,7 @@ async function updateDashboardStatsForStudent(studentId: string): Promise<void> 
     const attended = present + late + excused;
     const total = currentAttendance.length;
     const rate = total > 0 ? ((attended / total) * 100).toFixed(1) : '0';
-    
+
     if (dashboardAttendanceCard) {
       dashboardAttendanceCard.classList.remove('hide');
     }
@@ -1540,10 +1549,10 @@ async function updateDashboardStatsForStudent(studentId: string): Promise<void> 
       dashboardAttendanceCard.classList.add('hide');
     }
   }
-  
+
   // Update grades stats (already handled by updateDashboardStats)
   updateDashboardStats();
-  
+
   // Update recent activity for this student
   await loadRecentActivity();
 }
@@ -1552,11 +1561,11 @@ async function updateDashboardStatsForStudent(studentId: string): Promise<void> 
 async function loadRecentActivity(): Promise<void> {
   const recentActivityEl = document.getElementById('recent-activity');
   if (!recentActivityEl) return;
-  
+
   try {
     const userRole = getCurrentUserRole();
     let activities: Array<{ type: 'grade' | 'attendance'; date: Date; data: any }> = [];
-    
+
     // For students, show their own activity
     if (userRole === 'student' && selectedStudentId) {
       // Get recent grades
@@ -1569,7 +1578,7 @@ async function loadRecentActivity(): Promise<void> {
           });
         });
       }
-      
+
       // Get recent attendance
       if (currentAttendance.length > 0) {
         currentAttendance.slice(0, 5).forEach(attendance => {
@@ -1593,7 +1602,7 @@ async function loadRecentActivity(): Promise<void> {
             });
           });
         }
-        
+
         // Get recent attendance for selected student
         if (currentAttendance.length > 0) {
           currentAttendance.slice(0, 5).forEach(attendance => {
@@ -1606,13 +1615,13 @@ async function loadRecentActivity(): Promise<void> {
         }
       }
     }
-    
+
     // Sort by date (most recent first)
     activities.sort((a, b) => b.date.getTime() - a.date.getTime());
-    
+
     // Take top 10 most recent
     activities = activities.slice(0, 10);
-    
+
     // Display activities
     if (activities.length === 0) {
       recentActivityEl.innerHTML = `
@@ -1622,7 +1631,7 @@ async function loadRecentActivity(): Promise<void> {
       `;
       return;
     }
-    
+
     recentActivityEl.innerHTML = activities.map(activity => {
       const dateStr = activity.date.toLocaleDateString('en-US', {
         year: 'numeric',
@@ -1631,12 +1640,12 @@ async function loadRecentActivity(): Promise<void> {
         hour: '2-digit',
         minute: '2-digit'
       });
-      
+
       if (activity.type === 'grade') {
         const grade = activity.data as Grade;
         const percentage = ((grade.score / grade.totalPoints) * 100).toFixed(1);
         const percentageClass = parseFloat(percentage) >= 70 ? 'text-green-400' : 'text-red-400';
-        
+
         return `
           <div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors">
             <div class="flex items-start justify-between">
@@ -1675,7 +1684,7 @@ async function loadRecentActivity(): Promise<void> {
             statusColor = 'text-blue-400';
             break;
         }
-        
+
         return `
           <div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors">
             <div class="flex items-start justify-between">
@@ -1694,7 +1703,7 @@ async function loadRecentActivity(): Promise<void> {
         `;
       }
     }).join('');
-    
+
   } catch (error) {
     console.error('Error loading recent activity:', error);
     recentActivityEl.innerHTML = `
@@ -1710,7 +1719,7 @@ function resetAppState(): void {
   currentStudents = [];
   currentGrades = [];
   selectedStudentId = null;
-  
+
   if (gradesUnsubscribe) {
     gradesUnsubscribe();
     gradesUnsubscribe = null;
@@ -1743,28 +1752,28 @@ function resetAppState(): void {
  */
 async function generatePerformanceSummary(studentId: string): Promise<void> {
   console.log('🤖 [generatePerformanceSummary] Starting', { studentId });
-  
+
   try {
     const { showLoading } = await import('./ui');
     const { functions, httpsCallable } = await import('./firebase');
-    
+
     // Show loading indicator
     showLoading();
-    
+
     // Call Cloud Function
     // TODO: When migrating to dedicated API service, replace this with direct API call
     const getPerformanceSummary = httpsCallable(functions, 'getPerformanceSummary');
     const result = await getPerformanceSummary({ studentId });
-    
+
     const data = result.data as any;
-    
+
     // Display result in modal
     const { showModal } = await import('./ui');
     showModal(
       `Performance Summary - ${data.studentName}`,
       data.summaryHtml
     );
-    
+
     console.log('✅ [generatePerformanceSummary] Success', {
       studentName: data.studentName,
       generatedAt: data.generatedAt,
@@ -1776,7 +1785,7 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
       code: error.code,
       studentId
     });
-    
+
     // Provide user-friendly error message
     const errorMessage = error.message || 'Unknown error occurred';
     alert(`Failed to generate summary: ${errorMessage}`);
@@ -1810,28 +1819,28 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
  */
 async function generateStudyTips(studentId: string): Promise<void> {
   console.log('🤖 [generateStudyTips] Starting', { studentId });
-  
+
   try {
     const { showLoading } = await import('./ui');
     const { functions, httpsCallable } = await import('./firebase');
-    
+
     // Show loading indicator
     showLoading();
-    
+
     // Call Cloud Function
     // TODO: When migrating to dedicated API service, replace this with direct API call
     const getStudyTips = httpsCallable(functions, 'getStudyTips');
     const result = await getStudyTips({ studentId });
-    
+
     const data = result.data as any;
-    
+
     // Display result in modal
     const { showModal } = await import('./ui');
     showModal(
       `Study Tips - ${data.studentName}`,
       data.tipsHtml
     );
-    
+
     console.log('✅ [generateStudyTips] Success', {
       studentName: data.studentName,
       generatedAt: data.generatedAt,
@@ -1843,7 +1852,7 @@ async function generateStudyTips(studentId: string): Promise<void> {
       code: error.code,
       studentId
     });
-    
+
     // Provide user-friendly error message
     const errorMessage = error.message || 'Unknown error occurred';
     alert(`Failed to generate study tips: ${errorMessage}`);
@@ -1871,75 +1880,75 @@ function setupAIAgentChat(): void {
   const sendBtn = document.getElementById('ai-agent-send-btn') as HTMLButtonElement;
   const messagesContainer = document.getElementById('ai-agent-messages');
   const clearChatBtn = document.getElementById('clear-chat-btn');
-  
+
   // Conversation history (stored in memory, can be moved to localStorage or database)
   let conversationHistory: Array<{ user: string; assistant: string }> = [];
-  
+
   if (!chatInput || !sendBtn || !messagesContainer) {
     return; // AI Agent tab not available (not admin)
   }
-  
+
   // Send message function
   const sendMessage = async (): Promise<void> => {
     const message = chatInput.value.trim();
     if (!message) return;
-    
+
     // Disable input while processing
     chatInput.disabled = true;
     sendBtn.disabled = true;
-    
+
     // Add user message to UI
     addMessageToChat('user', message);
-    
+
     // Clear input
     chatInput.value = '';
-    
+
     // Add typing indicator
     const typingId = addTypingIndicator();
-    
+
     try {
       const { functions, httpsCallable } = await import('./firebase');
-      
+
       // Call AI Agent Cloud Function
       const aiAgentChat = httpsCallable(functions, 'aiAgentChat');
       const result = await aiAgentChat({
         message,
         conversationHistory
       });
-      
+
       const data = result.data as any;
-      
+
       // Remove typing indicator
       removeTypingIndicator(typingId);
-      
+
       // Add AI response to UI
       addMessageToChat('assistant', data.response);
-      
+
       // Update conversation history
       conversationHistory.push({
         user: message,
         assistant: data.response
       });
-      
+
       // Limit conversation history to last 10 exchanges
       if (conversationHistory.length > 10) {
         conversationHistory = conversationHistory.slice(-10);
       }
-      
+
       console.log('✅ [AI Agent] Response received', {
         responseLength: data.response.length,
         timestamp: data.timestamp
       });
-      
+
     } catch (error: any) {
       // Remove typing indicator
       removeTypingIndicator(typingId);
-      
+
       console.error('❌ [AI Agent] Error:', {
         error: error.message,
         code: error.code
       });
-      
+
       // Show error message
       addMessageToChat('assistant', `Sorry, I encountered an error: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
@@ -1949,16 +1958,16 @@ function setupAIAgentChat(): void {
       chatInput.focus();
     }
   };
-  
+
   // Add message to chat UI
   function addMessageToChat(role: 'user' | 'assistant', content: string): void {
     if (!messagesContainer) return;
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `flex items-start gap-4 ai-chat-message ${role}`;
-    
+
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
+
     let formattedContent: string;
     if (role === 'user') {
       formattedContent = escapeHtml(content);
@@ -1967,7 +1976,7 @@ function setupAIAgentChat(): void {
       formattedContent = formatMarkdown(content);
       console.log('🎨 [AI Chat] Formatted content:', formattedContent.substring(0, 200));
     }
-    
+
     if (role === 'user') {
       messageDiv.innerHTML = `
         <div class="flex-1 flex justify-end">
@@ -1987,7 +1996,7 @@ function setupAIAgentChat(): void {
     } else {
       // Generate unique ID for copy functionality
       const msgId = `ai-msg-${Date.now()}`;
-      
+
       // Create the structure first
       messageDiv.innerHTML = `
         <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
@@ -2018,27 +2027,28 @@ function setupAIAgentChat(): void {
           </div>
         </div>
       `;
-      
+
       // Now set the content separately to ensure HTML is parsed correctly
+      // SECURITY FIX (2025-01-26): Sanitize AI-generated HTML content to prevent XSS
       const contentDiv = messageDiv.querySelector(`#${msgId}`);
       if (contentDiv) {
-        contentDiv.innerHTML = formattedContent;
+        contentDiv.innerHTML = sanitizeHTML(formattedContent);
       }
     }
-    
+
     messagesContainer.appendChild(messageDiv);
-    
+
     // Scroll to bottom with smooth behavior
     messagesContainer.scrollTo({
       top: messagesContainer.scrollHeight,
       behavior: 'smooth'
     });
   }
-  
+
   // Add typing indicator
   function addTypingIndicator(): string {
     if (!messagesContainer) return '';
-    
+
     const typingId = `typing-${Date.now()}`;
     const typingDiv = document.createElement('div');
     typingDiv.id = typingId;
@@ -2068,16 +2078,16 @@ function setupAIAgentChat(): void {
         </div>
       </div>
     `;
-    
+
     messagesContainer.appendChild(typingDiv);
     messagesContainer.scrollTo({
       top: messagesContainer.scrollHeight,
       behavior: 'smooth'
     });
-    
+
     return typingId;
   }
-  
+
   // Remove typing indicator
   function removeTypingIndicator(typingId: string): void {
     if (!messagesContainer) return;
@@ -2086,27 +2096,27 @@ function setupAIAgentChat(): void {
       typingEl.remove();
     }
   }
-  
+
   // Escape HTML to prevent XSS
   function escapeHtml(text: string): string {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
-  
+
   // Format markdown to styled HTML for AI responses
   function formatMarkdown(text: string): string {
     let html = text.trim();
-    
+
     // Check if content already contains HTML tags - look for common tags
     const hasHtmlTags = /<\/?(?:ul|ol|li|p|div|h[1-6]|strong|em|b|i|code|pre|blockquote|br|hr|span|a)[>\s]/i.test(html);
-    
+
     console.log('🔍 [formatMarkdown] Has HTML tags:', hasHtmlTags);
     console.log('🔍 [formatMarkdown] First 150 chars:', html.substring(0, 150));
-    
+
     if (hasHtmlTags) {
       console.log('✅ [formatMarkdown] Processing as HTML');
-      
+
       // Content has HTML - apply styling classes to existing tags
       html = html.replace(/<ul([^>]*)>/gi, '<ul class="space-y-2 my-4"$1>');
       html = html.replace(/<ol([^>]*)>/gi, '<ol class="space-y-2 my-4 list-decimal list-inside"$1>');
@@ -2126,10 +2136,10 @@ function setupAIAgentChat(): void {
       html = html.replace(/<code([^>]*)>/gi, '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono"$1>');
       html = html.replace(/<pre([^>]*)>/gi, '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"$1>');
       html = html.replace(/<blockquote([^>]*)>/gi, '<blockquote class="border-l-4 border-primary-500 pl-4 py-2 my-3 bg-primary-500/5 rounded-r-lg italic text-dark-300"$1>');
-      
+
       // Clean up newlines around tags for cleaner rendering
       html = html.replace(/>\s*\n+\s*</g, '> <');
-      
+
       // Wrap plain text between tags in spans for styling
       html = html.replace(/>([^<]+)</g, (_match, content) => {
         // Highlight percentages
@@ -2138,82 +2148,82 @@ function setupAIAgentChat(): void {
         styled = styled.replace(/(\d+\/\d+)/g, '<span class="text-primary-400 font-medium">$1</span>');
         return `>${styled}<`;
       });
-      
+
       console.log('✅ [formatMarkdown] Processed HTML (first 200 chars):', html.substring(0, 200));
       return html;
     }
-    
+
     // Content is plain text/markdown - convert to styled HTML
-    
+
     // Headers (## Header)
     html = html.replace(/^### (.+)$/gm, '<h4 class="text-lg font-bold text-white mt-4 mb-2 flex items-center gap-2"><span class="w-1.5 h-1.5 bg-accent-400 rounded-full"></span>$1</h4>');
     html = html.replace(/^## (.+)$/gm, '<h3 class="text-xl font-bold text-white mt-5 mb-3 pb-2 border-b border-primary-500/20">$1</h3>');
     html = html.replace(/^# (.+)$/gm, '<h2 class="text-2xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mt-4 mb-3">$1</h2>');
-    
+
     // Bold text **text** or __text__
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
     html = html.replace(/__(.+?)__/g, '<strong class="text-white font-semibold">$1</strong>');
-    
+
     // Italic text *text* or _text_ (but not if part of bold)
     html = html.replace(/(?<![*_])([*_])(?![*_])(.+?)(?<![*_])\1(?![*_])/g, '<em class="text-primary-300 italic">$2</em>');
-    
+
     // Code blocks ```code```
     html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"><code class="text-accent-300 text-sm font-mono">$2</code></pre>');
-    
+
     // Inline code `code`
     html = html.replace(/`([^`]+)`/g, '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono">$1</code>');
-    
+
     // Bullet points
     html = html.replace(/^\* (.+)$/gm, '<div class="flex items-start gap-3 mb-2"><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span class="text-dark-200">$1</span></div>');
     html = html.replace(/^- (.+)$/gm, '<div class="flex items-start gap-3 mb-2"><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span class="text-dark-200">$1</span></div>');
-    
+
     // Numbered lists
     html = html.replace(/^(\d+)\. (.+)$/gm, (_match, num, content) => {
       return `<div class="flex items-start gap-3 mb-2"><span class="w-6 h-6 bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded-lg flex items-center justify-center text-xs font-bold text-primary-400 flex-shrink-0">${num}</span><span class="text-dark-200">${content}</span></div>`;
     });
-    
+
     // Blockquotes > text
     html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-primary-500 pl-4 py-2 my-3 bg-primary-500/5 rounded-r-lg italic text-dark-300">$1</blockquote>');
-    
+
     // Horizontal rules ---
     html = html.replace(/^---$/gm, '<hr class="my-4 border-dark-700">');
-    
+
     // Links [text](url)
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary-400 hover:text-primary-300 underline" target="_blank">$1</a>');
-    
+
     // Highlight percentages and fractions
     html = html.replace(/(\d+(?:\.\d+)?%)/g, '<span class="text-accent-400 font-semibold">$1</span>');
     html = html.replace(/(\d+\/\d+)(?!<)/g, '<span class="text-primary-400 font-medium">$1</span>');
-    
+
     // Double line breaks to paragraph breaks
     html = html.replace(/\n\n+/g, '</p><p class="mb-3 text-dark-200 leading-relaxed">');
-    
+
     // Single line breaks
     html = html.replace(/\n/g, '<br>');
-    
+
     // Wrap in paragraph
     html = `<p class="mb-3 text-dark-200 leading-relaxed">${html}</p>`;
-    
+
     // Clean up empty paragraphs and fix double wrapping
     html = html.replace(/<p class="[^"]*">(<(?:h[1-6]|div|ul|ol|pre|blockquote)[^>]*>)/g, '$1');
     html = html.replace(/(<\/(?:h[1-6]|div|ul|ol|pre|blockquote)>)<\/p>/g, '$1');
     html = html.replace(/<p class="[^"]*"><\/p>/g, '');
     html = html.replace(/<p class="[^"]*"><br><\/p>/g, '');
     html = html.replace(/<br><br>/g, '</p><p class="mb-3 text-dark-200 leading-relaxed">');
-    
+
     return html;
   }
-  
+
   // Event listeners
   sendBtn.addEventListener('click', sendMessage);
-  
+
   chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   });
-  
+
   // Clear chat
   if (clearChatBtn) {
     clearChatBtn.addEventListener('click', () => {
@@ -2230,7 +2240,7 @@ function setupAIAgentChat(): void {
       }
     });
   }
-  
+
   console.log('✅ AI Agent chat initialized');
 }
 
@@ -2255,7 +2265,7 @@ async function loadStudentAttendance(studentId: string): Promise<void> {
 // Display attendance in the table
 function displayAttendance(attendance: Attendance[]): void {
   const attendanceTableBody = document.getElementById('attendance-history-body')!;
-  
+
   if (attendance.length === 0) {
     attendanceTableBody.innerHTML = `
       <tr>
@@ -2266,17 +2276,17 @@ function displayAttendance(attendance: Attendance[]): void {
     `;
     return;
   }
-  
+
   attendanceTableBody.innerHTML = attendance.map(record => {
-    const date = new Date(record.date).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    const date = new Date(record.date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
-    
+
     const student = currentStudents.find(s => s.id === record.studentId);
     const studentName = student ? student.name : 'Unknown';
-    
+
     // Status badge styling
     let statusBadge = '';
     switch (record.status) {
@@ -2293,7 +2303,7 @@ function displayAttendance(attendance: Attendance[]): void {
         statusBadge = '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">📝 Excused</span>';
         break;
     }
-    
+
     return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
         <td class="py-3 px-4 text-white">${date}</td>
@@ -2312,11 +2322,11 @@ function updateAttendanceStats(attendance: Attendance[]): void {
   const absent = attendance.filter(a => a.status === 'absent').length;
   const late = attendance.filter(a => a.status === 'late').length;
   const excused = attendance.filter(a => a.status === 'excused').length;
-  
+
   // Calculate attendance rate (present + late + excused = attended)
   const attended = present + late + excused;
   const rate = total > 0 ? ((attended / total) * 100).toFixed(1) : '0';
-  
+
   // Update UI
   document.getElementById('attendance-total')!.textContent = total.toString();
   document.getElementById('attendance-present')!.textContent = present.toString();
@@ -2333,21 +2343,21 @@ let passwordToggleInitialized = false;
 function loadStudentProfile(): void {
   const userRole = getCurrentUserRole();
   if (userRole !== 'student') return;
-  
+
   // Get current user
   const user = auth.currentUser;
   if (!user) {
     console.error('❌ [loadStudentProfile] No user logged in');
     return;
   }
-  
+
   // Find student record
   const student = currentStudents.find(s => s.studentUid === user.uid);
   if (!student) {
     console.warn('⚠️ [loadStudentProfile] Student record not found');
     return;
   }
-  
+
   // Update profile fields
   const profileName = document.getElementById('profile-name');
   const profileMemberId = document.getElementById('profile-member-id');
@@ -2358,7 +2368,7 @@ function loadStudentProfile(): void {
   const profileContactEmail = document.getElementById('profile-contact-email');
   const profileNotes = document.getElementById('profile-notes');
   const profileNotesSection = document.getElementById('profile-notes-section');
-  
+
   if (profileName) profileName.textContent = student.name || '--';
   if (profileMemberId) profileMemberId.textContent = student.memberId || 'Not assigned';
   if (profileYearOfBirth) profileYearOfBirth.textContent = student.yearOfBirth ? student.yearOfBirth.toString() : '--';
@@ -2366,7 +2376,7 @@ function loadStudentProfile(): void {
   if (profileEmail) profileEmail.textContent = user.email || '--';
   if (profileContactPhone) profileContactPhone.textContent = student.contactPhone || 'Not provided';
   if (profileContactEmail) profileContactEmail.textContent = student.contactEmail || 'Not provided';
-  
+
   // Show notes section if notes exist
   if (profileNotes && profileNotesSection) {
     if (student.notes && student.notes.trim()) {
@@ -2376,18 +2386,18 @@ function loadStudentProfile(): void {
       profileNotesSection.classList.add('hide');
     }
   }
-  
+
   // Setup password visibility toggle (only once)
   const passwordInput = document.getElementById('profile-password') as HTMLInputElement;
   const togglePasswordBtn = document.getElementById('toggle-password-visibility');
   const passwordEyeIcon = document.getElementById('password-eye-icon');
-  
+
   if (passwordInput && togglePasswordBtn && passwordEyeIcon && !passwordToggleInitialized) {
     let passwordVisible = false;
-    
+
     togglePasswordBtn.addEventListener('click', () => {
       passwordVisible = !passwordVisible;
-      
+
       if (passwordVisible) {
         passwordInput.type = 'text';
         passwordInput.value = 'Password cannot be displayed';
@@ -2407,10 +2417,10 @@ function loadStudentProfile(): void {
         `;
       }
     });
-    
+
     passwordToggleInitialized = true;
   }
-  
+
   console.log('✅ Student profile loaded');
 }
 
@@ -2434,39 +2444,39 @@ function displayStudentUid(): void {
   const copyBtn = document.getElementById('navbar-copy-uid-btn');
   const showUidBtn = document.getElementById('show-uid-btn');
   const uidDropdown = document.getElementById('uid-dropdown');
-  
+
   console.log('🔍 [displayStudentUid] Checking elements...', {
     uidDisplay: !!uidDisplay,
     copyBtn: !!copyBtn,
     showUidBtn: !!showUidBtn,
     uidDropdown: !!uidDropdown
   });
-  
+
   if (!uidDisplay || !copyBtn || !showUidBtn || !uidDropdown) {
     console.error('❌ [displayStudentUid] Missing required elements!');
     return;
   }
-  
+
   const user = auth.currentUser;
   if (!user) {
     console.log('⚠️ [displayStudentUid] No user logged in');
     return;
   }
-  
+
   console.log('✅ [displayStudentUid] Setting UID for user:', user.uid);
-  
+
   // Set the UID value
   uidDisplay.value = user.uid;
-  
+
   // Only add event listeners once to prevent duplicates
   if (!uidListenersInitialized) {
     console.log('🔧 [displayStudentUid] Setting up event listeners...');
-    
+
     // Toggle dropdown visibility
     showUidBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isHidden = uidDropdown.classList.contains('hide');
-      
+
       if (isHidden) {
         uidDropdown.classList.remove('hide');
         console.log('👁️ [displayStudentUid] ✅ Dropdown OPENED');
@@ -2475,7 +2485,7 @@ function displayStudentUid(): void {
         console.log('👁️ [displayStudentUid] ❌ Dropdown CLOSED');
       }
     });
-    
+
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
       const target = e.target as Node;
@@ -2486,7 +2496,7 @@ function displayStudentUid(): void {
         }
       }
     });
-    
+
     // Add copy functionality
     copyBtn.addEventListener('click', () => {
       const currentUid = uidDisplay.value;
@@ -2496,9 +2506,9 @@ function displayStudentUid(): void {
         copyBtn.textContent = '✓ Copied!';
         copyBtn.classList.add('bg-green-500', 'hover:bg-green-600');
         copyBtn.classList.remove('bg-primary-500', 'hover:bg-primary-600');
-        
+
         console.log('✅ [displayStudentUid] UID copied:', currentUid);
-        
+
         setTimeout(() => {
           copyBtn.textContent = originalText;
           copyBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
@@ -2509,7 +2519,7 @@ function displayStudentUid(): void {
         alert('Failed to copy. Please select and copy manually.');
       });
     });
-    
+
     uidListenersInitialized = true;
     console.log('✅ [displayStudentUid] Event listeners initialized successfully!');
   }
@@ -2524,7 +2534,7 @@ function displayStudentUid(): void {
  */
 function showUidModal(uid: string, email: string): void {
   console.log('📋 [showUidModal] Displaying UID modal for user');
-  
+
   const modalHtml = `
     <div class="space-y-4">
       <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
@@ -2579,16 +2589,16 @@ function showUidModal(uid: string, email: string): void {
       </div>
     </div>
   `;
-  
+
   // Use existing showModal from ui.ts
   showModal('🎉 Account Created!', modalHtml);
-  
+
   // Add copy functionality
   setTimeout(() => {
     const copyBtn = document.getElementById('copy-uid-btn');
     const uidInput = document.getElementById('uid-display') as HTMLInputElement;
     const closeBtn = document.getElementById('close-uid-modal-btn');
-    
+
     if (copyBtn && uidInput) {
       copyBtn.addEventListener('click', () => {
         uidInput.select();
@@ -2596,9 +2606,9 @@ function showUidModal(uid: string, email: string): void {
           copyBtn.textContent = '✓ Copied!';
           copyBtn.classList.add('bg-green-500', 'hover:bg-green-600');
           copyBtn.classList.remove('bg-primary-500', 'hover:bg-primary-600');
-          
+
           console.log('✅ [showUidModal] UID copied to clipboard:', uid);
-          
+
           setTimeout(() => {
             copyBtn.textContent = 'Copy';
             copyBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
@@ -2610,7 +2620,7 @@ function showUidModal(uid: string, email: string): void {
         });
       });
     }
-    
+
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
         // Close modal by clicking the backdrop

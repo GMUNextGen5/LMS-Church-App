@@ -68,11 +68,14 @@ service cloud.firestore {
 
       // ** THE FERPA-COMPLIANT RULE **
       // READ: Allowed by Admin, Owner (Parent/Student), or Assigned Teacher.
-      allow read: if isAuthenticated() && (isAdmin() || isOwner() || isTeacher());
+      // SECURITY FIX (2025-01-26): Changed from isTeacher() to isAssignedTeacher()
+      // to ensure teachers can ONLY access students in their courses.
+      allow read: if isAuthenticated() && (isAdmin() || isOwner() || isAssignedTeacher());
       
       // WRITE (Update/Delete): Allowed by Admin or Assigned Teacher ONLY.
       // This explicitly blocks Parents/Students from changing records.
-      allow update, delete: if isAdmin() || isTeacher();
+      // SECURITY FIX (2025-01-26): Changed from isTeacher() to isAssignedTeacher()
+      allow update, delete: if isAdmin() || isAssignedTeacher();
       
       // CREATE: Only an Admin can create new student profiles.
       allow create: if isAdmin();
@@ -82,29 +85,33 @@ service cloud.firestore {
       // Grades sub-collection
       match /grades/{gradeId} {
         // Read access: Admin, Owner, or Assigned Teacher
+        // SECURITY FIX (2025-01-26): Changed isTeacher() to isAssignedTeacher()
         allow read: if isAuthenticated() && (
           isAdmin() || 
           get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
           get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid ||
-          isTeacher()
+          isAssignedTeacher()
         );
         
-        // Write access: ONLY for Admin or Teacher
-        allow create, update, delete: if isAdmin() || isTeacher();
+        // Write access: ONLY for Admin or Assigned Teacher
+        // SECURITY FIX (2025-01-26): Changed isTeacher() to isAssignedTeacher()
+        allow create, update, delete: if isAdmin() || isAssignedTeacher();
       }
       
       // Attendance sub-collection
       match /attendance/{attendanceId} {
         // Read access: Admin, Owner, or Assigned Teacher
+        // SECURITY FIX (2025-01-26): Changed isTeacher() to isAssignedTeacher()
         allow read: if isAuthenticated() && (
           isAdmin() || 
           get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
           get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid ||
-          isTeacher()
+          isAssignedTeacher()
         );
         
-        // Write access: ONLY for Admin or Teacher
-        allow create, update, delete: if isAdmin() || isTeacher();
+        // Write access: ONLY for Admin or Assigned Teacher
+        // SECURITY FIX (2025-01-26): Changed isTeacher() to isAssignedTeacher()
+        allow create, update, delete: if isAdmin() || isAssignedTeacher();
       }
     }
     

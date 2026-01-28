@@ -119,6 +119,53 @@
 
 import { User, UserRole } from './types';
 
+// XSS Protection: Import DOMPurify for sanitizing HTML content
+import DOMPurify from 'dompurify';
+
+/**
+ * Sanitize HTML content to prevent XSS attacks
+ * 
+ * SECURITY: All dynamic HTML content MUST be sanitized before
+ * being rendered via innerHTML. This prevents:
+ * - Script injection attacks
+ * - Event handler injection (onclick, onerror, etc.)
+ * - Malicious iframe/embed injection
+ * - Data exfiltration via CSS
+ * 
+ * @param html - Raw HTML string to sanitize
+ * @returns Sanitized HTML safe for innerHTML
+ */
+export function sanitizeHTML(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      // Text formatting
+      'p', 'span', 'strong', 'b', 'i', 'em', 'u', 'br', 'hr',
+      // Headers
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      // Lists
+      'ul', 'ol', 'li',
+      // Tables
+      'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      // Structure
+      'div', 'section', 'article', 'blockquote', 'pre', 'code',
+      // Links (href will be sanitized)
+      'a',
+      // AI card styling classes
+      'aside', 'nav', 'header', 'footer'
+    ],
+    ALLOWED_ATTR: [
+      'class', 'id', 'style',
+      'href', 'target', 'rel',
+      'colspan', 'rowspan'
+    ],
+    // Strip dangerous protocols
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    // Prevent data exfiltration
+    FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button']
+  });
+}
+
 // DOM Elements - Authentication
 const authContainer = document.getElementById('auth-container')!;
 const appContainer = document.getElementById('app-container')!;
@@ -149,7 +196,7 @@ export function initUI(): void {
   // Auth tab switching
   loginTabBtn.addEventListener('click', () => switchAuthTab('login'));
   signupTabBtn.addEventListener('click', () => switchAuthTab('signup'));
-  
+
   // Tab navigation
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -160,7 +207,7 @@ export function initUI(): void {
       }
     });
   });
-  
+
   // Modal close
   aiModalClose.addEventListener('click', closeModal);
   aiModal.addEventListener('click', (e) => {
@@ -168,7 +215,7 @@ export function initUI(): void {
       closeModal();
     }
   });
-  
+
   console.log('✅ UI initialized');
 }
 
@@ -209,16 +256,16 @@ export function showAppContainer(): void {
 // Configure UI based on user role
 export function configureUIForRole(user: User): void {
   currentUserRole = user.role;
-  
+
   // Update user info display
   userEmail.textContent = user.email;
   userRoleBadge.textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
-  
+
   // Hide all role-specific elements
   document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach(el => {
     (el as HTMLElement).classList.add('hide');
   });
-  
+
   // Show elements based on role
   if (user.role === 'admin') {
     // Admin sees everything (admin + teacher views)
@@ -236,7 +283,7 @@ export function configureUIForRole(user: User): void {
       (el as HTMLElement).classList.remove('hide');
     });
   }
-  
+
   console.log('✅ UI configured for role:', user.role);
 }
 
@@ -247,23 +294,23 @@ function switchTab(tabName: string): void {
     btn.classList.remove('tab-active');
     btn.classList.add('text-dark-300');
   });
-  
+
   const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
   if (activeBtn) {
     activeBtn.classList.add('tab-active');
     activeBtn.classList.remove('text-dark-300');
   }
-  
+
   // Update tab content
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.add('hide');
   });
-  
+
   const activeContent = document.getElementById(`${tabName}-content`);
   if (activeContent) {
     activeContent.classList.remove('hide');
   }
-  
+
   // Load data when switching to specific tabs
   if (tabName === 'attendance') {
     // Trigger attendance loading if student is selected
@@ -304,10 +351,11 @@ function clearForms(): void {
   clearError(signupError);
 }
 
-// Modal handling
+// Modal handling - SECURITY: Content is sanitized to prevent XSS
 export function showModal(title: string, content: string): void {
   aiModalTitle.textContent = title;
-  aiModalContent.innerHTML = content;
+  // SECURITY FIX (2025-01-26): Sanitize AI-generated HTML content
+  aiModalContent.innerHTML = sanitizeHTML(content);
   aiModal.classList.remove('hide');
 }
 
