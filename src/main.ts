@@ -1284,9 +1284,36 @@ function updateStudentSelect(): void {
   }, 100);
 }
 
+// Show skeleton loading state for grades table
+function showGradesSkeletonLoading(): void {
+  const gradesTableBody = document.getElementById('grades-table-body');
+  const chartsSection = document.getElementById('grade-charts-section');
+
+  if (gradesTableBody) {
+    const skeletonRows = Array(5).fill(0).map(() => `
+      <tr class="border-b border-dark-700">
+        <td class="py-3 px-4"><div class="skeleton skeleton-text" style="width: 70%;"></div></td>
+        <td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td>
+        <td class="py-3 px-4"><div class="skeleton skeleton-text short" style="margin: 0 auto;"></div></td>
+        <td class="py-3 px-4"><div class="skeleton skeleton-text short" style="margin: 0 auto;"></div></td>
+      </tr>
+    `).join('');
+
+    gradesTableBody.innerHTML = skeletonRows;
+  }
+
+  // Hide charts during loading
+  if (chartsSection) {
+    chartsSection.classList.add('hide');
+  }
+}
+
 // Load grades for a specific student
 async function loadStudentGrades(studentId: string): Promise<void> {
   try {
+    // Show skeleton loading
+    showGradesSkeletonLoading();
+
     // Unsubscribe from previous listener
     if (gradesUnsubscribe) {
       gradesUnsubscribe();
@@ -1312,6 +1339,7 @@ async function loadStudentGrades(studentId: string): Promise<void> {
 // Display grades in the table
 function displayGrades(grades: Grade[]): void {
   const gradesTableBody = document.getElementById('grades-table-body')!;
+  const chartsSection = document.getElementById('grade-charts-section');
 
   if (grades.length === 0) {
     gradesTableBody.innerHTML = `
@@ -1321,7 +1349,16 @@ function displayGrades(grades: Grade[]): void {
         </td>
       </tr>
     `;
+    // Hide charts when no grades
+    if (chartsSection) {
+      chartsSection.classList.add('hide');
+    }
     return;
+  }
+
+  // Show charts section
+  if (chartsSection) {
+    chartsSection.classList.remove('hide');
   }
 
   const userRole = getCurrentUserRole();
@@ -1350,6 +1387,165 @@ function displayGrades(grades: Grade[]): void {
       </tr>
     `;
   }).join('');
+
+  // Render charts
+  renderGradeCharts(grades);
+}
+
+// Chart instance references for cleanup
+let gradeTrendChart: any = null;
+let categoryChart: any = null;
+
+// Render grade visualization charts
+function renderGradeCharts(grades: Grade[]): void {
+  // Check if Chart.js is available
+  if (typeof (window as any).Chart === 'undefined') {
+    console.warn('Chart.js not loaded, skipping chart rendering');
+    return;
+  }
+
+  const Chart = (window as any).Chart;
+
+  // Prepare data for trend chart (sorted by date)
+  const sortedGrades = [...grades].sort((a, b) =>
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  const trendLabels = sortedGrades.map((g, i) => g.assignmentName.substring(0, 12) + (g.assignmentName.length > 12 ? '...' : ''));
+  const trendData = sortedGrades.map(g => ((g.score / g.totalPoints) * 100).toFixed(1));
+
+  // Prepare data for category chart
+  const categoryData: { [key: string]: { total: number; count: number } } = {};
+  grades.forEach(grade => {
+    const cat = grade.category;
+    if (!categoryData[cat]) {
+      categoryData[cat] = { total: 0, count: 0 };
+    }
+    categoryData[cat].total += (grade.score / grade.totalPoints) * 100;
+    categoryData[cat].count += 1;
+  });
+
+  const categoryLabels = Object.keys(categoryData);
+  const categoryAverages = categoryLabels.map(cat =>
+    (categoryData[cat].total / categoryData[cat].count).toFixed(1)
+  );
+
+  // Color palette
+  const categoryColors = [
+    '#06b6d4', // Cyan
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#8b5cf6', // Purple
+    '#ef4444', // Red
+    '#3b82f6', // Blue
+  ];
+
+  // Common chart options for dark theme
+  const darkThemeOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.05)',
+        },
+        ticks: {
+          color: 'rgba(255, 255, 255, 0.6)',
+          maxRotation: 45,
+          minRotation: 0,
+        },
+      },
+      y: {
+        beginAtZero: true,
+        max: 100,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.05)',
+        },
+        ticks: {
+          color: 'rgba(255, 255, 255, 0.6)',
+          callback: (value: number) => value + '%',
+        },
+      },
+    },
+  };
+
+  // Render Trend Chart
+  const trendCanvas = document.getElementById('grade-trend-chart') as HTMLCanvasElement;
+  if (trendCanvas) {
+    // Destroy existing chart
+    if (gradeTrendChart) {
+      gradeTrendChart.destroy();
+    }
+
+    const ctx = trendCanvas.getContext('2d');
+    if (ctx) {
+      gradeTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: trendLabels,
+          datasets: [{
+            label: 'Grade %',
+            data: trendData,
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#06b6d4',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          }],
+        },
+        options: darkThemeOptions,
+      });
+    }
+  }
+
+  // Render Category Chart
+  const categoryCanvas = document.getElementById('category-chart') as HTMLCanvasElement;
+  if (categoryCanvas) {
+    // Destroy existing chart
+    if (categoryChart) {
+      categoryChart.destroy();
+    }
+
+    const ctx = categoryCanvas.getContext('2d');
+    if (ctx) {
+      categoryChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: categoryLabels,
+          datasets: [{
+            label: 'Average %',
+            data: categoryAverages,
+            backgroundColor: categoryLabels.map((_, i) => categoryColors[i % categoryColors.length]),
+            borderRadius: 8,
+            barThickness: 40,
+          }],
+        },
+        options: {
+          ...darkThemeOptions,
+          plugins: {
+            ...darkThemeOptions.plugins,
+            tooltip: {
+              callbacks: {
+                label: (context: any) => `Average: ${context.raw}%`,
+              },
+            },
+          },
+        },
+      });
+    }
+  }
+
+  console.log('📊 [Charts] Grade charts rendered');
 }
 
 // Delete grade handler (exposed to window for onclick)

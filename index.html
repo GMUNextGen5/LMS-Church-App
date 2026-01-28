@@ -15,6 +15,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"
         crossorigin="anonymous"></script>
+    <!-- Chart.js for grade visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -3604,6 +3606,667 @@
                 animation: none !important;
             }
         }
+
+        /* ==================== STYLE THEME SYSTEM (Classic/Sci-Fi) ==================== */
+
+        /* Classic Theme - Cyan/Teal colors, minimal animations */
+        [data-style="classic"] {
+            --login-bg-primary: #0a0f1a;
+            --login-bg-secondary: #111827;
+            --login-accent-1: #06b6d4;
+            --login-accent-2: #22d3ee;
+            --login-accent-3: #0891b2;
+            --login-accent-4: #10b981;
+            --login-text-primary: #f1f5f9;
+            --login-text-secondary: rgba(241, 245, 249, 0.8);
+            --login-text-muted: rgba(241, 245, 249, 0.5);
+            --login-glass-bg: rgba(6, 182, 212, 0.05);
+            --login-glass-border: rgba(6, 182, 212, 0.2);
+            --login-glow: rgba(6, 182, 212, 0.4);
+        }
+
+        /* Classic theme - Hide Sci-Fi specific elements */
+        [data-style="classic"] .orb,
+        [data-style="classic"] .grid-pattern,
+        [data-style="classic"] #background-canvas {
+            display: none !important;
+        }
+
+        /* Classic theme - Simpler logo animation */
+        [data-style="classic"] .ng5-logo {
+            animation: none;
+            filter: drop-shadow(0 0 20px rgba(6, 182, 212, 0.4));
+        }
+
+        [data-style="classic"] .ng5-logo:hover {
+            filter: drop-shadow(0 0 30px rgba(6, 182, 212, 0.6));
+        }
+
+        [data-style="classic"] .ng5-logo-glow {
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%);
+            animation: none;
+            filter: blur(30px);
+        }
+
+        [data-style="classic"] .ng5-logo-ring {
+            background: linear-gradient(var(--login-bg-primary), var(--login-bg-primary)) padding-box,
+                linear-gradient(135deg, #06b6d4, #10b981) border-box;
+            animation: none;
+        }
+
+        /* Classic theme - Simpler hero text */
+        [data-style="classic"] .hero-title {
+            text-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        /* Classic theme - Simpler card effects */
+        [data-style="classic"] .auth-card {
+            background: rgba(17, 24, 39, 0.9);
+            border-color: rgba(6, 182, 212, 0.25);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-style="classic"] .auth-card::after {
+            display: none;
+        }
+
+        [data-style="classic"] .auth-card:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(6, 182, 212, 0.1);
+        }
+
+        /* Classic theme - Tab styling */
+        [data-style="classic"] .tab-btn.active::before {
+            background: linear-gradient(135deg, #06b6d4, #10b981);
+        }
+
+        /* Classic theme - Input styling */
+        [data-style="classic"] .input-wrapper input:focus {
+            border-color: #06b6d4;
+            background: rgba(6, 182, 212, 0.05);
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.1), 0 0 20px rgba(6, 182, 212, 0.1);
+        }
+
+        [data-style="classic"] .input-wrapper::after {
+            background: linear-gradient(90deg, #06b6d4, #10b981);
+        }
+
+        [data-style="classic"] .input-group:focus-within label {
+            color: #06b6d4;
+        }
+
+        [data-style="classic"] .input-wrapper:focus-within .input-icon {
+            color: #06b6d4;
+            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.5));
+        }
+
+        /* Classic theme - Button styling */
+        [data-style="classic"] .btn-primary {
+            background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+        }
+
+        [data-style="classic"] .btn-primary::after {
+            background: linear-gradient(135deg, #06b6d4, #0891b2, #10b981);
+        }
+
+        [data-style="classic"] .btn-primary:hover {
+            box-shadow: 0 20px 40px -15px rgba(6, 182, 212, 0.5), 0 0 30px rgba(6, 182, 212, 0.2);
+        }
+
+        /* Classic theme - Secondary button */
+        [data-style="classic"] .btn-secondary {
+            color: #06b6d4;
+        }
+
+        [data-style="classic"] .btn-secondary::before {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(16, 185, 129, 0.1));
+        }
+
+        [data-style="classic"] .btn-secondary:hover {
+            color: #22d3ee;
+        }
+
+        /* Classic theme - Links */
+        [data-style="classic"] .link {
+            color: #06b6d4;
+        }
+
+        [data-style="classic"] .link:hover {
+            color: #22d3ee;
+        }
+
+        /* Classic theme - Pro badge */
+        [data-style="classic"] .pro-badge {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(16, 185, 129, 0.15));
+            border-color: rgba(6, 182, 212, 0.3);
+            color: #06b6d4;
+        }
+
+        /* Classic theme - Focus states */
+        [data-style="classic"] *:focus-visible {
+            outline-color: #06b6d4;
+        }
+
+        [data-style="classic"] button:focus-visible,
+        [data-style="classic"] input:focus-visible,
+        [data-style="classic"] a:focus-visible {
+            outline-color: #22d3ee;
+        }
+
+        /* Classic theme - Skip link */
+        [data-style="classic"] .skip-link {
+            background: #06b6d4;
+        }
+
+        /* Classic theme - Loading spinner */
+        [data-style="classic"] .loading-spinner {
+            border-color: rgba(6, 182, 212, 0.2);
+            border-top-color: #06b6d4;
+        }
+
+        /* ==================== STYLE TOGGLE COMPONENT ==================== */
+        .style-toggle-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .style-toggle-container.footer-position {
+            position: relative;
+            top: auto;
+            right: auto;
+            display: inline-flex;
+        }
+
+        .style-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+
+        .style-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.4),
+                0 0 30px var(--login-glow, rgba(139, 41, 66, 0.3)),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .style-toggle-option {
+            position: relative;
+            padding: 8px 16px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            background: transparent;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            z-index: 1;
+        }
+
+        .style-toggle-option:hover:not(.active) {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .style-toggle-option.active {
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        /* Liquid glass slider background */
+        .style-toggle-slider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            height: calc(100% - 8px);
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--login-accent-1, #8B2942) 0%, var(--login-accent-2, #A03050) 100%);
+            box-shadow:
+                0 4px 15px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 0;
+        }
+
+        /* Classic slider style */
+        [data-style="classic"] .style-toggle-slider {
+            background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+            box-shadow:
+                0 4px 15px rgba(6, 182, 212, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        /* Icons for the toggle */
+        .style-toggle-option .toggle-icon {
+            display: inline-block;
+            margin-right: 4px;
+            font-size: 0.9em;
+        }
+
+        /* Responsive adjustments for toggle */
+        @media (max-width: 480px) {
+            .style-toggle-container {
+                top: 10px;
+                right: 10px;
+            }
+
+            .style-toggle-option {
+                padding: 6px 12px;
+                font-size: 0.65rem;
+            }
+
+            .style-toggle-option .toggle-icon {
+                display: none;
+            }
+        }
+
+        /* Footer style toggle specific styles */
+        .footer-style-toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            justify-content: center;
+        }
+
+        .footer-style-label {
+            font-size: 0.7rem;
+            color: var(--login-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Sidebar style toggle wrapper */
+        .sidebar-style-toggle-wrapper {
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-style-toggle-wrapper:hover {
+            background: rgba(6, 182, 212, 0.05);
+            border-color: rgba(6, 182, 212, 0.2);
+        }
+
+        .sidebar-style-toggle-wrapper .style-toggle {
+            justify-content: stretch;
+        }
+
+        /* Classic theme styles for main app */
+        [data-style="classic"] .gradient-bg {
+            background:
+                radial-gradient(ellipse 80% 50% at 20% -20%, rgba(6, 182, 212, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 50% at 80% 120%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                linear-gradient(160deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+        }
+
+        [data-style="classic"] .lms-nav-item.active {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%);
+            border-color: rgba(6, 182, 212, 0.3);
+            color: #22d3ee;
+        }
+
+        [data-style="classic"] .lms-nav-item.active svg {
+            color: #22d3ee;
+        }
+
+        [data-style="classic"] .lms-nav-item:not(.active):hover {
+            background: rgba(6, 182, 212, 0.08);
+            color: #22d3ee;
+        }
+
+        [data-style="classic"] .lms-nav-badge {
+            background: linear-gradient(135deg, #06b6d4, #10b981);
+        }
+
+        /* Classic theme - hide corner toggle when in main app (use sidebar toggle instead) */
+        #app-container:not(.hide)~#corner-style-toggle {
+            display: none;
+        }
+
+        /* ==================== PAGE TRANSITION ANIMATIONS ==================== */
+
+        /* Tab content transition */
+        .tab-content {
+            animation: pageEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .tab-content.hide {
+            animation: none;
+            display: none;
+        }
+
+        @keyframes pageEnter {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pageFadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Stagger animation for child elements */
+        .stagger-children>* {
+            opacity: 0;
+            animation: staggerIn 0.5s ease-out forwards;
+        }
+
+        .stagger-children>*:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+
+        .stagger-children>*:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .stagger-children>*:nth-child(3) {
+            animation-delay: 0.15s;
+        }
+
+        .stagger-children>*:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+
+        .stagger-children>*:nth-child(5) {
+            animation-delay: 0.25s;
+        }
+
+        .stagger-children>*:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes staggerIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Card hover lift effect */
+        .card-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        /* ==================== SKELETON LOADING STATES ==================== */
+
+        .skeleton {
+            background: linear-gradient(90deg,
+                    var(--bg-tertiary, rgba(255, 255, 255, 0.05)) 25%,
+                    var(--bg-secondary, rgba(255, 255, 255, 0.1)) 50%,
+                    var(--bg-tertiary, rgba(255, 255, 255, 0.05)) 75%);
+            background-size: 200% 100%;
+            animation: skeletonShimmer 1.5s infinite linear;
+            border-radius: 8px;
+        }
+
+        @keyframes skeletonShimmer {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        /* Skeleton card */
+        .skeleton-card {
+            background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
+            border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .skeleton-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .skeleton-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+        }
+
+        .skeleton-title {
+            height: 20px;
+            width: 60%;
+            border-radius: 4px;
+        }
+
+        .skeleton-subtitle {
+            height: 14px;
+            width: 40%;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .skeleton-text {
+            height: 14px;
+            width: 100%;
+            border-radius: 4px;
+        }
+
+        .skeleton-text.short {
+            width: 30%;
+        }
+
+        .skeleton-text.medium {
+            width: 60%;
+        }
+
+        .skeleton-button {
+            height: 40px;
+            width: 120px;
+            border-radius: 8px;
+        }
+
+        /* Skeleton stats grid */
+        .skeleton-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .skeleton-stat-card {
+            background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
+            border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+
+        .skeleton-stat-value {
+            height: 32px;
+            width: 80px;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+        }
+
+        .skeleton-stat-label {
+            height: 14px;
+            width: 100px;
+            border-radius: 4px;
+        }
+
+        /* Skeleton table */
+        .skeleton-table {
+            background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
+            border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .skeleton-table-header {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+        }
+
+        .skeleton-table-row {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.05));
+        }
+
+        .skeleton-table-row:last-child {
+            border-bottom: none;
+        }
+
+        .skeleton-cell {
+            height: 16px;
+            border-radius: 4px;
+            flex: 1;
+        }
+
+        /* ==================== CHART STYLING ==================== */
+
+        .chart-container {
+            background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
+            border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary, #fff);
+        }
+
+        .chart-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+            margin-top: 0.25rem;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+        }
+
+        .chart-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .chart-canvas-wrapper {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-canvas-wrapper {
+                height: 200px;
+            }
+        }
+
+        /* Chart-specific colors */
+        .chart-primary {
+            background: var(--accent-gradient, linear-gradient(135deg, #06b6d4, #10b981));
+        }
+
+        .chart-success {
+            background: #10b981;
+        }
+
+        .chart-warning {
+            background: #f59e0b;
+        }
+
+        .chart-danger {
+            background: #ef4444;
+        }
+
+        .chart-info {
+            background: #3b82f6;
+        }
+
+        .chart-purple {
+            background: #8b5cf6;
+        }
     </style>
 </head>
 
@@ -3617,6 +4280,22 @@
 
     <!-- Skip Link for Keyboard Navigation (ADA) -->
     <a href="#login-form" class="skip-link">Skip to login form</a>
+
+    <!-- Style Theme Toggle (Corner Position) -->
+    <div class="style-toggle-container" id="corner-style-toggle" role="group" aria-label="Style theme selector">
+        <div class="style-toggle" id="style-toggle-pill">
+            <div class="style-toggle-slider" id="style-slider"></div>
+            <button class="style-toggle-option active" data-style="scifi" aria-pressed="true"
+                title="Sci-Fi Theme: Burgundy colors with animated effects">
+                <span class="toggle-icon">🚀</span>Sci-Fi
+            </button>
+            <button class="style-toggle-option" data-style="classic" aria-pressed="false"
+                title="Classic Theme: Clean cyan/teal design">
+                <span class="toggle-icon">✨</span>Classic
+            </button>
+        </div>
+    </div>
+
 
     <!-- Authentication Container -->
     <div id="auth-container" role="main" aria-label="Authentication">
@@ -3752,7 +4431,7 @@
         </div>
 
         <!-- Footer -->
-        <div
+        <div class="auth-footer"
             style="margin-top: 3rem; color: var(--login-text-muted); font-size: 0.75rem; display: flex; gap: 1.5rem; align-items: center;">
             <span>© 2025 NG5 LMS</span>
             <a href="#" class="link" style="font-size: 0.75rem;">Privacy</a>
@@ -3892,6 +4571,29 @@
                             <span id="sidebar-user-role" class="text-xs text-primary-400 font-medium"></span>
                         </div>
                     </div>
+
+                    <!-- Sidebar Style Toggle -->
+                    <div
+                        class="sidebar-style-toggle-wrapper mb-3 p-2 rounded-xl bg-dark-800/30 border border-dark-700/50">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <span class="text-xs text-dark-400 uppercase tracking-wider">Style Theme</span>
+                        </div>
+                        <div class="style-toggle-container footer-position" id="sidebar-style-toggle" role="group"
+                            aria-label="Style theme selector">
+                            <div class="style-toggle" style="width: 100%;">
+                                <div class="style-toggle-slider sidebar-slider"></div>
+                                <button class="style-toggle-option active" data-style="scifi" aria-pressed="true"
+                                    style="flex: 1; text-align: center;">
+                                    <span class="toggle-icon">🚀</span>Sci-Fi
+                                </button>
+                                <button class="style-toggle-option" data-style="classic" aria-pressed="false"
+                                    style="flex: 1; text-align: center;">
+                                    <span class="toggle-icon">✨</span>Classic
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <button id="sidebar-logout-btn"
                         class="w-full lms-nav-item text-red-400 hover:bg-red-500/10 hover:text-red-300">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4301,8 +5003,38 @@
                                         <button type="submit"
                                             class="w-full py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">
                                             Add Grade
-                                        </button>
                                     </form>
+                                </div>
+
+                                <!-- Grade Charts Section -->
+                                <div id="grade-charts-section" class="hide">
+                                    <div class="charts-grid">
+                                        <!-- Grade Trend Chart -->
+                                        <div class="chart-container card-lift">
+                                            <div class="chart-header">
+                                                <div>
+                                                    <h4 class="chart-title">📈 Grade Trend</h4>
+                                                    <p class="chart-subtitle">Performance over time</p>
+                                                </div>
+                                            </div>
+                                            <div class="chart-canvas-wrapper">
+                                                <canvas id="grade-trend-chart"></canvas>
+                                            </div>
+                                        </div>
+
+                                        <!-- Category Performance Chart -->
+                                        <div class="chart-container card-lift">
+                                            <div class="chart-header">
+                                                <div>
+                                                    <h4 class="chart-title">📊 Performance by Category</h4>
+                                                    <p class="chart-subtitle">Average scores by assignment type</p>
+                                                </div>
+                                            </div>
+                                            <div class="chart-canvas-wrapper">
+                                                <canvas id="category-chart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Grades Table -->
@@ -7338,6 +8070,127 @@
             });
 
             console.log('✨ [Login] Premium animations initialized');
+        })();
+    </script>
+
+    <!-- Style Theme Toggle Script -->
+    <script>
+        (function initStyleThemeToggle() {
+            const STYLE_KEY = 'ng5-style-theme';
+
+            // Get saved style or default to 'scifi'
+            function getSavedStyle() {
+                try {
+                    return localStorage.getItem(STYLE_KEY) || 'scifi';
+                } catch (e) {
+                    return 'scifi';
+                }
+            }
+
+            // Save style preference
+            function saveStyle(style) {
+                try {
+                    localStorage.setItem(STYLE_KEY, style);
+                } catch (e) {
+                    console.warn('Could not save style preference');
+                }
+            }
+
+            // Apply style to document
+            function applyStyle(style) {
+                if (style === 'classic') {
+                    document.documentElement.setAttribute('data-style', 'classic');
+                } else {
+                    document.documentElement.removeAttribute('data-style');
+                }
+
+                // Update all toggle buttons
+                updateAllToggles(style);
+
+                // Log the change
+                console.log(`🎨 [Style] Theme changed to: ${style === 'classic' ? 'Classic (Cyan/Teal)' : 'Sci-Fi (Burgundy/Red)'}`);
+            }
+
+            // Update all toggle buttons to reflect current style
+            function updateAllToggles(style) {
+                const allToggleContainers = document.querySelectorAll('.style-toggle-container');
+
+                allToggleContainers.forEach(container => {
+                    const options = container.querySelectorAll('.style-toggle-option');
+                    const slider = container.querySelector('.style-toggle-slider');
+                    const toggle = container.querySelector('.style-toggle');
+
+                    options.forEach(opt => {
+                        const optStyle = opt.getAttribute('data-style');
+                        const isActive = optStyle === style;
+
+                        opt.classList.toggle('active', isActive);
+                        opt.setAttribute('aria-pressed', isActive.toString());
+                    });
+
+                    // Update slider position
+                    if (slider && toggle) {
+                        const activeBtn = container.querySelector('.style-toggle-option.active');
+                        if (activeBtn) {
+                            const toggleRect = toggle.getBoundingClientRect();
+                            const btnRect = activeBtn.getBoundingClientRect();
+                            const leftOffset = btnRect.left - toggleRect.left - 4; // 4px is the padding
+                            slider.style.width = `${btnRect.width}px`;
+                            slider.style.transform = `translateX(${leftOffset}px)`;
+                        }
+                    }
+                });
+            }
+
+            // Setup click handlers for all style toggle buttons
+            function setupToggleHandlers() {
+                document.querySelectorAll('.style-toggle-option').forEach(btn => {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const newStyle = this.getAttribute('data-style');
+                        saveStyle(newStyle);
+                        applyStyle(newStyle);
+                    });
+                });
+            }
+
+            // Initialize slider positions after a short delay (for rendering)
+            function initializeSliderPositions() {
+                setTimeout(() => {
+                    const currentStyle = getSavedStyle();
+                    updateAllToggles(currentStyle);
+                }, 100);
+            }
+
+            // Initialize on page load
+            function init() {
+                const savedStyle = getSavedStyle();
+                applyStyle(savedStyle);
+                setupToggleHandlers();
+                initializeSliderPositions();
+
+                // Re-initialize on window resize (for slider position recalculation)
+                window.addEventListener('resize', () => {
+                    updateAllToggles(getSavedStyle());
+                });
+
+                console.log('🎨 [Style] Theme toggle system initialized');
+            }
+
+            // Run initialization
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+
+            // Expose functions globally for use in main app
+            window.setStyleTheme = function (style) {
+                saveStyle(style);
+                applyStyle(style);
+            };
+
+            window.getStyleTheme = getSavedStyle;
         })();
     </script>
 
