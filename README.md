@@ -2,7 +2,7 @@
 
 A secure, FERPA-compliant Learning Management System built with Firebase, TypeScript, and AI integration.
 
-## 🚀 Features
+## Features
 
 - **3-Tier Access Control**: Admin, Teacher, and Student/Parent roles
 - **Real-time Data**: Instant updates using Firestore
@@ -12,7 +12,7 @@ A secure, FERPA-compliant Learning Management System built with Firebase, TypeSc
 - **Data Export**: CSV export for grades
 - **BI Integration**: BigQuery export for Power BI dashboards
 
-## 📋 Tech Stack
+## Tech Stack
 
 - **Frontend**: HTML, TypeScript, Tailwind CSS, Vite
 - **Backend**: Firebase (Authentication, Firestore, Cloud Functions)
@@ -20,7 +20,7 @@ A secure, FERPA-compliant Learning Management System built with Firebase, TypeSc
 - **Analytics**: BigQuery, Power BI
 - **Hosting**: Cloudflare Pages / Firebase Hosting
 
-## 🛠️ Setup Instructions
+## Setup Instructions
 
 ### Prerequisites
 
@@ -84,7 +84,7 @@ npm run build
 
 The production build will be in the `dist/` folder.
 
-## 🔐 Security Model
+## Security Model
 
 ### Firestore Security Rules
 
@@ -106,7 +106,7 @@ All AI features use Cloud Functions as a secure proxy:
 4. Function calls Gemini API server-side (API key never exposed)
 5. Function returns sanitized results to client
 
-## 👥 User Roles
+## User Roles
 
 ### Admin
 - Full access to all data
@@ -127,7 +127,7 @@ All AI features use Cloud Functions as a secure proxy:
 - Can export data to CSV
 - **Cannot** modify any records
 
-## 🤖 AI Features
+## AI Features
 
 ### Performance Summary
 Analyzes grades and attendance to provide:
@@ -144,7 +144,7 @@ Provides personalized recommendations:
 - Study techniques for different assignment types
 - Actionable steps for the next 2 weeks
 
-## 📊 Data Model
+## Data Model
 
 ### Collections
 
@@ -185,7 +185,7 @@ courses/{courseId}
   - createdAt: string
 ```
 
-## 📈 BI Integration
+## BI Integration
 
 ### Power BI via BigQuery
 
@@ -199,7 +199,7 @@ courses/{courseId}
 
 Students and parents can export their grades to CSV format for offline analysis in Excel or other tools.
 
-## 🌐 Deployment
+## Deployment
 
 ### Option 1: Firebase Hosting
 
@@ -221,7 +221,7 @@ Your app will be live at `https://YOUR_PROJECT_ID.web.app`
 
 Don't forget to add your Cloudflare domain to Firebase Console > Authentication > Authorized domains!
 
-## 🔧 Development
+## Development
 
 ### Project Structure
 
@@ -253,7 +253,7 @@ Don't forget to add your Cloudflare domain to Firebase Console > Authentication 
 - `npm run preview` - Preview production build locally
 - `npm run deploy` - Build and deploy everything to Firebase
 
-## 📝 First-Time Setup Checklist
+## First-Time Setup Checklist
 
 - [ ] Create Firebase project
 - [ ] Enable Email/Password authentication
@@ -269,18 +269,18 @@ Don't forget to add your Cloudflare domain to Firebase Console > Authentication 
 - [ ] Create test students and courses
 - [ ] Test AI features
 
-## 🆘 Support
+## Support
 
 For issues related to:
 - Firebase: https://firebase.google.com/support
 - Gemini API: https://ai.google.dev/docs
 - TypeScript: https://www.typescriptlang.org/docs
 
-## 📄 License
+## License
 
 This project is for educational purposes. Modify as needed for your use case.
 
-## 🎓 Credits
+## Credits
 
-Built according to the comprehensive technical specification for a Firebase-hosted, FERPA-compliant Learning Management System with 3-tier access control and AI integration.
+Adib, Erick, Saaeed, Lulya, Liya
 
