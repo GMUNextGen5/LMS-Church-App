@@ -1411,7 +1411,7 @@ function renderGradeCharts(grades: Grade[]): void {
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  const trendLabels = sortedGrades.map((g, i) => g.assignmentName.substring(0, 12) + (g.assignmentName.length > 12 ? '...' : ''));
+  const trendLabels = sortedGrades.map((g) => g.assignmentName.substring(0, 12) + (g.assignmentName.length > 12 ? '...' : ''));
   const trendData = sortedGrades.map(g => ((g.score / g.totalPoints) * 100).toFixed(1));
 
   // Prepare data for category chart
