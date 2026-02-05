@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - NG5 LMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0a0f1a',
+                        secondary: '#111827',
+                        accent: '#8B2942', // Matching login theme
+                        'accent-light': '#C44569',
+                        text: '#f1f5f9',
+                        muted: '#94a3b8'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0a0f1a;
+            color: #f1f5f9;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen font-sans antialiased selection:bg-accent selection:text-white">
+
+    <div class="max-w-4xl mx-auto px-6 py-12">
+        <!-- Header -->
+        <header class="mb-12 text-center">
+            <h1
+                class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent mb-4">
+                Privacy Policy
+            </h1>
+            <p class="text-muted text-lg">
+                Last Updated: February 2026
+            </p>
+        </header>
+
+        <!-- Content -->
+        <main class="space-y-8">
+
+            <!-- Introduction -->
+            <section class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-semibold text-white mb-4">1. Introduction</h2>
+                <p class="text-gray-300 leading-relaxed">
+                    Welcome to the NG5 Learning Management System ("LMS", "System", "Service"), provided by [Church
+                    Name/Organization] ("we", "us", "our").
+                    We are committed to protecting the privacy and security of our students, parents, and faculty. This
+                    Privacy Policy explains
+                    how we collect, use, disclosure, and safeguard your information when you access our System.
+                </p>
+            </section>
+
+            <!-- Data Collection -->
+            <section class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-semibold text-white mb-4">2. Information We Collect</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-300">
+                    <li><strong>Personal Identification:</strong> Names, email addresses, phone numbers, and unique
+                        student identifiers.</li>
+                    <li><strong>Academic Data:</strong> Grades, attendance records, assignment submissions, and progress
+                        reports.</li>
+                    <li><strong>System Usage Data:</strong> Log data, IP addresses, and interaction history for security
+                        and optimization purposes.</li>
+                </ul>
+            </section>
+
+            <!-- Risk Transfer Section -->
+            <section class="glass-panel p-8 rounded-2xl border-l-4 border-accent">
+                <h2 class="text-2xl font-semibold text-white mb-4">3. Risk Transfer & Data Security</h2>
+                <div class="space-y-4 text-gray-300 leading-relaxed">
+                    <p>
+                        <strong>Data Transmission:</strong> While we implement industry-standard security measures
+                        (including encryption and secure Firebase authentication),
+                        you acknowledge that no method of transmission over the Internet or electronic storage is 100%
+                        secure.
+                        By using this System, you acknowledge and accept that you transmit data at your own risk.
+                    </p>
+                    <p>
+                        <strong>User Responsibility:</strong> You are responsible for maintaining the confidentiality of
+                        your login credentials (email and password).
+                        Any activities that occur under your account are your responsibility. We are not liable for any
+                        loss or damage arising from your failure
+                        to protect your account information.
+                    </p>
+                    <p>
+                        <strong>Third-Party Services:</strong> Our System utilizes third-party services (such as Google
+                        Firebase and AI processing services) for data storage and processing.
+                        By using our Service, you agree to the transfer of your data to these third-party processors,
+                        subject to their respective privacy policies and security standards.
+                        We transfer the risk of data breach at the third-party level to the respective providers to the
+                        extent permitted by law.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Security & FERPA Compliance Section -->
+            <section class="glass-panel p-8 rounded-2xl border-l-4 border-green-500">
+                <h2 class="text-2xl font-semibold text-white mb-4">4. Data Security & FERPA Compliance</h2>
+                <div class="space-y-4 text-gray-300 leading-relaxed">
+                    <p>
+                        We employ enterprise-grade security measures to protect your educational records. Although as a
+                        religious organization we may not be strictly bound by federal regulations,
+                        we <strong>voluntarily align our practices</strong> with the Family Educational Rights and
+                        Privacy Act (FERPA) to ensure the highest standard of privacy.
+                    </p>
+
+                    <h3 class="text-xl text-green-400 mt-4 mb-2">4.1 Security Measures</h3>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Encryption:</strong> All data is encrypted <em>at rest</em> using AES-256 encryption
+                            standards (the same standard used by banks). Data <em>in transit</em> is secured via TLS
+                            1.3/HTTPS protocols.</li>
+                        <li><strong>Strict Access Control:</strong> We utilize granular Role-Based Access Control
+                            (RBAC).
+                            <ul class="list-disc pl-5 mt-1 text-sm text-gray-400">
+                                <li><strong>Students</strong> can only access their own records.</li>
+                                <li><strong>Parents</strong> can only access their own children's records.</li>
+                                <li><strong>Teachers</strong> are restricted to accessing <em>only</em> the students
+                                    assigned to their specific courses.</li>
+                            </ul>
+                        </li>
+                        <li><strong>Advanced Protection:</strong> Our system includes active XSS (Cross-Site Scripting)
+                            prevention using DOMPurify sanitization and undergoes regular security audits.</li>
+                    </ul>
+
+                    <h3 class="text-xl text-green-400 mt-4 mb-2">4.2 FERPA Alignment</h3>
+                    <p>
+                        In alignment with FERPA principles, we guarantee:
+                    </p>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li>The right for parents and eligible students to inspect and review their education records.
+                        </li>
+                        <li>The right to request corrections to records believed to be inaccurate.</li>
+                        <li>The assurance that personally identifiable information (PII) is not disclosed to third
+                            parties without consent, except as allowed by law for educational purposes.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- AI Usage -->
+            <section class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-semibold text-white mb-4">5. AI & Automated Processing</h2>
+                <p class="text-gray-300 leading-relaxed">
+                    Our System employs Artificial Intelligence (AI) to provide performance summaries, study tips, and
+                    administrative assistance.
+                    Data processed by AI is used solely for educational enhancement and is not sold to third parties for
+                    marketing.
+                    Please be aware that AI-generated content (such as study tips) is advisory in nature and should be
+                    verified.
+                </p>
+            </section>
+
+            <!-- Contact -->
+            <section class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-semibold text-white mb-4">6. Contact Us</h2>
+                <p class="text-gray-300">
+                    If you have questions about this Privacy Policy or our data practices, please contact the
+                    Administration.
+                </p>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-16 text-center text-muted text-sm pb-8">
+            <p>&copy; 2026 NG5 LMS. All rights reserved.</p>
+            <div class="mt-4 space-x-4">
+                <a href="index.html" class="hover:text-accent transition-colors">Return to Login</a>
+                <span>|</span>
+                <a href="terms.html" class="hover:text-accent transition-colors">Terms of Service</a>
+            </div>
+        </footer>
+    </div>
+
+</body>
+
+</html>
