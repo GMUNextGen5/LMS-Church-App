@@ -340,6 +340,8 @@ import {
   markAttendance
 } from './data';
 import { User, Student, Grade, Attendance } from './types';
+import { initAssessments, loadAssessments } from './assessment-ui';
+import { initClasses, loadClasses } from './classes-ui';
 
 // Application state
 let currentStudents: Student[] = [];
@@ -350,8 +352,6 @@ let gradesUnsubscribe: (() => void) | null = null;
 
 // Initialize the application
 async function init(): Promise<void> {
-  console.log('🚀 Initializing LMS Application...');
-
   // Initialize UI event listeners
   initUI();
 
@@ -362,25 +362,39 @@ async function init(): Promise<void> {
   setupAuthForms();
   setupAppForms();
 
+  // Initialize assessment module
+  initAssessments();
+  initClasses();
+
   // Listen for tab switches to load data
   document.addEventListener('tab-switched', async (e: any) => {
     const tab = e.detail?.tab;
+    if (tab === 'classes') {
+      await loadClasses();
+    }
     if (tab === 'attendance' && selectedStudentId) {
       // Load attendance when switching to attendance tab
       await loadStudentAttendance(selectedStudentId);
     } else if (tab === 'dashboard') {
       // Reload recent activity when switching to dashboard
       await loadRecentActivity();
+    } else     if (tab === 'assessments') {
+      await loadAssessments();
+    }
+    if (tab === 'users') {
+      await loadAllUsers();
+    }
+    if (tab === 'teacher-registration') {
+      await loadRegisteredTeachers();
+      await populateTeacherAccountDropdown();
     }
   });
-
-  console.log('✅ Application initialized');
 
   // Initialize particles
   try {
     new ParticleSystem('background-canvas');
-  } catch (e) {
-    console.log('Background canvas not found or already initialized');
+  } catch {
+    // Background canvas not found or already initialized
   }
 }
 
@@ -477,16 +491,13 @@ function setupAuthForms(): void {
     }
 
     try {
-      console.log('🚀 [Signup] Starting signup process...');
       const uid = await signUp(email, password);
 
       // Show UID to user immediately after signup
-      console.log('🎉 [Signup] Account created! Displaying UID to user...');
       showUidModal(uid, email);
 
       signupForm.reset();
     } catch (error: any) {
-      console.error('❌ [Signup] Signup failed:', error);
       showError(signupError, error.message);
     }
   });
@@ -516,20 +527,9 @@ function setupAppForms(): void {
 
       const formData = new FormData(studentRegForm);
 
-      // DEBUG: Log form data to check what we're submitting
-      console.log('📝 [Student Registration] Form data:', {
-        name: formData.get('studentName'),
-        memberId: formData.get('memberId'),
-        yearOfBirth: formData.get('yearOfBirth'),
-        contactPhone: formData.get('contactPhone'),
-        contactEmail: formData.get('contactEmail'),
-        studentUid: formData.get('studentUid'),
-        notes: formData.get('notes')
-      });
-
       const studentData = {
         name: formData.get('studentName') as string,
-        memberId: formData.get('memberId') as string,
+        memberId: (formData.get('memberId') as string) || '',
         yearOfBirth: parseInt(formData.get('yearOfBirth') as string),
         contactPhone: formData.get('contactPhone') as string,
         contactEmail: formData.get('contactEmail') as string,
@@ -555,7 +555,6 @@ function setupAppForms(): void {
         await loadDashboardData();
         await loadRegisteredStudents();
 
-        console.log('✅ Student registered successfully');
       } catch (error: any) {
         console.error('Error registering student:', error);
         errorEl.textContent = 'Failed to register student: ' + error.message;
@@ -565,6 +564,95 @@ function setupAppForms(): void {
         hideLoading();
       }
     });
+  }
+
+  // Teacher Registration Form (Admin only) - same pattern as student registration
+  const teacherRegForm = document.getElementById('teacher-registration-form') as HTMLFormElement;
+  if (teacherRegForm) {
+    teacherRegForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('teacher-registration-error');
+      const successEl = document.getElementById('teacher-registration-success');
+      const finalUidEl = document.getElementById('final-teacher-uid') as HTMLInputElement;
+      errorEl?.classList.add('hide');
+      successEl?.classList.add('hide');
+      const teacherUid = (finalUidEl?.value || (teacherRegForm.querySelector('[name="teacherUid"]') as HTMLInputElement | null)?.value)?.trim();
+      if (!teacherUid) {
+        if (errorEl) {
+          errorEl.textContent = 'Link to Teacher Account is required. Select an account or enter UID manually.';
+          errorEl.classList.remove('hide');
+        }
+        return;
+      }
+      const formData = new FormData(teacherRegForm);
+      const teacherName = (formData.get('teacherName') as string)?.trim();
+      const yearVal = formData.get('teacherYearOfBirth');
+      const parsedYear = yearVal ? parseInt(String(yearVal), 10) : NaN;
+      const yearOfBirth = Number.isNaN(parsedYear) ? undefined : parsedYear;
+      try {
+        const { showLoading, hideLoading } = await import('./ui');
+        const { createTeacher } = await import('./data');
+        showLoading();
+        await createTeacher({
+          teacherUid,
+          name: teacherName || undefined,
+          email: (formData.get('teacherEmail') as string)?.trim() || undefined,
+          phone: (formData.get('teacherPhone') as string)?.trim() || undefined,
+          memberId: (formData.get('teacherMemberId') as string)?.trim() || undefined,
+          yearOfBirth,
+          notes: (formData.get('teacherNotes') as string)?.trim() || undefined,
+        });
+        hideLoading();
+        if (successEl) {
+          successEl.textContent = `Teacher "${teacherName || 'registered'}" registered successfully.`;
+          successEl.classList.remove('hide');
+        }
+        teacherRegForm.reset();
+        if (finalUidEl) finalUidEl.value = '';
+        await loadRegisteredTeachers();
+      } catch (error: unknown) {
+        const { hideLoading } = await import('./ui');
+        hideLoading();
+        const msg = error instanceof Error ? error.message : String(error);
+        if (errorEl) {
+          errorEl.textContent = 'Failed to register teacher: ' + msg;
+          errorEl.classList.remove('hide');
+        }
+      }
+    });
+  }
+
+  // Teacher account dropdown vs manual UID (same as student)
+  const useManualTeacherBtn = document.getElementById('use-manual-teacher-uid-btn');
+  const useDropdownTeacherBtn = document.getElementById('use-dropdown-teacher-btn');
+  const teacherDropdownMethod = document.getElementById('teacher-dropdown-method');
+  const teacherManualMethod = document.getElementById('teacher-manual-method');
+  if (useManualTeacherBtn && useDropdownTeacherBtn && teacherDropdownMethod && teacherManualMethod) {
+    useManualTeacherBtn.addEventListener('click', () => {
+      teacherDropdownMethod.classList.add('hide');
+      teacherManualMethod.classList.remove('hide');
+    });
+    useDropdownTeacherBtn.addEventListener('click', () => {
+      teacherDropdownMethod.classList.remove('hide');
+      teacherManualMethod.classList.add('hide');
+    });
+  }
+  const teacherAccountSelect = document.getElementById('teacher-account-select') as HTMLSelectElement;
+  const finalTeacherUidInput = document.getElementById('final-teacher-uid') as HTMLInputElement;
+  if (teacherAccountSelect && finalTeacherUidInput) {
+    teacherAccountSelect.addEventListener('change', () => {
+      finalTeacherUidInput.value = teacherAccountSelect.value;
+    });
+  }
+  const manualTeacherUidInput = document.getElementById('manual-teacher-uid') as HTMLInputElement;
+  if (manualTeacherUidInput && finalTeacherUidInput) {
+    manualTeacherUidInput.addEventListener('input', () => {
+      finalTeacherUidInput.value = manualTeacherUidInput.value.trim();
+    });
+  }
+  const refreshTeacherAccountsBtn = document.getElementById('refresh-teacher-accounts-btn');
+  if (refreshTeacherAccountsBtn) {
+    refreshTeacherAccountsBtn.addEventListener('click', () => populateTeacherAccountDropdown());
   }
 
   // Student selection
@@ -578,10 +666,8 @@ function setupAppForms(): void {
     if (pdfSection) {
       if (selectedStudentId) {
         pdfSection.classList.remove('hide');
-        console.log('📄 [PDF] PDF buttons shown');
       } else {
         pdfSection.classList.add('hide');
-        console.log('📄 [PDF] PDF buttons hidden');
       }
     }
 
@@ -616,7 +702,6 @@ function setupAppForms(): void {
       try {
         await addGrade(selectedStudentId, gradeData);
         gradeEntryForm.reset();
-        console.log('✅ Grade added successfully');
       } catch (error: any) {
         alert('Failed to add grade: ' + error.message);
       }
@@ -692,13 +777,11 @@ function setupAppForms(): void {
 
   if (useManualBtn && useDropdownBtn && dropdownMethod && manualMethod) {
     useManualBtn.addEventListener('click', () => {
-      console.log('💡 [UID Input] Switching to manual UID entry mode');
       dropdownMethod.classList.add('hide');
       manualMethod.classList.remove('hide');
     });
 
     useDropdownBtn.addEventListener('click', () => {
-      console.log('💡 [UID Input] Switching back to dropdown mode');
       manualMethod.classList.add('hide');
       dropdownMethod.classList.remove('hide');
     });
@@ -710,9 +793,7 @@ function setupAppForms(): void {
 
   if (accountSelect && finalUidInput) {
     accountSelect.addEventListener('change', () => {
-      const selectedUid = accountSelect.value;
-      finalUidInput.value = selectedUid;
-      console.log('🔗 [UID Input] Dropdown selected UID:', selectedUid);
+      finalUidInput.value = accountSelect.value;
     });
   }
 
@@ -720,9 +801,7 @@ function setupAppForms(): void {
   const manualUidInput = document.getElementById('manual-student-uid') as HTMLInputElement;
   if (manualUidInput && finalUidInput) {
     manualUidInput.addEventListener('input', () => {
-      const manualUid = manualUidInput.value.trim();
-      finalUidInput.value = manualUid;
-      console.log('✏️ [UID Input] Manual UID entered:', manualUid);
+      finalUidInput.value = manualUidInput.value.trim();
     });
   }
 
@@ -777,7 +856,6 @@ function setupAppForms(): void {
           await loadStudentAttendance(attendanceStudentId);
         }
 
-        console.log('✅ Attendance marked successfully');
       } catch (error: any) {
         console.error('Error marking attendance:', error);
         errorEl.textContent = 'Failed to mark attendance: ' + error.message;
@@ -955,6 +1033,9 @@ async function loadDashboardData(): Promise<void> {
     // Load registered students table if on registration tab
     await loadRegisteredStudents();
 
+    // Load registered teachers table for teacher registration tab
+    await loadRegisteredTeachers();
+
     // Load users table if on user management tab
     await loadAllUsers();
 
@@ -964,7 +1045,6 @@ async function loadDashboardData(): Promise<void> {
     // Display UID for students in dashboard
     displayStudentUid();
 
-    console.log('✅ Dashboard data loaded');
   } catch (error) {
     console.error('Error loading dashboard data:', error);
   }
@@ -1017,6 +1097,54 @@ async function loadRegisteredStudents(): Promise<void> {
   }
 }
 
+// Load registered teachers for the Teacher Registration tab
+async function loadRegisteredTeachers(): Promise<void> {
+  const tableBody = document.getElementById('registered-teachers-table-body');
+  if (!tableBody) return;
+
+  try {
+    const { getCurrentUserRole } = await import('./ui');
+    const role = getCurrentUserRole();
+    if (role !== 'admin') return;
+
+    const { fetchAllUsers } = await import('./data');
+    const users = await fetchAllUsers();
+    const teachers = users.filter((u: { role: string }) => u.role === 'teacher');
+
+    if (teachers.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-8 text-dark-300">No teachers registered yet</td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = teachers.map((t: { uid: string; email?: string; name?: string; memberId?: string; phone?: string; yearOfBirth?: number }) => `
+      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
+        <td class="py-3 px-4 text-white font-semibold">${escapeHtml((t as any).memberId || 'N/A')}</td>
+        <td class="py-3 px-4 text-white">${escapeHtml((t as any).name || t.email || 'N/A')}</td>
+        <td class="py-3 px-4 text-center text-dark-300">${(t as any).yearOfBirth ?? 'N/A'}</td>
+        <td class="py-3 px-4 text-dark-300 text-sm">
+          ${escapeHtml((t as any).email || 'N/A')}<br>${escapeHtml((t as any).phone || '')}
+        </td>
+        <td class="py-3 px-4 text-center">
+          <button onclick="handleDeleteTeacher('${t.uid}')"
+            class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (error) {
+    console.error('Error loading registered teachers:', error);
+  }
+}
+
+function escapeHtml(s: string): string {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
 // Load all users for the User Management tab
 async function loadAllUsers(): Promise<void> {
   const tableBody = document.getElementById('users-table-body');
@@ -1029,7 +1157,7 @@ async function loadAllUsers(): Promise<void> {
     // Only load for admins
     if (role !== 'admin') return;
 
-    const { functions, httpsCallable } = await import('./firebase');
+    const { fetchAllUsers } = await import('./data');
 
     tableBody.innerHTML = `
       <tr>
@@ -1040,10 +1168,7 @@ async function loadAllUsers(): Promise<void> {
       </tr>
     `;
 
-    const getAllUsers = httpsCallable(functions, 'getAllUsers');
-    const result = await getAllUsers({});
-    const data = result.data as any;
-    const users = data.users || [];
+    const users = await fetchAllUsers();
 
     if (users.length === 0) {
       tableBody.innerHTML = `
@@ -1066,7 +1191,7 @@ async function loadAllUsers(): Promise<void> {
       }
     };
 
-    tableBody.innerHTML = users.map((user: any) => `
+    tableBody.innerHTML = users.map((user: { uid: string; email: string; role: string }) => `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
         <td class="py-3 px-4 text-white">${user.email}</td>
         <td class="py-3 px-4 text-center">
@@ -1086,7 +1211,6 @@ async function loadAllUsers(): Promise<void> {
       </tr>
     `).join('');
 
-    console.log('✅ Loaded', users.length, 'users');
   } catch (error) {
     console.error('Error loading users:', error);
     tableBody.innerHTML = `
@@ -1100,68 +1224,38 @@ async function loadAllUsers(): Promise<void> {
 }
 
 /**
- * Populate student account dropdown with all registered Firebase Auth users
+ * Populate student account dropdown with all registered users from Firestore
  * 
  * PURPOSE: Let admins link a student record to an existing Firebase Auth account
- * 
- * NOTE: Requires Cloud Functions to be deployed (Blaze plan required)
- * If not deployed, user can manually enter UID instead
- * 
- * DEBUG: If dropdown is empty, check:
- * 1. Cloud Functions are deployed (getAllUsers function)
- * 2. User has admin role
- * 3. Firebase Auth has users registered
- * 4. Console logs show any errors
+ * Uses direct Firestore read (fetchAllUsers); no Cloud Functions required.
  */
 async function populateStudentAccountDropdown(): Promise<void> {
   const accountSelect = document.getElementById('student-account-select') as HTMLSelectElement;
-  if (!accountSelect) {
-    console.log('⚠️ [populateStudentAccountDropdown] student-account-select element not found');
-    return;
-  }
+  if (!accountSelect) return;
 
   try {
     const { getCurrentUserRole } = await import('./ui');
     const role = getCurrentUserRole();
 
     // Only populate for admins
-    if (role !== 'admin') {
-      console.log('⚠️ [populateStudentAccountDropdown] User is not admin, skipping');
-      return;
-    }
+    if (role !== 'admin') return;
 
-    console.log('🔍 [populateStudentAccountDropdown] Attempting to fetch registered accounts...');
-
-    const { functions, httpsCallable } = await import('./firebase');
-    const getAllUsers = httpsCallable(functions, 'getAllUsers');
-
-    // Set a timeout to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Request timed out')), 5000);
-    });
-
-    const result: any = await Promise.race([
-      getAllUsers({}),
-      timeoutPromise
-    ]);
-
-    const data = result.data as any;
-    const users = data.users || [];
+    const { fetchAllUsers } = await import('./data');
+    const users = await fetchAllUsers();
 
     // Clear existing options except the default
     accountSelect.innerHTML = '<option value="">-- Select Registered Account --</option>';
 
     // Add all users (sorted by email)
-    users.sort((a: any, b: any) => a.email.localeCompare(b.email));
+    users.sort((a: { email: string }, b: { email: string }) => a.email.localeCompare(b.email));
 
-    users.forEach((user: any) => {
+    users.forEach((user: { uid: string; email: string; role: string } & { name?: string }) => {
       const option = document.createElement('option');
       option.value = user.uid;
 
-      // Show email, display name (if any), and role
       let displayText = user.email;
-      if (user.displayName) {
-        displayText += ` (${user.displayName})`;
+      if (user.name) {
+        displayText += ` (${user.name})`;
       }
       displayText += ` - ${user.role}`;
 
@@ -1169,17 +1263,38 @@ async function populateStudentAccountDropdown(): Promise<void> {
       accountSelect.appendChild(option);
     });
 
-    console.log(`✅ [populateStudentAccountDropdown] Loaded ${users.length} accounts into dropdown`);
-    console.log('💡 [populateStudentAccountDropdown] Dropdown ready! Students must create an account BEFORE linking.');
-
   } catch (error: any) {
-    // Fail silently if Cloud Functions aren't deployed
-    console.warn('⚠️ [populateStudentAccountDropdown] Could not load accounts from Cloud Functions');
-    console.warn('   This is expected if Cloud Functions are not deployed (requires Blaze plan)');
-    console.warn('   👉 Use "Enter UID manually" option below the dropdown');
+    console.warn('Could not load accounts for dropdown:', error?.message);
 
     // Update dropdown to show helpful message
     accountSelect.innerHTML = '<option value="">Cloud Functions not deployed - use manual entry</option>';
+  }
+}
+
+/** Populate teacher account dropdown (same as student, for Teacher Registration tab). */
+async function populateTeacherAccountDropdown(): Promise<void> {
+  const accountSelect = document.getElementById('teacher-account-select') as HTMLSelectElement;
+  if (!accountSelect) return;
+
+  try {
+    const { getCurrentUserRole } = await import('./ui');
+    if (getCurrentUserRole() !== 'admin') return;
+
+    const { fetchAllUsers } = await import('./data');
+    const users = await fetchAllUsers();
+    accountSelect.innerHTML = '<option value="">-- Select Registered Account --</option>';
+    users.sort((a: { email: string }, b: { email: string }) => (a.email || '').localeCompare(b.email || ''));
+    users.forEach((user: { uid: string; email: string; role: string; name?: string }) => {
+      const option = document.createElement('option');
+      option.value = user.uid;
+      let displayText = user.email || user.uid;
+      if (user.name) displayText += ` (${user.name})`;
+      displayText += ` - ${user.role}`;
+      option.textContent = displayText;
+      accountSelect.appendChild(option);
+    });
+  } catch {
+    accountSelect.innerHTML = '<option value="">Use manual UID entry below</option>';
   }
 }
 
@@ -1194,7 +1309,6 @@ async function populateStudentAccountDropdown(): Promise<void> {
  * 3. For students: their record exists in currentStudents array
  */
 function updateStudentSelect(): void {
-  console.log(`🔄 [updateStudentSelect] Updating dropdowns with ${currentStudents.length} students`);
 
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement;
   const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
@@ -1210,7 +1324,6 @@ function updateStudentSelect(): void {
     option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
     studentSelect.appendChild(option);
   });
-  console.log(`✅ [updateStudentSelect] Added ${currentStudents.length} students to grades dropdown`);
 
   // Also update attendance student select
   if (attendanceStudentSelect) {
@@ -1221,7 +1334,6 @@ function updateStudentSelect(): void {
       option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
       attendanceStudentSelect.appendChild(option);
     });
-    console.log(`✅ [updateStudentSelect] Added ${currentStudents.length} students to attendance dropdown`);
   }
 
   // Update dashboard student select (admin/teacher only)
@@ -1235,20 +1347,14 @@ function updateStudentSelect(): void {
       option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
       dashboardStudentSelect.appendChild(option);
     });
-    console.log(`✅ [updateStudentSelect] Added ${currentStudents.length} students to dashboard dropdown`);
   }
 
   // AUTO-SELECT for students: If user is a student, select their own record automatically
   const userRole = getCurrentUserRole();
-  console.log(`👤 [updateStudentSelect] Current user role: ${userRole}`);
 
   if (userRole === 'student' && currentStudents.length === 1) {
     // Student should only have 1 record (their own)
     const ownRecord = currentStudents[0];
-    console.log(`🎓 [updateStudentSelect] Auto-selecting student's own record:`, {
-      id: ownRecord.id,
-      name: ownRecord.name
-    });
 
     // Set the dropdown value
     studentSelect.value = ownRecord.id;
@@ -1266,7 +1372,6 @@ function updateStudentSelect(): void {
 
     // Disable the dropdown so they can't change it
     studentSelect.disabled = true;
-    console.log(`🔒 [updateStudentSelect] Dropdown locked to student's own record`);
   } else {
     // Enable dropdown for admin/teacher
     studentSelect.disabled = false;
@@ -1279,7 +1384,6 @@ function updateStudentSelect(): void {
   setTimeout(() => {
     if (typeof (window as any).setupPDFReportGeneration === 'function') {
       (window as any).setupPDFReportGeneration();
-      console.log('📄 [updateStudentSelect] PDF report buttons initialized');
     }
   }, 100);
 }
@@ -1329,7 +1433,6 @@ async function loadStudentGrades(studentId: string): Promise<void> {
       updateDashboardStats();
     });
 
-    console.log('✅ Loaded grades for student:', studentId);
   } catch (error) {
     console.error('Error loading student grades:', error);
     displayGrades([]);
@@ -1400,7 +1503,7 @@ let categoryChart: any = null;
 function renderGradeCharts(grades: Grade[]): void {
   // Check if Chart.js is available
   if (typeof (window as any).Chart === 'undefined') {
-    console.warn('Chart.js not loaded, skipping chart rendering');
+    // Chart.js not loaded, skipping chart rendering
     return;
   }
 
@@ -1545,7 +1648,6 @@ function renderGradeCharts(grades: Grade[]): void {
     }
   }
 
-  console.log('📊 [Charts] Grade charts rendered');
 }
 
 // Delete grade handler (exposed to window for onclick)
@@ -1556,7 +1658,6 @@ function renderGradeCharts(grades: Grade[]): void {
 
   try {
     await deleteGrade(studentId, gradeId);
-    console.log('✅ Grade deleted successfully');
   } catch (error: any) {
     alert('Failed to delete grade: ' + error.message);
   }
@@ -1575,10 +1676,27 @@ function renderGradeCharts(grades: Grade[]): void {
     // Reload data
     await loadDashboardData();
 
-    alert('✅ Student deleted successfully');
-    console.log('✅ Student deleted successfully');
+    alert('Student deleted successfully');
   } catch (error: any) {
     alert('Failed to delete student: ' + error.message);
+  }
+};
+
+// Delete teacher (demote to student) - for Registered Teachers table
+(window as any).handleDeleteTeacher = async (userId: string) => {
+  if (!confirm('Remove this teacher? Their role will be set back to student.')) return;
+  try {
+    const { updateUserRoleDirect } = await import('./data');
+    const { showLoading, hideLoading } = await import('./ui');
+    showLoading();
+    await updateUserRoleDirect(userId, 'student');
+    await loadRegisteredTeachers();
+    hideLoading();
+    alert('Teacher removed (role set to student).');
+  } catch (err: any) {
+    const { hideLoading } = await import('./ui');
+    hideLoading();
+    alert('Failed to remove teacher: ' + err?.message);
   }
 };
 
@@ -1601,18 +1719,12 @@ function renderGradeCharts(grades: Grade[]): void {
   }
 
   try {
-    const { functions, httpsCallable } = await import('./firebase');
+    const { updateUserRoleDirect } = await import('./data');
     const { showLoading } = await import('./ui');
 
     showLoading();
 
-    const updateUserRole = httpsCallable(functions, 'updateUserRole');
-    const result = await updateUserRole({
-      targetUserId: userId,
-      newRole: roleNormalized
-    });
-
-    console.log('✅ Role updated:', result.data);
+    await updateUserRoleDirect(userId, roleNormalized as 'admin' | 'teacher' | 'student');
 
     // Reload users table
     await loadAllUsers();
@@ -1947,47 +2059,37 @@ function resetAppState(): void {
  * - Review Cloud Functions logs for AI API errors
  */
 async function generatePerformanceSummary(studentId: string): Promise<void> {
-  console.log('🤖 [generatePerformanceSummary] Starting', { studentId });
+  const btn = document.getElementById('ai-summary-btn') as HTMLButtonElement | null;
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
 
   try {
     const { showLoading } = await import('./ui');
     const { functions, httpsCallable } = await import('./firebase');
 
-    // Show loading indicator
     showLoading();
 
-    // Call Cloud Function
-    // TODO: When migrating to dedicated API service, replace this with direct API call
-    const getPerformanceSummary = httpsCallable(functions, 'getPerformanceSummary');
-    const result = await getPerformanceSummary({ studentId });
+    // Call Cloud Function with 120s client-side timeout
+    const getPerformanceSummary = httpsCallable(functions, 'getPerformanceSummary', { timeout: 120_000 });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. The AI service may be busy — please try again.')), 120_000)
+    );
+    const result = await Promise.race([getPerformanceSummary({ studentId }), timeoutPromise]);
 
     const data = result.data as any;
 
-    // Display result in modal
     const { showModal } = await import('./ui');
     showModal(
       `Performance Summary - ${data.studentName}`,
       data.summaryHtml
     );
 
-    console.log('✅ [generatePerformanceSummary] Success', {
-      studentName: data.studentName,
-      generatedAt: data.generatedAt,
-      metadata: data.metadata
-    });
   } catch (error: any) {
-    console.error('❌ [generatePerformanceSummary] Error:', {
-      error: error.message,
-      code: error.code,
-      studentId
-    });
-
-    // Provide user-friendly error message
-    const errorMessage = error.message || 'Unknown error occurred';
-    alert(`Failed to generate summary: ${errorMessage}`);
+    console.error('Performance summary error:', error.message);
+    alert(`Failed to generate summary: ${error.message || 'Unknown error occurred'}`);
   } finally {
     const { hideLoading } = await import('./ui');
     hideLoading();
+    if (btn) { btn.disabled = false; btn.textContent = 'AI Performance Summary'; }
   }
 }
 
@@ -2014,47 +2116,37 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
  * - Review Cloud Functions logs for AI API errors
  */
 async function generateStudyTips(studentId: string): Promise<void> {
-  console.log('🤖 [generateStudyTips] Starting', { studentId });
+  const btn = document.getElementById('study-tips-btn') as HTMLButtonElement | null;
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
 
   try {
     const { showLoading } = await import('./ui');
     const { functions, httpsCallable } = await import('./firebase');
 
-    // Show loading indicator
     showLoading();
 
-    // Call Cloud Function
-    // TODO: When migrating to dedicated API service, replace this with direct API call
-    const getStudyTips = httpsCallable(functions, 'getStudyTips');
-    const result = await getStudyTips({ studentId });
+    // Call Cloud Function with 120s client-side timeout
+    const getStudyTips = httpsCallable(functions, 'getStudyTips', { timeout: 120_000 });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. The AI service may be busy — please try again.')), 120_000)
+    );
+    const result = await Promise.race([getStudyTips({ studentId }), timeoutPromise]);
 
     const data = result.data as any;
 
-    // Display result in modal
     const { showModal } = await import('./ui');
     showModal(
       `Study Tips - ${data.studentName}`,
       data.tipsHtml
     );
 
-    console.log('✅ [generateStudyTips] Success', {
-      studentName: data.studentName,
-      generatedAt: data.generatedAt,
-      metadata: data.metadata
-    });
   } catch (error: any) {
-    console.error('❌ [generateStudyTips] Error:', {
-      error: error.message,
-      code: error.code,
-      studentId
-    });
-
-    // Provide user-friendly error message
-    const errorMessage = error.message || 'Unknown error occurred';
-    alert(`Failed to generate study tips: ${errorMessage}`);
+    console.error('Study tips error:', error.message);
+    alert(`Failed to generate study tips: ${error.message || 'Unknown error occurred'}`);
   } finally {
     const { hideLoading } = await import('./ui');
     hideLoading();
+    if (btn) { btn.disabled = false; btn.textContent = 'Get Study Tips'; }
   }
 }
 
@@ -2131,19 +2223,11 @@ function setupAIAgentChat(): void {
         conversationHistory = conversationHistory.slice(-10);
       }
 
-      console.log('✅ [AI Agent] Response received', {
-        responseLength: data.response.length,
-        timestamp: data.timestamp
-      });
-
     } catch (error: any) {
       // Remove typing indicator
       removeTypingIndicator(typingId);
 
-      console.error('❌ [AI Agent] Error:', {
-        error: error.message,
-        code: error.code
-      });
+      console.error('AI Agent error:', error.message);
 
       // Show error message
       addMessageToChat('assistant', `Sorry, I encountered an error: ${error.message || 'Unknown error'}. Please try again.`);
@@ -2168,9 +2252,7 @@ function setupAIAgentChat(): void {
     if (role === 'user') {
       formattedContent = escapeHtml(content);
     } else {
-      console.log('🎨 [AI Chat] Raw content:', content.substring(0, 200));
       formattedContent = formatMarkdown(content);
-      console.log('🎨 [AI Chat] Formatted content:', formattedContent.substring(0, 200));
     }
 
     if (role === 'user') {
@@ -2307,11 +2389,7 @@ function setupAIAgentChat(): void {
     // Check if content already contains HTML tags - look for common tags
     const hasHtmlTags = /<\/?(?:ul|ol|li|p|div|h[1-6]|strong|em|b|i|code|pre|blockquote|br|hr|span|a)[>\s]/i.test(html);
 
-    console.log('🔍 [formatMarkdown] Has HTML tags:', hasHtmlTags);
-    console.log('🔍 [formatMarkdown] First 150 chars:', html.substring(0, 150));
-
     if (hasHtmlTags) {
-      console.log('✅ [formatMarkdown] Processing as HTML');
 
       // Content has HTML - apply styling classes to existing tags
       html = html.replace(/<ul([^>]*)>/gi, '<ul class="space-y-2 my-4"$1>');
@@ -2345,7 +2423,6 @@ function setupAIAgentChat(): void {
         return `>${styled}<`;
       });
 
-      console.log('✅ [formatMarkdown] Processed HTML (first 200 chars):', html.substring(0, 200));
       return html;
     }
 
@@ -2436,8 +2513,6 @@ function setupAIAgentChat(): void {
       }
     });
   }
-
-  console.log('✅ AI Agent chat initialized');
 }
 
 // ==================== ATTENDANCE TRACKING ====================
@@ -2450,7 +2525,6 @@ async function loadStudentAttendance(studentId: string): Promise<void> {
     updateAttendanceStats(currentAttendance);
     // Update recent activity when attendance changes
     loadRecentActivity();
-    console.log('✅ Loaded', currentAttendance.length, 'attendance records');
   } catch (error) {
     console.error('Error loading attendance:', error);
     displayAttendance([]);
@@ -2543,14 +2617,12 @@ function loadStudentProfile(): void {
   // Get current user
   const user = auth.currentUser;
   if (!user) {
-    console.error('❌ [loadStudentProfile] No user logged in');
     return;
   }
 
   // Find student record
   const student = currentStudents.find(s => s.studentUid === user.uid);
   if (!student) {
-    console.warn('⚠️ [loadStudentProfile] Student record not found');
     return;
   }
 
@@ -2616,11 +2688,9 @@ function loadStudentProfile(): void {
 
     passwordToggleInitialized = true;
   }
-
-  console.log('✅ Student profile loaded');
 }
 
-// ==================== UID DISPLAY ====================
+// ==================== UID DISPLAY SECTION ====================
 
 // Track if UID event listeners have been set up (prevent duplicate listeners)
 let uidListenersInitialized = false;
@@ -2641,59 +2711,28 @@ function displayStudentUid(): void {
   const showUidBtn = document.getElementById('show-uid-btn');
   const uidDropdown = document.getElementById('uid-dropdown');
 
-  console.log('🔍 [displayStudentUid] Checking elements...', {
-    uidDisplay: !!uidDisplay,
-    copyBtn: !!copyBtn,
-    showUidBtn: !!showUidBtn,
-    uidDropdown: !!uidDropdown
-  });
-
-  if (!uidDisplay || !copyBtn || !showUidBtn || !uidDropdown) {
-    console.error('❌ [displayStudentUid] Missing required elements!');
-    return;
-  }
+  if (!uidDisplay || !copyBtn || !showUidBtn || !uidDropdown) return;
 
   const user = auth.currentUser;
-  if (!user) {
-    console.log('⚠️ [displayStudentUid] No user logged in');
-    return;
-  }
-
-  console.log('✅ [displayStudentUid] Setting UID for user:', user.uid);
+  if (!user) return;
 
   // Set the UID value
   uidDisplay.value = user.uid;
 
   // Only add event listeners once to prevent duplicates
   if (!uidListenersInitialized) {
-    console.log('🔧 [displayStudentUid] Setting up event listeners...');
-
-    // Toggle dropdown visibility
     showUidBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const isHidden = uidDropdown.classList.contains('hide');
-
-      if (isHidden) {
-        uidDropdown.classList.remove('hide');
-        console.log('👁️ [displayStudentUid] ✅ Dropdown OPENED');
-      } else {
-        uidDropdown.classList.add('hide');
-        console.log('👁️ [displayStudentUid] ❌ Dropdown CLOSED');
-      }
+      uidDropdown.classList.toggle('hide');
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
       const target = e.target as Node;
       if (!uidDropdown.contains(target) && !showUidBtn.contains(target)) {
-        if (!uidDropdown.classList.contains('hide')) {
-          uidDropdown.classList.add('hide');
-          console.log('👁️ [displayStudentUid] Dropdown closed (outside click)');
-        }
+        uidDropdown.classList.add('hide');
       }
     });
 
-    // Add copy functionality
     copyBtn.addEventListener('click', () => {
       const currentUid = uidDisplay.value;
       uidDisplay.select();
@@ -2702,22 +2741,17 @@ function displayStudentUid(): void {
         copyBtn.textContent = '✓ Copied!';
         copyBtn.classList.add('bg-green-500', 'hover:bg-green-600');
         copyBtn.classList.remove('bg-primary-500', 'hover:bg-primary-600');
-
-        console.log('✅ [displayStudentUid] UID copied:', currentUid);
-
         setTimeout(() => {
           copyBtn.textContent = originalText;
           copyBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
           copyBtn.classList.add('bg-primary-500', 'hover:bg-primary-600');
         }, 2000);
-      }).catch(err => {
-        console.error('❌ [displayStudentUid] Copy failed:', err);
+      }).catch(() => {
         alert('Failed to copy. Please select and copy manually.');
       });
     });
 
     uidListenersInitialized = true;
-    console.log('✅ [displayStudentUid] Event listeners initialized successfully!');
   }
 }
 
@@ -2729,7 +2763,7 @@ function displayStudentUid(): void {
  * IMPORTANT: This is the ONLY way students know their UID without checking Firebase Console
  */
 function showUidModal(uid: string, email: string): void {
-  console.log('📋 [showUidModal] Displaying UID modal for user');
+
 
   const modalHtml = `
     <div class="space-y-4">
@@ -2803,15 +2837,12 @@ function showUidModal(uid: string, email: string): void {
           copyBtn.classList.add('bg-green-500', 'hover:bg-green-600');
           copyBtn.classList.remove('bg-primary-500', 'hover:bg-primary-600');
 
-          console.log('✅ [showUidModal] UID copied to clipboard:', uid);
-
           setTimeout(() => {
             copyBtn.textContent = 'Copy';
             copyBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
             copyBtn.classList.add('bg-primary-500', 'hover:bg-primary-600');
           }, 2000);
-        }).catch(err => {
-          console.error('❌ [showUidModal] Failed to copy UID:', err);
+        }).catch(() => {
           alert('Failed to copy. Please select and copy manually.');
         });
       });

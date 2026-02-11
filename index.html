@@ -2714,6 +2714,75 @@
             flex-direction: column;
         }
 
+        /* ── Classes modal overlay (portaled to <body>) ── */
+        .classes-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .classes-modal-overlay.is-hidden {
+            display: none;
+        }
+        .classes-modal-box {
+            background: #1e293b;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 28rem;         /* 448px */
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+            animation: classModalIn 0.2s ease-out;
+        }
+        @keyframes classModalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @media (max-width: 480px) {
+            .classes-modal-box {
+                max-width: 100%;
+                padding: 1.25rem;
+            }
+        }
+        body.modal-scroll-lock {
+            overflow: hidden !important;
+        }
+
+        /* Student checkbox dropdown */
+        .student-dropdown { position: relative; }
+        .student-dropdown-toggle { cursor: pointer; }
+        .student-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            max-height: 180px;
+            overflow-y: auto;
+            background: #1e293b;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 0.5rem;
+            margin-top: 4px;
+            padding: 4px 0;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+        .student-dropdown-menu.hidden { display: none; }
+        .student-dropdown-item { display: flex; align-items: center; gap: 0.5rem; }
+        .student-dropdown-item:hover { background: rgba(6, 182, 212, 0.08); }
+        .student-dropdown-item input[type="checkbox"] {
+            width: 16px; height: 16px;
+            accent-color: #06b6d4;
+            cursor: pointer;
+        }
+
         /* Top Header Bar */
         .lms-header {
             background: rgba(15, 23, 42, 0.8);
@@ -4281,22 +4350,6 @@
     <!-- Skip Link for Keyboard Navigation (ADA) -->
     <a href="#login-form" class="skip-link">Skip to login form</a>
 
-    <!-- Style Theme Toggle (Corner Position) -->
-    <div class="style-toggle-container" id="corner-style-toggle" role="group" aria-label="Style theme selector">
-        <div class="style-toggle" id="style-toggle-pill">
-            <div class="style-toggle-slider" id="style-slider"></div>
-            <button class="style-toggle-option active" data-style="scifi" aria-pressed="true"
-                title="Sci-Fi Theme: Burgundy colors with animated effects">
-                <span class="toggle-icon">🚀</span>Sci-Fi
-            </button>
-            <button class="style-toggle-option" data-style="classic" aria-pressed="false"
-                title="Classic Theme: Clean cyan/teal design">
-                <span class="toggle-icon">✨</span>Classic
-            </button>
-        </div>
-    </div>
-
-
     <!-- Authentication Container -->
     <div id="auth-container" role="main" aria-label="Authentication">
 
@@ -4495,6 +4548,22 @@
                             </svg>
                             Attendance
                         </button>
+                        <button class="lms-nav-item" data-tab="assessments">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                                </path>
+                            </svg>
+                            Assessments
+                        </button>
+                        <button class="lms-nav-item" data-tab="classes">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                                </path>
+                            </svg>
+                            Classes
+                        </button>
                     </div>
 
                     <!-- Admin Section -->
@@ -4507,6 +4576,14 @@
                                 </path>
                             </svg>
                             Student Registration
+                        </button>
+                        <button class="lms-nav-item admin-only hide" data-tab="teacher-registration">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                            Teacher Registration
                         </button>
                         <button class="lms-nav-item admin-only hide" data-tab="users">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4572,25 +4649,16 @@
                         </div>
                     </div>
 
-                    <!-- Sidebar Style Toggle -->
-                    <div
-                        class="sidebar-style-toggle-wrapper mb-3 p-2 rounded-xl bg-dark-800/30 border border-dark-700/50">
-                        <div class="flex items-center justify-between gap-2 mb-2">
-                            <span class="text-xs text-dark-400 uppercase tracking-wider">Style Theme</span>
-                        </div>
-                        <div class="style-toggle-container footer-position" id="sidebar-style-toggle" role="group"
-                            aria-label="Style theme selector">
-                            <div class="style-toggle" style="width: 100%;">
-                                <div class="style-toggle-slider sidebar-slider"></div>
-                                <button class="style-toggle-option active" data-style="scifi" aria-pressed="true"
-                                    style="flex: 1; text-align: center;">
-                                    <span class="toggle-icon">🚀</span>Sci-Fi
-                                </button>
-                                <button class="style-toggle-option" data-style="classic" aria-pressed="false"
-                                    style="flex: 1; text-align: center;">
-                                    <span class="toggle-icon">✨</span>Classic
-                                </button>
-                            </div>
+                    <!-- Theme Toggle -->
+                    <div id="sidebar-style-toggle" class="sidebar-style-toggle-wrapper mb-3 p-2 rounded-xl border border-dark-700/50">
+                        <div class="style-toggle relative flex rounded-full bg-dark-800/80 border border-dark-700/50 p-1" role="radiogroup" aria-label="Style theme">
+                            <div class="style-toggle-slider" style="width: calc(50% - 4px);"></div>
+                            <button type="button" class="style-toggle-option active flex-1 text-center" data-style-value="scifi" role="radio" aria-checked="true">
+                                <span class="toggle-icon">🚀</span> Sci-Fi
+                            </button>
+                            <button type="button" class="style-toggle-option flex-1 text-center" data-style-value="classic" role="radio" aria-checked="false">
+                                <span class="toggle-icon">📘</span> Classic
+                            </button>
                         </div>
                     </div>
 
@@ -5293,6 +5361,16 @@
                         </div>
                     </div>
 
+                    <!-- Assessments Tab -->
+                    <div id="assessments-content" class="tab-content hide">
+                        <!-- Dynamically rendered by assessment-ui.ts -->
+                    </div>
+
+                    <!-- Classes Tab -->
+                    <div id="classes-content" class="tab-content hide">
+                        <!-- Dynamically rendered by classes-ui.ts -->
+                    </div>
+
                     <!-- Student Registration Tab (Admin Only) -->
                     <div id="registration-content" class="tab-content admin-only hide">
                         <div class="glass-effect rounded-2xl p-6">
@@ -5329,12 +5407,12 @@
                                             class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
                                     </div>
 
-                                    <!-- Membership ID -->
+                                    <!-- Membership ID (optional) -->
                                     <div>
                                         <label class="block text-dark-200 text-sm font-semibold mb-2">
-                                            Membership ID <span class="text-red-400">*</span>
+                                            Membership ID
                                         </label>
-                                        <input type="text" name="memberId" required placeholder="STU001"
+                                        <input type="text" name="memberId" placeholder="STU001 (optional)"
                                             class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
                                     </div>
 
@@ -5490,6 +5568,162 @@
                                             <td colspan="5" class="text-center py-8 text-dark-300">
                                                 No students registered yet
                                             </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Teacher Registration Tab (Admin Only) - Same layout as Student Registration -->
+                    <div id="teacher-registration-content" class="tab-content admin-only hide">
+                        <div class="glass-effect rounded-2xl p-6">
+                            <h3 class="text-2xl font-bold text-white mb-6">Teacher Registration</h3>
+
+                            <!-- Instructions (same style as Student Registration) -->
+                            <div class="mb-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                                <h4 class="text-blue-400 font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                        </path>
+                                    </svg>
+                                    Registration Instructions
+                                </h4>
+                                <p class="text-sm text-dark-300">
+                                    Fill in the teacher information below to register a new teacher in the system. All
+                                    fields marked with <span class="text-red-400">*</span> are required.
+                                </p>
+                            </div>
+
+                            <!-- Registration Form -->
+                            <form id="teacher-registration-form" class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <!-- Teacher Name -->
+                                    <div>
+                                        <label class="block text-dark-200 text-sm font-semibold mb-2">
+                                            Teacher Name <span class="text-red-400">*</span>
+                                        </label>
+                                        <input type="text" name="teacherName" required placeholder="Jane Doe"
+                                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
+                                    </div>
+
+                                    <!-- Membership ID (optional) -->
+                                    <div>
+                                        <label class="block text-dark-200 text-sm font-semibold mb-2">
+                                            Membership ID
+                                        </label>
+                                        <input type="text" name="teacherMemberId" placeholder="TCH001 (optional)"
+                                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
+                                    </div>
+
+                                    <!-- Year of Birth / Year Joined (optional, same column position as student) -->
+                                    <div>
+                                        <label class="block text-dark-200 text-sm font-semibold mb-2">
+                                            Year of Birth
+                                        </label>
+                                        <input type="number" name="teacherYearOfBirth" min="1950" max="2010"
+                                            placeholder="1985 (optional)"
+                                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
+                                    </div>
+
+                                    <!-- Contact Phone -->
+                                    <div>
+                                        <label class="block text-dark-200 text-sm font-semibold mb-2">
+                                            Contact Phone <span class="text-red-400">*</span>
+                                        </label>
+                                        <input type="tel" name="teacherPhone" required placeholder="+1 (555) 123-4567"
+                                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
+                                    </div>
+
+                                    <!-- Contact Email -->
+                                    <div>
+                                        <label class="block text-dark-200 text-sm font-semibold mb-2">
+                                            Contact Email <span class="text-red-400">*</span>
+                                        </label>
+                                        <input type="email" name="teacherEmail" required placeholder="teacher@example.com"
+                                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
+                                    </div>
+
+                                    <!-- Link to Teacher Account -->
+                                    <div>
+                                        <label class="block text-dark-200 text-sm font-semibold mb-2">
+                                            Link to Teacher Account <span class="text-red-400">*</span>
+                                        </label>
+                                        <div id="teacher-dropdown-method" class="space-y-2">
+                                            <div class="flex gap-2">
+                                                <select id="teacher-account-select"
+                                                    class="flex-1 px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
+                                                    <option value="">-- Select Registered Account --</option>
+                                                </select>
+                                                <button type="button" id="refresh-teacher-accounts-btn"
+                                                    class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
+                                                    title="Refresh accounts list">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <button type="button" id="use-manual-teacher-uid-btn"
+                                                class="text-sm text-blue-400 hover:text-blue-300 underline">
+                                                Or enter UID manually
+                                            </button>
+                                        </div>
+                                        <div id="teacher-manual-method" class="space-y-2 hide">
+                                            <input type="text" id="manual-teacher-uid" placeholder="Paste Firebase Auth UID here"
+                                                class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all font-mono">
+                                            <button type="button" id="use-dropdown-teacher-btn"
+                                                class="text-sm text-blue-400 hover:text-blue-300 underline">
+                                                Back to dropdown
+                                            </button>
+                                            <div class="text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded p-2">
+                                                📋 <strong>How to get UID:</strong> Firebase Console → Authentication → copy User UID.
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="teacherUid" id="final-teacher-uid" required>
+                                        <p class="text-xs text-dark-400 mt-2">
+                                            🔗 Teacher must create an account first! Get UID from Firebase Console → Authentication
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Additional Notes (Optional) -->
+                                <div>
+                                    <label class="block text-dark-200 text-sm font-semibold mb-2">
+                                        Additional Notes (Optional)
+                                    </label>
+                                    <textarea name="teacherNotes" rows="3" placeholder="Any additional information about the teacher..."
+                                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"></textarea>
+                                </div>
+
+                                <div id="teacher-registration-error" class="text-red-400 text-sm hide"></div>
+                                <div id="teacher-registration-success" class="text-green-400 text-sm hide"></div>
+
+                                <button type="submit"
+                                    class="w-full py-4 px-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg text-lg">
+                                    Register Teacher
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Registered Teachers List (same structure as Registered Students) -->
+                        <div class="glass-effect rounded-2xl p-6 mt-6">
+                            <h3 class="text-xl font-bold text-white mb-4">Registered Teachers</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b border-dark-600">
+                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">Member ID</th>
+                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">Name</th>
+                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">Year of Birth</th>
+                                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">Contact</th>
+                                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="registered-teachers-table-body">
+                                        <tr>
+                                            <td colspan="5" class="text-center py-8 text-dark-300">No teachers registered yet</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -7645,7 +7879,10 @@
             'dashboard': 'Dashboard',
             'grades': 'Grades & Reports',
             'attendance': 'Attendance',
+            'assessments': 'Assessments',
+            'classes': 'Classes',
             'registration': 'Student Registration',
+            'teacher-registration': 'Teacher Registration',
             'ai-agent': 'AI Assistant',
             'users': 'User Management'
         };
@@ -7679,6 +7916,10 @@
 
             // Close mobile sidebar if open
             closeSidebar();
+
+            // Dispatch custom event for data loading on tab switch
+            const tabEvent = new CustomEvent('tab-switched', { detail: { tab: tabName } });
+            document.dispatchEvent(tabEvent);
 
             console.log(`📍 [Navigation] Switched to tab: ${tabName}`);
         }
@@ -8073,124 +8314,36 @@
         })();
     </script>
 
-    <!-- Style Theme Toggle Script -->
+    <!-- Theme toggle: Sci-Fi / Classic -->
     <script>
-        (function initStyleThemeToggle() {
-            const STYLE_KEY = 'ng5-style-theme';
+        (function initThemeToggle() {
+            const saved = localStorage.getItem('lms-style') || 'scifi';
+            document.documentElement.setAttribute('data-style', saved);
 
-            // Get saved style or default to 'scifi'
-            function getSavedStyle() {
-                try {
-                    return localStorage.getItem(STYLE_KEY) || 'scifi';
-                } catch (e) {
-                    return 'scifi';
-                }
-            }
-
-            // Save style preference
-            function saveStyle(style) {
-                try {
-                    localStorage.setItem(STYLE_KEY, style);
-                } catch (e) {
-                    console.warn('Could not save style preference');
-                }
-            }
-
-            // Apply style to document
             function applyStyle(style) {
-                if (style === 'classic') {
-                    document.documentElement.setAttribute('data-style', 'classic');
-                } else {
-                    document.documentElement.removeAttribute('data-style');
-                }
-
+                document.documentElement.setAttribute('data-style', style);
+                localStorage.setItem('lms-style', style);
                 // Update all toggle buttons
-                updateAllToggles(style);
-
-                // Log the change
-                console.log(`🎨 [Style] Theme changed to: ${style === 'classic' ? 'Classic (Cyan/Teal)' : 'Sci-Fi (Burgundy/Red)'}`);
-            }
-
-            // Update all toggle buttons to reflect current style
-            function updateAllToggles(style) {
-                const allToggleContainers = document.querySelectorAll('.style-toggle-container');
-
-                allToggleContainers.forEach(container => {
-                    const options = container.querySelectorAll('.style-toggle-option');
-                    const slider = container.querySelector('.style-toggle-slider');
-                    const toggle = container.querySelector('.style-toggle');
-
-                    options.forEach(opt => {
-                        const optStyle = opt.getAttribute('data-style');
-                        const isActive = optStyle === style;
-
-                        opt.classList.toggle('active', isActive);
-                        opt.setAttribute('aria-pressed', isActive.toString());
-                    });
-
-                    // Update slider position
-                    if (slider && toggle) {
-                        const activeBtn = container.querySelector('.style-toggle-option.active');
-                        if (activeBtn) {
-                            const toggleRect = toggle.getBoundingClientRect();
-                            const btnRect = activeBtn.getBoundingClientRect();
-                            const leftOffset = btnRect.left - toggleRect.left - 4; // 4px is the padding
-                            slider.style.width = `${btnRect.width}px`;
-                            slider.style.transform = `translateX(${leftOffset}px)`;
-                        }
-                    }
+                document.querySelectorAll('.style-toggle-option').forEach(function(btn) {
+                    const val = btn.getAttribute('data-style-value');
+                    btn.classList.toggle('active', val === style);
+                    btn.setAttribute('aria-checked', String(val === style));
+                });
+                // Move slider
+                document.querySelectorAll('.style-toggle-slider').forEach(function(slider) {
+                    slider.style.transform = style === 'classic' ? 'translateX(100%)' : 'translateX(0)';
                 });
             }
 
-            // Setup click handlers for all style toggle buttons
-            function setupToggleHandlers() {
-                document.querySelectorAll('.style-toggle-option').forEach(btn => {
-                    btn.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        const newStyle = this.getAttribute('data-style');
-                        saveStyle(newStyle);
-                        applyStyle(newStyle);
-                    });
-                });
-            }
+            applyStyle(saved);
 
-            // Initialize slider positions after a short delay (for rendering)
-            function initializeSliderPositions() {
-                setTimeout(() => {
-                    const currentStyle = getSavedStyle();
-                    updateAllToggles(currentStyle);
-                }, 100);
-            }
-
-            // Initialize on page load
-            function init() {
-                const savedStyle = getSavedStyle();
-                applyStyle(savedStyle);
-                setupToggleHandlers();
-                initializeSliderPositions();
-
-                // Re-initialize on window resize (for slider position recalculation)
-                window.addEventListener('resize', () => {
-                    updateAllToggles(getSavedStyle());
-                });
-
-                console.log('🎨 [Style] Theme toggle system initialized');
-            }
-
-            // Run initialization
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
-            } else {
-                init();
-            }
-
-            // Expose functions globally for use in main app
-            window.setStyleTheme = function (style) {
-                saveStyle(style);
-                applyStyle(style);
-            };
-
-            window.getStyleTheme = getSavedStyle;
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('.style-toggle-option');
+                if (btn) {
+                    var val = btn.getAttribute('data-style-value');
+                    if (val) applyStyle(val);
+                }
+            });
         })();
     </script>
 

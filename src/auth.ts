@@ -156,7 +156,6 @@ export function getCurrentUser(): User | null {
  * - Loading indicator shown during profile fetch
  */
 export function initAuth(onUserChanged: (user: User | null) => void): void {
-  console.log('🔐 [initAuth] Setting up authentication state listener...');
   
   /**
    * Firebase Auth State Listener
@@ -172,12 +171,6 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
    * - Null: User is not authenticated
    */
   onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-    console.log('👤 [onAuthStateChanged] Auth state changed:', {
-      authenticated: !!firebaseUser,
-      uid: firebaseUser?.uid,
-      email: firebaseUser?.email
-    });
-    
     if (firebaseUser) {
       /**
        * USER IS SIGNED IN
@@ -192,7 +185,6 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
        */
       try {
         showLoading();
-        console.log('📊 [onAuthStateChanged] Fetching user profile from Firestore...');
         
         // Fetch user document from Firestore
         const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -217,12 +209,6 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
             createdAt: userData.createdAt
           };
           
-          console.log('✅ [onAuthStateChanged] User authenticated successfully!');
-          console.log('   Email:', currentUser.email);
-          console.log('   Role:', currentUser.role);
-          console.log('   UID:', currentUser.uid);
-          
-          // Notify app that user is authenticated
           onUserChanged(currentUser);
           
         } else {
@@ -247,13 +233,8 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
            * - Admin should create user document manually
            * - Or user should sign up again
            */
-          console.error('❌ [onAuthStateChanged] User document not found in Firestore!');
-          console.error('   UID:', firebaseUser.uid);
-          console.error('   Expected path: /users/' + firebaseUser.uid);
-          console.error('   This may indicate incomplete signup or deleted user profile');
-          console.error('   Signing user out...');
+          console.error('User document not found in Firestore for UID:', firebaseUser.uid);
           
-          // Clear state
           currentUser = null;
           onUserChanged(null);
           
@@ -278,11 +259,8 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
          * 4. Verify UID is valid
          * 5. Check Firebase Console for service status
          */
-        console.error('❌ [onAuthStateChanged] Error fetching user profile:', error);
-        console.error('   Error code:', error.code);
-        console.error('   Error message:', error.message);
+        console.error('Error fetching user profile:', error);
         
-        // Clear state and show login screen
         currentUser = null;
         onUserChanged(null);
         
@@ -305,13 +283,11 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
        * - Notify app via onUserChanged(null)
        * - App will show login screen
        */
-      console.log('👋 [onAuthStateChanged] User signed out');
       currentUser = null;
       onUserChanged(null);
     }
   });
   
-  console.log('✅ [initAuth] Auth state listener active');
 }
 
 /**
@@ -371,7 +347,6 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
 export async function signUp(email: string, password: string): Promise<string> {
   try {
     showLoading();
-    console.log('📝 [signUp] Starting sign-up process for:', email);
     
     /**
      * STEP 1: Create Firebase Authentication Account
@@ -386,10 +361,6 @@ export async function signUp(email: string, password: string): Promise<string> {
      */
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
-    
-    console.log('✅ [signUp] Firebase Auth account created');
-    console.log('   UID:', uid);
-    console.log('   Email:', email);
     
     /**
      * STEP 2: Create Firestore User Profile
@@ -414,23 +385,6 @@ export async function signUp(email: string, password: string): Promise<string> {
       createdAt: new Date().toISOString()
     });
     
-    console.log('✅ [signUp] Firestore user profile created');
-    console.log('   Path: /users/' + uid);
-    console.log('   Role: student (default)');
-    console.log('   Created at:', new Date().toISOString());
-    
-    /**
-     * STEP 3: Return UID
-     * 
-     * The UID is returned so it can be shown to the user in a modal.
-     * This is CRITICAL because:
-     * - Student needs to share UID with admin
-     * - Admin uses UID to create student record
-     * - Without this link, student cannot see their data
-     */
-    console.log('💡 [signUp] IMPORTANT: User should share UID with admin for registration');
-    console.log('   UID to share:', uid);
-    
     return uid;
     
   } catch (error: any) {
@@ -446,12 +400,7 @@ export async function signUp(email: string, password: string): Promise<string> {
      * - Network error → Check connection
      * - Permission denied → Check security rules
      */
-    console.error('❌ [signUp] Sign up failed!');
-    console.error('   Email:', email);
-    console.error('   Error code:', error.code);
-    console.error('   Error message:', error.message);
-    
-    // Throw user-friendly error message
+    console.error('Sign up failed:', error.code);
     throw new Error(getAuthErrorMessage(error.code));
     
   } finally {
@@ -501,7 +450,6 @@ export async function signUp(email: string, password: string): Promise<string> {
 export async function signIn(email: string, password: string): Promise<void> {
   try {
     showLoading();
-    console.log('🔐 [signIn] Attempting sign in for:', email);
     
     /**
      * Firebase Sign In
@@ -511,16 +459,8 @@ export async function signIn(email: string, password: string): Promise<void> {
      */
     await signInWithEmailAndPassword(auth, email, password);
     
-    console.log('✅ [signIn] Sign in successful');
-    console.log('   Email:', email);
-    console.log('   Auth state listener will now load user profile...');
-    
   } catch (error: any) {
-    console.error('❌ [signIn] Sign in failed!');
-    console.error('   Email:', email);
-    console.error('   Error code:', error.code);
-    console.error('   Error message:', error.message);
-    
+    console.error('Sign in failed:', error.code);
     throw new Error(getAuthErrorMessage(error.code));
     
   } finally {
@@ -559,23 +499,11 @@ export async function signIn(email: string, password: string): Promise<void> {
 export async function logout(): Promise<void> {
   try {
     showLoading();
-    console.log('👋 [logout] Signing out current user...');
     
-    const userEmail = currentUser?.email || 'unknown';
-    
-    /**
-     * Firebase Sign Out
-     * 
-     * Clears authentication session.
-     * onAuthStateChanged will trigger with null user.
-     */
     await signOut(auth);
     
-    console.log('✅ [logout] User signed out successfully');
-    console.log('   Previous user:', userEmail);
-    
   } catch (error) {
-    console.error('❌ [logout] Sign out failed:', error);
+    console.error('Sign out failed:', error);
     throw new Error('Failed to sign out. Please try again.');
     
   } finally {
@@ -602,8 +530,6 @@ export async function logout(): Promise<void> {
  * - Log error.code to see what needs mapping
  */
 function getAuthErrorMessage(errorCode: string): string {
-  console.log('🔍 [getAuthErrorMessage] Translating error code:', errorCode);
-  
   switch (errorCode) {
     case 'auth/email-already-in-use':
       return 'This email is already registered. Please sign in instead.';
@@ -633,7 +559,6 @@ function getAuthErrorMessage(errorCode: string): string {
       return 'Network error. Please check your internet connection.';
       
     default:
-      console.warn('⚠️ [getAuthErrorMessage] Unknown error code:', errorCode);
       return 'Authentication failed. Please try again.';
   }
 }

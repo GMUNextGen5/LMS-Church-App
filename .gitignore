@@ -38,3 +38,5 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 
+# Temporary commit message file
+.commitmsg

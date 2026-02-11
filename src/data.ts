@@ -144,6 +144,7 @@ import {
   getDoc,          // Read single document
   getDocs,         // Read multiple documents (query results)
   addDoc,          // Add document with auto-generated ID
+  setDoc,          // Write document (merge supported)
   updateDoc,       // Update document fields
   deleteDoc,       // Delete document
   query,           // Build query
@@ -152,7 +153,7 @@ import {
   onSnapshot,      // Real-time listener
 } from './firebase';
 
-import { Student, Grade, Attendance, Course } from './types';
+import { Student, Grade, Attendance, Course, User } from './types';
 import { getCurrentUser } from './auth';
 
 // ==================== STUDENTS ====================
@@ -174,47 +175,31 @@ import { getCurrentUser } from './auth';
 export async function fetchStudents(): Promise<Student[]> {
   const user = getCurrentUser();
   
-  // DEBUG: Check authentication
   if (!user) {
-    console.error('❌ [fetchStudents] User not authenticated');
     throw new Error('User not authenticated');
   }
-  
-  console.log('🔍 [fetchStudents] Fetching students for:', {
-    uid: user.uid,
-    email: user.email,
-    role: user.role
-  });
   
   const studentsRef = collection(db, 'students');
   let students: Student[] = [];
   
   if (user.role === 'admin') {
     // ADMIN: Get ALL students
-    console.log('👑 [fetchStudents] Admin mode: fetching all students');
     const q = query(studentsRef);
     const snapshot = await getDocs(q);
     students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
-    console.log(`✅ [fetchStudents] Admin found ${students.length} students`);
     
   } else if (user.role === 'teacher') {
     // TEACHER: Get students from their courses
-    console.log('👨‍🏫 [fetchStudents] Teacher mode: fetching course students');
     const coursesRef = collection(db, 'courses');
     const coursesQuery = query(coursesRef, where('teacherId', '==', user.uid));
     const coursesSnapshot = await getDocs(coursesQuery);
-    
-    console.log(`📚 [fetchStudents] Teacher has ${coursesSnapshot.docs.length} courses`);
     
     // Extract all unique student IDs from all courses
     const studentIds = new Set<string>();
     coursesSnapshot.docs.forEach(courseDoc => {
       const course = courseDoc.data() as Course;
-      console.log(`📖 [fetchStudents] Course ${courseDoc.id} has ${course.studentIds.length} students`);
       course.studentIds.forEach(id => studentIds.add(id));
     });
-    
-    console.log(`👥 [fetchStudents] Total unique student IDs: ${studentIds.size}`);
     
     // Fetch each student document
     for (const studentId of studentIds) {
@@ -222,53 +207,26 @@ export async function fetchStudents(): Promise<Student[]> {
         const studentDoc = await getDoc(doc(db, 'students', studentId));
         if (studentDoc.exists()) {
           students.push({ id: studentDoc.id, ...studentDoc.data() } as Student);
-        } else {
-          console.warn(`⚠️ [fetchStudents] Student ${studentId} not found in database`);
         }
       } catch (error) {
-        console.error(`❌ [fetchStudents] Error fetching student ${studentId}:`, error);
+        console.error(`Error fetching student ${studentId}:`, error);
       }
     }
-    console.log(`✅ [fetchStudents] Teacher found ${students.length} students`);
     
   } else if (user.role === 'student') {
     // STUDENT: Get ONLY their own record (where studentUid matches their UID)
-    console.log('🎓 [fetchStudents] Student mode: fetching own record only');
-    console.log(`🔍 [fetchStudents] Querying where studentUid == ${user.uid}`);
-    
-    // Query for student records where studentUid matches the current user's UID
     const q = query(studentsRef, where('studentUid', '==', user.uid));
     const snapshot = await getDocs(q);
     
-    console.log(`📊 [fetchStudents] Query returned ${snapshot.docs.length} records`);
-    
     students = snapshot.docs.map(doc => {
       const data = { id: doc.id, ...doc.data() } as Student;
-      console.log('📄 [fetchStudents] Student record:', {
-        id: data.id,
-        name: data.name,
-        studentUid: data.studentUid,
-        parentUid: data.parentUid
-      });
       return data;
     });
     
-    if (students.length === 0) {
-      console.warn('⚠️ [fetchStudents] No student record found! Check:');
-      console.warn('   1. Does a student document exist with studentUid =', user.uid);
-      console.warn('   2. Are Firestore security rules allowing read access?');
-      console.warn('   3. Has an admin created a student record for this user?');
-    } else {
-      console.log(`✅ [fetchStudents] Student found their own record`);
-    }
-    
   } else {
-    // UNKNOWN ROLE - this shouldn't happen
-    console.error(`❌ [fetchStudents] Unknown user role: ${user.role}`);
     throw new Error(`Invalid user role: ${user.role}`);
   }
   
-  console.log(`📋 [fetchStudents] Returning ${students.length} students`);
   return students;
 }
 
@@ -285,7 +243,7 @@ export async function fetchStudents(): Promise<Student[]> {
  */
 export async function createStudent(studentData: {
   name: string;
-  memberId: string;
+  memberId?: string;
   yearOfBirth: number;
   contactPhone: string;
   contactEmail: string;
@@ -295,21 +253,13 @@ export async function createStudent(studentData: {
 }): Promise<string> {
   const user = getCurrentUser();
   if (!user || user.role !== 'admin') {
-    console.error('❌ [createStudent] Only admins can create student records');
     throw new Error('Only administrators can create student records');
   }
-  
-  console.log('📝 [createStudent] Creating student with data:', {
-    name: studentData.name,
-    memberId: studentData.memberId,
-    studentUid: studentData.studentUid,
-    parentUid: studentData.parentUid
-  });
   
   const studentsRef = collection(db, 'students');
   const docRef = await addDoc(studentsRef, {
     name: studentData.name,
-    memberId: studentData.memberId,
+    memberId: studentData.memberId || '',
     yearOfBirth: studentData.yearOfBirth,
     contactPhone: studentData.contactPhone,
     contactEmail: studentData.contactEmail,
@@ -318,11 +268,6 @@ export async function createStudent(studentData: {
     notes: studentData.notes || '',
     createdAt: new Date().toISOString(),
     createdBy: user.uid
-  });
-  
-  console.log('✅ [createStudent] Student created successfully!', {
-    studentRecordId: docRef.id,
-    linkedToAuthUid: studentData.studentUid
   });
   
   return docRef.id;
@@ -337,8 +282,6 @@ export async function deleteStudent(studentId: string): Promise<void> {
   
   const studentRef = doc(db, 'students', studentId);
   await deleteDoc(studentRef);
-  
-  console.log('✅ Student deleted:', studentId);
 }
 
 // ==================== GRADES ====================
@@ -356,23 +299,14 @@ export async function deleteStudent(studentId: string): Promise<void> {
  * 4. Console logs for any permission errors
  */
 export async function fetchGrades(studentId: string): Promise<Grade[]> {
-  console.log(`🔍 [fetchGrades] Fetching grades for student: ${studentId}`);
-  
   try {
     const gradesRef = collection(db, 'students', studentId, 'grades');
     const q = query(gradesRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
     
-    const grades = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Grade));
-    console.log(`✅ [fetchGrades] Found ${grades.length} grades for student ${studentId}`);
-    
-    return grades;
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Grade));
   } catch (error: any) {
-    console.error(`❌ [fetchGrades] Error fetching grades for ${studentId}:`, error);
-    if (error.code === 'permission-denied') {
-      console.error('🔒 [fetchGrades] Permission denied - check Firestore security rules');
-      console.error('   User may not have access to this student\'s grades');
-    }
+    console.error(`Error fetching grades for ${studentId}:`, error);
     throw error;
   }
 }
@@ -432,23 +366,14 @@ export async function deleteGrade(studentId: string, gradeId: string): Promise<v
  * 4. Console logs for any permission errors
  */
 export async function fetchAttendance(studentId: string): Promise<Attendance[]> {
-  console.log(`🔍 [fetchAttendance] Fetching attendance for student: ${studentId}`);
-  
   try {
     const attendanceRef = collection(db, 'students', studentId, 'attendance');
     const q = query(attendanceRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
     
-    const attendance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Attendance));
-    console.log(`✅ [fetchAttendance] Found ${attendance.length} attendance records for student ${studentId}`);
-    
-    return attendance;
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Attendance));
   } catch (error: any) {
-    console.error(`❌ [fetchAttendance] Error fetching attendance for ${studentId}:`, error);
-    if (error.code === 'permission-denied') {
-      console.error('🔒 [fetchAttendance] Permission denied - check Firestore security rules');
-      console.error('   User may not have access to this student\'s attendance');
-    }
+    console.error(`Error fetching attendance for ${studentId}:`, error);
     throw error;
   }
 }
@@ -512,6 +437,51 @@ export async function createCourse(course: Omit<Course, 'id'>): Promise<string> 
   return docRef.id;
 }
 
+// ==================== USERS (Admin) ====================
+
+/** Fetch all users (admin only). Reads /users collection directly. */
+export async function fetchAllUsers(): Promise<User[]> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'admin') throw new Error('Only administrators can list users');
+  const usersRef = collection(db, 'users');
+  const snapshot = await getDocs(usersRef);
+  return snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
+}
+
+/** Update a user's role (admin only). */
+export async function updateUserRoleDirect(targetUserId: string, newRole: User['role']): Promise<void> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'admin') throw new Error('Only administrators can change roles');
+  const ref = doc(db, 'users', targetUserId);
+  await updateDoc(ref, { role: newRole });
+}
+
+/** Register/link a teacher (admin only). Writes to /users/{uid} with role teacher and profile fields. */
+export async function createTeacher(data: {
+  teacherUid: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  memberId?: string;
+  yearOfBirth?: number;
+  notes?: string;
+}): Promise<void> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'admin') throw new Error('Only administrators can register teachers');
+  const ref = doc(db, 'users', data.teacherUid);
+  const updates: Record<string, unknown> = {
+    role: 'teacher',
+    name: data.name ?? '',
+    phone: data.phone ?? '',
+    memberId: data.memberId ?? '',
+    updatedAt: new Date().toISOString(),
+  };
+  if (data.email !== undefined && data.email !== '') updates.email = data.email;
+  if (data.notes !== undefined && data.notes !== '') updates.notes = data.notes;
+  if (data.yearOfBirth !== undefined && data.yearOfBirth !== null) updates.yearOfBirth = data.yearOfBirth;
+  await setDoc(ref, updates, { merge: true });
+}
+
 // ==================== REAL-TIME LISTENERS ====================
 
 // Listen to grade changes for a student
@@ -551,7 +521,5 @@ export function exportGradesToCSV(grades: Grade[], studentName: string): void {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
-  console.log('✅ Grades exported to CSV');
 }
 

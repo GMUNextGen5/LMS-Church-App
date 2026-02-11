@@ -31,12 +31,6 @@
  * 5. Check network connectivity (Network tab in DevTools)
  * 6. Look for CORS errors (especially for Functions)
  * 
- * EMULATOR SUPPORT:
- * - Automatically detects localhost and connects to emulator if available
- * - Falls back to production if emulator is not running
- * - To use emulator: cd functions && npm run serve
- * - Emulator runs on localhost:5001 by default
- * 
  * ERROR HANDLING:
  * If initialization fails, the error is logged and re-thrown, preventing
  * the application from loading with broken Firebase services.
@@ -74,7 +68,9 @@ import {
   deleteDoc,          // Delete document
   onSnapshot,         // Real-time listener for documents/queries
   orderBy,            // Query ordering
-  Timestamp           // Firestore timestamp type
+  Timestamp,          // Firestore timestamp type
+  arrayUnion,         // Add items to array field
+  arrayRemove,        // Remove items from array field
 } from 'firebase/firestore';
 
 // Cloud Functions imports
@@ -82,7 +78,6 @@ import {
   getFunctions,               // Get Functions instance
   Functions,                  // Functions type
   httpsCallable,              // Create callable function reference
-  connectFunctionsEmulator    // Connect to local emulator
 } from 'firebase/functions';
 
 // Import configuration
@@ -101,100 +96,17 @@ let db: Firestore;            // Firestore database
 let functions: Functions;     // Cloud Functions service
 
 try {
-  console.log('🔧 [Firebase] Initializing Firebase services...');
-
-  /**
-   * STEP 1: Initialize Firebase App
-   * 
-   * This creates the core Firebase app instance using configuration
-   * from config.ts. All other services depend on this initialization.
-   * 
-   * DEBUG: If this fails, check firebaseConfig in config.ts
-   */
+  // STEP 1: Initialize Firebase App
   app = initializeApp(firebaseConfig);
-  console.log('✅ [Firebase] App initialized');
 
-  /**
-   * STEP 2: Initialize Authentication
-   * 
-   * Sets up Firebase Authentication for user management.
-   * Handles sign-up, sign-in, session management, and auth state.
-   * 
-   * DEBUG: If auth fails, check:
-   * - Firebase Auth is enabled in Firebase Console
-   * - Email/Password provider is enabled
-   * - Browser allows cookies (required for auth persistence)
-   */
+  // STEP 2: Initialize Authentication
   auth = getAuth(app);
-  console.log('✅ [Firebase] Authentication initialized');
 
-  /**
-   * STEP 3: Initialize Firestore Database
-   * 
-   * Sets up Firestore connection for reading/writing application data.
-   * All collections (users, students, grades, etc.) are stored here.
-   * 
-   * DEBUG: If Firestore fails, check:
-   * - Firestore is enabled in Firebase Console
-   * - Security rules are deployed (firestore.rules)
-   * - Network allows connections to firestore.googleapis.com
-   */
+  // STEP 3: Initialize Firestore Database
   db = getFirestore(app);
-  console.log('✅ [Firebase] Firestore initialized');
 
-  /**
-   * STEP 4: Initialize Cloud Functions
-   * 
-   * Sets up connection to Cloud Functions for server-side operations.
-   * Functions are deployed to us-central1 region.
-   * 
-   * IMPORTANT: Region MUST match deployment region in Firebase Console
-   * If functions are deployed to a different region, update 'us-central1' below
-   * 
-   * DEBUG: If functions fail, check:
-   * - Functions are deployed (firebase deploy --only functions)
-   * - Region matches deployment region
-   * - CORS is configured (handled automatically by Firebase v2 functions)
-   */
+  // STEP 4: Initialize Cloud Functions (us-central1 region)
   functions = getFunctions(app, 'us-central1');
-  console.log('✅ [Firebase] Cloud Functions initialized (region: us-central1)');
-
-  /**
-   * STEP 5: Emulator Connection (Development Only)
-   * 
-   * If running on localhost, attempts to connect to local Functions emulator.
-   * This allows testing functions locally without deploying to Firebase.
-   * 
-   * BEHAVIOR:
-   * - If emulator is running: Uses local functions
-   * - If emulator is not running: Falls back to production functions
-   * 
-   * SETUP:
-   * 1. cd functions
-   * 2. npm run serve
-   * 3. Emulator runs on http://localhost:5001
-   * 
-   * DEBUG: If emulator connection fails:
-   * - Check emulator is running (terminal should show "functions: Emulator started at...")
-   * - Verify port 5001 is not blocked by firewall
-   * - Check console logs for connection errors
-   * - Use production functions as fallback if emulator issues persist
-   */
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    try {
-      connectFunctionsEmulator(functions, 'localhost', 5001);
-      console.log('🔧 [Firebase] Connected to Functions emulator (localhost:5001)');
-      console.log('💡 [Firebase] To start emulator: cd functions && npm run serve');
-    } catch (emulatorError) {
-      console.warn('⚠️ [Firebase] Failed to connect to emulator, using production functions');
-      console.warn('   Error:', emulatorError);
-    }
-  } else {
-    console.log('🌐 [Firebase] Using production Cloud Functions');
-  }
-
-  console.log('✅ [Firebase] All services initialized successfully');
-  console.log('📊 [Firebase] Project:', firebaseConfig.projectId);
 
 } catch (error) {
   /**
@@ -216,16 +128,7 @@ try {
    * 4. Verify network connectivity
    * 5. Check Firebase status page for outages
    */
-  console.error('❌ [Firebase] Initialization failed!');
-  console.error('   Error details:', error);
-  console.error('   Config used:', firebaseConfig);
-  console.error('   Please check:');
-  console.error('   1. Firebase project exists and is active');
-  console.error('   2. All services (Auth, Firestore, Functions) are enabled');
-  console.error('   3. Configuration in config.ts is correct');
-  console.error('   4. Network connectivity is working');
-
-  // Re-throw error to prevent app from loading
+  console.error('Firebase initialization failed:', error);
   throw error;
 }
 
@@ -278,6 +181,8 @@ export {
   onSnapshot,   // Real-time listener
   orderBy,      // Order query results
   Timestamp,    // Firestore timestamp type
+  arrayUnion,   // Add to array field
+  arrayRemove,  // Remove from array field
 
   // ========== CLOUD FUNCTIONS METHODS ==========
   httpsCallable,    // Create callable function reference

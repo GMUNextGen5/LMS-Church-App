@@ -127,6 +127,7 @@ export interface User {
  * - Verify Firestore security rules allow the read operation
  */
 export interface Student {
+
   id: string;                // Firestore document ID
   name: string;              // Student's full name (required)
   memberId?: string;         // School/organization ID (optional)
@@ -282,26 +283,108 @@ export interface Course {
   createdAt: string;           // ISO timestamp of creation
 }
 
-// ==================== AI INTEGRATION TYPES ====================
+// ==================== ASSESSMENT & GRADING TYPES ====================
 
 /**
- * AIRequest - Request payload for AI-powered features
- * 
- * PURPOSE: Type definition for AI feature requests
- * 
- * FIELDS:
- * - studentId: Student document ID to analyze
- * - type: Type of AI analysis to perform
- * 
- * USAGE:
- * Used when calling Cloud Functions for AI features:
- * - 'summary': Generate performance summary
- * - 'study-tips': Generate personalized study tips
- * 
- * DEBUG:
- * - Verify studentId is valid Firestore document ID
- * - Check type matches exactly (case-sensitive)
+ * Firestore paths (uses existing `courses` collection as "classes"):
+ *   courses/{courseId}/assessments/{assessmentId}
+ *   courses/{courseId}/assessments/{assessmentId}/questions/{questionId}
+ *   courses/{courseId}/assessments/{assessmentId}/submissions/{studentProfileId}
+ *
+ * Assumptions documented:
+ *   - `classId` maps to the existing `courses/{courseId}` document ID.
+ *   - `studentProfileId` is a document ID from the `/students` collection.
+ *   - A student user discovers their profileIds via `studentUid == uid` query.
+ *   - A student's enrolled classes come from courses where `studentIds` contains their profileId.
  */
+
+export type AssessmentStatus = 'draft' | 'published';
+export type ReleasePolicy = 'auto' | 'manual';
+export type AssignedMode = 'class' | 'individual';
+export type QuestionType = 'multiple_choice' | 'checkbox' | 'short_answer' | 'paragraph' | 'numeric';
+export type SubmissionStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'submitted'
+  | 'graded'
+  | 'overdue'
+  | 'late_submitted';
+
+/** Assessment metadata – stored at courses/{classId}/assessments/{id} */
+export interface Assessment {
+  id: string;
+  classId: string;               // == courseId
+  title: string;
+  description: string;
+  status: AssessmentStatus;
+  dueDateTime: string;           // ISO-8601
+  allowLate: boolean;
+  latePolicy?: string;           // e.g. "-10% per day"
+  timeLimit?: number;            // minutes; 0 or undefined = unlimited
+  releasePolicy: ReleasePolicy;
+  assignedMode: AssignedMode;
+  assignedStudentIds: string[];  // student profile IDs when mode == 'individual'
+  totalPoints: number;
+  questionCount: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Individual question – stored in questions subcollection */
+export interface AssessmentQuestion {
+  id: string;
+  type: QuestionType;
+  prompt: string;
+  required: boolean;
+  points: number;
+  options?: string[];            // for MC / checkbox
+  correctAnswers?: string[];     // MC: ["1"] (option index); checkbox: ["0","2"]; numeric: ["42"]; short_answer: ["text"]
+  order: number;
+  shuffleOptions?: boolean;
+}
+
+/** A student's answer to a single question */
+export interface QuestionAnswer {
+  value?: string;                // short_answer, paragraph, numeric
+  selectedOptions?: number[];    // MC (single element), checkbox (multiple)
+}
+
+/** Per-question grading detail */
+export interface QuestionGradeDetail {
+  points: number;
+  maxPoints: number;
+  feedback?: string;
+  autoGraded: boolean;
+}
+
+/** Student submission – document ID == studentProfileId */
+export interface Submission {
+  id: string;
+  assessmentId: string;
+  classId: string;
+  studentProfileId: string;
+  studentName?: string;
+  status: SubmissionStatus;
+  startedAt?: string;
+  submittedAt?: string;
+  isLate: boolean;
+  answers: Record<string, QuestionAnswer>;
+  questionGrades: Record<string, QuestionGradeDetail>;
+  autoScore: number;
+  finalScore: number;
+  totalPoints: number;
+  needsGrading: boolean;
+  released: boolean;
+  feedbackSummary?: string;
+  gradedBy?: string;
+  gradedAt?: string;
+  reopenedBy?: string;
+  reopenedAt?: string;
+}
+
+// ==================== AI INTEGRATION TYPES ====================
+
 export interface AIRequest {
   studentId: string;                    // Student document ID
   type: 'summary' | 'study-tips';       // AI analysis type

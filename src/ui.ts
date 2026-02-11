@@ -216,7 +216,6 @@ export function initUI(): void {
     }
   });
 
-  console.log('✅ UI initialized');
 }
 
 // Switch between login and signup forms
@@ -284,7 +283,6 @@ export function configureUIForRole(user: User): void {
     });
   }
 
-  console.log('✅ UI configured for role:', user.role);
 }
 
 // Switch between main app tabs

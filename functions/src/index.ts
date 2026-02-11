@@ -205,11 +205,10 @@
  * TESTING:
  * 
  * LOCAL TESTING:
- * 1. cd functions
- * 2. npm run serve (starts emulator)
- * 3. Set GEMINI_API_KEY in .env file
- * 4. Client auto-connects to emulator on localhost
- * 5. Check terminal for function logs
+ * 1. Set GEMINI_API_KEY in functions/.env
+ * 2. Deploy: firebase deploy --only functions
+ * 3. Run client (npm run dev) and trigger AI features
+ * 4. Check Firebase Console > Functions > Logs
  * 
  * PRODUCTION TESTING:
  * 1. Deploy functions
@@ -271,26 +270,23 @@
  * Environment Variable Loading
  * 
  * DEVELOPMENT:
- * - Loads .env file if in emulator or development mode
- * - Required for local testing with Gemini API
+ * - Loads .env file when not in production (e.g. local testing with Gemini API)
  * 
- * PRODUCTION:
- * - Uses Firebase Functions config
- * - Set with: firebase functions:config:set gemini.api_key="YOUR_KEY"
+ * PRODUCTION (Firebase deploy):
+ * - Uses Firebase Functions config; set with:
+ *   firebase functions:config:set gemini.api_key="YOUR_KEY"
+ * - Or use Secret Manager / .env in Firebase Console
  * 
  * GRACEFUL FAILURE:
  * - If dotenv not installed, continues without error
- * - Production doesn't need dotenv package
  */
-if (process.env.FUNCTIONS_EMULATOR || process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production') {
   try {
     // Only load dotenv in local development
     require('dotenv').config();
-    console.log('✅ [Environment] Loaded .env file for local development');
   } catch (e) {
     // dotenv not installed or .env file doesn't exist - that's okay
     // Environment variables will be read from Firebase config in production
-    console.log('⚠️ [Environment] .env file not found (this is normal in production)');
   }
 }
 
@@ -324,6 +320,17 @@ const apiKey = getApiKey();
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 // ==================== HELPER FUNCTIONS ====================
+
+/** Wrap a promise with a timeout. Rejects with a clear message if it takes too long. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
 
 /**
  * Check if the authenticated user has permission to access student data
@@ -415,12 +422,9 @@ async function checkStudentAccess(
  * - Logs detailed errors for debugging
  * - Handles missing data gracefully
  */
-export const getPerformanceSummary = onCall(async (request) => {
-  console.log('🤖 [getPerformanceSummary] Request received', {
-    userId: request.auth?.uid,
-    studentId: request.data?.studentId
-  });
-  
+export const getPerformanceSummary = onCall(
+  { timeoutSeconds: 300, memory: '512MiB' },
+  async (request) => {
   // STEP 1: Verify user is authenticated
   if (!request.auth) {
     console.error('❌ [getPerformanceSummary] Unauthenticated request');
@@ -436,7 +440,6 @@ export const getPerformanceSummary = onCall(async (request) => {
   }
   
   // STEP 3: Verify user has permission to access this student
-  console.log('🔍 [getPerformanceSummary] Checking access permissions...');
   const { hasAccess, studentData } = await checkStudentAccess(
     request.auth.uid,
     studentId
@@ -453,12 +456,7 @@ export const getPerformanceSummary = onCall(async (request) => {
     );
   }
   
-  console.log('✅ [getPerformanceSummary] Access granted', {
-    studentName: studentData.name
-  });
-  
   // STEP 4: Fetch student's grades
-  console.log('📊 [getPerformanceSummary] Fetching grades...');
   const gradesSnapshot = await db
     .collection(`students/${studentId}/grades`)
     .orderBy('date', 'desc')
@@ -475,10 +473,7 @@ export const getPerformanceSummary = onCall(async (request) => {
     );
   }
   
-  console.log(`✅ [getPerformanceSummary] Found ${grades.length} grades`);
-  
   // STEP 5: Fetch student's attendance (optional but recommended)
-  console.log('📅 [getPerformanceSummary] Fetching attendance...');
   const attendanceSnapshot = await db
     .collection(`students/${studentId}/attendance`)
     .orderBy('date', 'desc')
@@ -486,18 +481,10 @@ export const getPerformanceSummary = onCall(async (request) => {
     .get();
   
   const attendance = attendanceSnapshot.docs.map(doc => doc.data());
-  console.log(`✅ [getPerformanceSummary] Found ${attendance.length} attendance records`);
   
   // STEP 6: Prepare data for AI analysis
-  console.log('🔧 [getPerformanceSummary] Preparing data for AI...');
   const gradesData = prepareGradesData(grades);
   const attendanceData = prepareAttendanceData(attendance);
-  
-  // DEBUG: Log prepared data (remove in production or use debug flag)
-  console.log('📋 [getPerformanceSummary] Prepared data:', {
-    gradesCount: gradesData.length,
-    attendanceStats: attendanceData
-  });
   
   // STEP 7: Check if AI is configured
   if (!genAI) {
@@ -510,8 +497,6 @@ export const getPerformanceSummary = onCall(async (request) => {
   
   // STEP 8: Call AI API
   try {
-    console.log('🤖 [getPerformanceSummary] Calling Gemini API...');
-    
     // Get AI model with configuration
     const model = genAI.getGenerativeModel({ 
       model: AI_MODEL_CONFIG.model
@@ -526,29 +511,20 @@ export const getPerformanceSummary = onCall(async (request) => {
       attendanceData
     );
     
-    // DEBUG: Log prompt structure (remove in production or use debug flag)
-    console.log('📝 [getPerformanceSummary] Prompt structure:', {
-      systemPromptLength: systemPrompt.length,
-      userPromptLength: userPrompt.length,
-      totalLength: systemPrompt.length + userPrompt.length
-    });
-    
-    // Generate content using Gemini API
-    // TODO: When migrating to dedicated API service, replace this call
-    const result = await model.generateContent({
-      contents: [{ 
-        role: 'user', 
-        parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] 
-      }]
-    });
+    // Generate content using Gemini API (with 90s timeout)
+    const result = await withTimeout(
+      model.generateContent({
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] 
+        }]
+      }),
+      90_000,
+      'Gemini API (Performance Summary)'
+    );
     
     const response = result.response;
     const text = response.text();
-    
-    console.log('✅ [getPerformanceSummary] AI response received', {
-      responseLength: text.length,
-      studentName: studentData.name
-    });
     
     // STEP 9: Return the AI-generated summary
     return { 
@@ -579,7 +555,7 @@ export const getPerformanceSummary = onCall(async (request) => {
       `Failed to generate AI summary: ${errorMessage}. Please try again later.`
     );
   }
-});
+});  // end getPerformanceSummary
 
 /**
  * Generate AI-powered study tips
@@ -611,12 +587,9 @@ export const getPerformanceSummary = onCall(async (request) => {
  * - Logs detailed errors for debugging
  * - Handles missing data gracefully
  */
-export const getStudyTips = onCall(async (request) => {
-  console.log('🤖 [getStudyTips] Request received', {
-    userId: request.auth?.uid,
-    studentId: request.data?.studentId
-  });
-  
+export const getStudyTips = onCall(
+  { timeoutSeconds: 300, memory: '512MiB' },
+  async (request) => {
   // STEP 1: Verify user is authenticated
   if (!request.auth) {
     console.error('❌ [getStudyTips] Unauthenticated request');
@@ -632,7 +605,6 @@ export const getStudyTips = onCall(async (request) => {
   }
   
   // STEP 3: Verify user has permission to access this student
-  console.log('🔍 [getStudyTips] Checking access permissions...');
   const { hasAccess, studentData } = await checkStudentAccess(
     request.auth.uid,
     studentId
@@ -649,12 +621,7 @@ export const getStudyTips = onCall(async (request) => {
     );
   }
   
-  console.log('✅ [getStudyTips] Access granted', {
-    studentName: studentData.name
-  });
-  
   // STEP 4: Fetch student's grades
-  console.log('📊 [getStudyTips] Fetching grades...');
   const gradesSnapshot = await db
     .collection(`students/${studentId}/grades`)
     .orderBy('date', 'desc')
@@ -671,22 +638,13 @@ export const getStudyTips = onCall(async (request) => {
     );
   }
   
-  console.log(`✅ [getStudyTips] Found ${grades.length} grades`);
-  
   // STEP 5: Analyze grades to identify weak areas
-  console.log('🔧 [getStudyTips] Analyzing performance by category...');
   const categoryAverages = calculateCategoryAverages(grades);
   
   // Prepare recent assignments summary
   const recentAssignments = grades.slice(0, 5).map(g => 
     `- ${g.assignmentName} (${g.category}): ${((g.score/g.totalPoints)*100).toFixed(1)}%`
   );
-  
-  // DEBUG: Log analysis results
-  console.log('📋 [getStudyTips] Category analysis:', {
-    categories: categoryAverages.length,
-    categoryAverages
-  });
   
   // STEP 6: Check if AI is configured
   if (!genAI) {
@@ -699,8 +657,6 @@ export const getStudyTips = onCall(async (request) => {
   
   // STEP 7: Call AI API
   try {
-    console.log('🤖 [getStudyTips] Calling Gemini API...');
-    
     // Get AI model with configuration
     const model = genAI.getGenerativeModel({ 
       model: AI_MODEL_CONFIG.model
@@ -715,29 +671,20 @@ export const getStudyTips = onCall(async (request) => {
       recentAssignments
     );
     
-    // DEBUG: Log prompt structure (remove in production or use debug flag)
-    console.log('📝 [getStudyTips] Prompt structure:', {
-      systemPromptLength: systemPrompt.length,
-      userPromptLength: userPrompt.length,
-      totalLength: systemPrompt.length + userPrompt.length
-    });
-    
-    // Generate content using Gemini API
-    // TODO: When migrating to dedicated API service, replace this call
-    const result = await model.generateContent({
-      contents: [{ 
-        role: 'user', 
-        parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] 
-      }]
-    });
+    // Generate content using Gemini API (with 90s timeout)
+    const result = await withTimeout(
+      model.generateContent({
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] 
+        }]
+      }),
+      90_000,
+      'Gemini API (Study Tips)'
+    );
     
     const response = result.response;
     const text = response.text();
-    
-    console.log('✅ [getStudyTips] AI response received', {
-      responseLength: text.length,
-      studentName: studentData.name
-    });
     
     // STEP 8: Return the AI-generated study tips
     return { 
@@ -813,11 +760,6 @@ export const aiAgentChat = onCall(
     maxInstances: 10
   },
   async (request) => {
-  console.log('🤖 [aiAgentChat] Request received', {
-    userId: request.auth?.uid,
-    messageLength: request.data?.message?.length
-  });
-  
   // STEP 1: Verify user is authenticated and is admin
   if (!request.auth) {
     console.error('❌ [aiAgentChat] Unauthenticated request');
@@ -843,19 +785,14 @@ export const aiAgentChat = onCall(
     throw new HttpsError('invalid-argument', 'Message is required');
   }
   
-  console.log('✅ [aiAgentChat] Admin verified, loading data...');
-  
   // STEP 2: Load all student data
-  console.log('📊 [aiAgentChat] Loading all students...');
   const studentsSnapshot = await db.collection('students').get();
   const students = studentsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   })) as Array<{ id: string; name?: string; memberId?: string; yearOfBirth?: number; contactEmail?: string; [key: string]: any }>;
-  console.log(`✅ [aiAgentChat] Loaded ${students.length} students`);
   
   // STEP 3: Load grades and attendance for all students
-  console.log('📊 [aiAgentChat] Loading grades and attendance...');
   const allGrades: any[] = [];
   const allAttendance: any[] = [];
   
@@ -894,8 +831,6 @@ export const aiAgentChat = onCall(
       console.warn(`⚠️ [aiAgentChat] Error loading data for student ${student.id}:`, error);
     }
   }
-  
-  console.log(`✅ [aiAgentChat] Loaded ${allGrades.length} grades and ${allAttendance.length} attendance records`);
   
   // STEP 4: Build context summary
   const contextSummary = {
@@ -938,8 +873,6 @@ export const aiAgentChat = onCall(
   
   // STEP 6: Build conversation with context
   try {
-    console.log('🤖 [aiAgentChat] Calling Gemini API...');
-    
     const model = genAI.getGenerativeModel({ 
       model: AI_MODEL_CONFIG.model
     });
@@ -1025,13 +958,6 @@ User's Question: "${message}"
 
 Instructions: Answer this question using ONLY the data provided above. If the user asks about a specific student, search for their name in the Student Roster and Grade/Attendance records. If the requested information isn't available in the data, clearly state what's missing.`;
     
-    // DEBUG: Log prompt structure
-    console.log('📝 [aiAgentChat] Prompt structure:', {
-      systemPromptLength: systemPrompt.length,
-      userPromptLength: userPrompt.length,
-      conversationHistoryLength: conversationHistory.length
-    });
-    
     // Generate response
     const result = await model.generateContent({
       contents: [{ 
@@ -1042,10 +968,6 @@ Instructions: Answer this question using ONLY the data provided above. If the us
     
     const response = result.response;
     const text = response.text();
-    
-    console.log('✅ [aiAgentChat] AI response received', {
-      responseLength: text.length
-    });
     
     // STEP 7: Return response
     return {
