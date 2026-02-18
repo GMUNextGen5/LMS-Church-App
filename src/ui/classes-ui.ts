@@ -6,8 +6,8 @@
  * and sidebar. Body scroll is locked while a modal is open.
  */
 
-import { getCurrentUser } from './auth';
-import { fetchStudents, fetchAllUsers } from './data';
+import { getCurrentUser } from '../core/auth';
+import { fetchStudents, fetchAllUsers } from '../data/data';
 import { showLoading, hideLoading } from './ui';
 import {
   fetchStudentClasses,
@@ -21,8 +21,8 @@ import {
   removeStudentsFromClass,
   assignTeacherToClass,
   getUserDisplayName,
-} from './classes-data';
-import type { Student, User } from './types';
+} from '../data/classes-data';
+import type { Student, User } from '../core/types';
 
 let container: HTMLElement | null = null;
 
@@ -362,7 +362,6 @@ function closeTeacherClassFormModal(): void {
 export function initClasses(): void {
   container = document.getElementById('classes-content');
   if (!container) {
-    console.warn('[Classes] #classes-content not found');
     return;
   }
   container.addEventListener('click', handleClick);

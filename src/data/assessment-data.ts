@@ -9,16 +9,16 @@
  *   courses/{classId}/assessments/{assessmentId}/submissions/{studentProfileId}
  */
 
-import { db } from './firebase';
+import { db } from '../core/firebase';
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc,
   updateDoc, deleteDoc, query, where, orderBy, writeBatch
 } from 'firebase/firestore';
-import { getCurrentUser } from './auth';
+import { getCurrentUser } from '../core/auth';
 import type {
   Assessment, AssessmentQuestion, Submission, QuestionAnswer,
   QuestionGradeDetail, Course, Student
-} from './types';
+} from '../core/types';
 
 // ────────────────────────────────────────────────────────────────────────────
 //  HELPERS
@@ -70,10 +70,8 @@ async function syncGradeToStudent(
       teacherId: gradedByUid,
       source: 'assessment',   // Mark as auto-synced from assessment system
     });
-    console.log('✅ [GradeSync] Synced grade for', studentProfileId, ':', score, '/', totalPoints);
-  } catch (err) {
-    // Don't let grade sync failure break the assessment flow
-    console.error('⚠️ [GradeSync] Failed to sync grade to student profile:', err);
+  } catch {
+    // Grade sync failure does not break assessment flow
   }
 }
 
@@ -96,7 +94,6 @@ export async function createAssessment(
     createdAt: now,
     updatedAt: now,
   });
-  console.log('✅ [Assessment] Created:', docRef.id);
   return docRef.id;
 }
 
@@ -138,7 +135,6 @@ export async function deleteAssessment(classId: string, assessmentId: string): P
   // Delete assessment doc
   batch.delete(doc(db, 'courses', classId, 'assessments', assessmentId));
   await batch.commit();
-  console.log('✅ [Assessment] Deleted:', assessmentId);
 }
 
 /** Fetch a single assessment. */
@@ -396,7 +392,6 @@ export async function submitAssessment(
   };
 
   await setDoc(ref, submissionData);
-  console.log('✅ [Submission] Submitted:', studentProfileId, 'auto-score:', autoScore);
 
   // If fully auto-graded and auto-released, sync to student's grades subcollection immediately
   if (!needsGrading && submissionData.released) {
@@ -517,7 +512,6 @@ export async function releaseGrades(
     batch.update(ref, { released: true });
   }
   await batch.commit();
-  console.log('✅ [Grading] Released grades for', submissionIds.length, 'submissions');
 
   // Sync released grades to each student's grades subcollection
   const assessment = await fetchAssessment(classId, assessmentId);
@@ -536,7 +530,6 @@ export async function releaseGrades(
           );
         }
       } catch (err) {
-        console.error('⚠️ [GradeSync] Failed to sync released grade for', sid, err);
       }
     }));
   }
@@ -680,11 +673,9 @@ export async function seedAssessmentDemoData(): Promise<void> {
   // Get first available course
   const coursesSnap = await getDocs(collection(db, 'courses'));
   if (coursesSnap.empty) {
-    console.error('No courses found. Create a course first.');
     return;
   }
   const course = { id: coursesSnap.docs[0].id, ...coursesSnap.docs[0].data() } as Course;
-  console.log('🌱 Seeding assessment data for course:', course.courseName);
 
   const classId = course.id;
   const now = new Date();
@@ -763,8 +754,4 @@ export async function seedAssessmentDemoData(): Promise<void> {
     correctAnswers: ['1'], order: 1,
   });
 
-  console.log('✅ [Seed] Assessment demo data created!');
-  console.log('   Assessment 1 (published, future due):', a1Id);
-  console.log('   Assessment 2 (draft)');
-  console.log('   Assessment 3 (published, past due):', a3Id);
 }

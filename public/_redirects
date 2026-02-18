@@ -1,0 +1,4 @@
+# Cloudflare Pages: SPA fallback (static assets and exact paths are served first)
+/*    /index.html   200
+/privacy    /privacy.html   200
+/terms      /terms.html     200

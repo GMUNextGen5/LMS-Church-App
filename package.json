@@ -1,12 +1,12 @@
 {
   "name": "lms-firebase",
   "version": "1.0.0",
-  "description": "Firebase-hosted Learning Management System with 3-tier access control",
+  "description": "Learning Management System — frontend for Cloudflare Pages, backend on Firebase",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy"
+    "deploy:backend": "firebase deploy --only functions,firestore:rules,firestore:indexes"
   },
   "dependencies": {
     "@google/generative-ai": "^0.17.1",

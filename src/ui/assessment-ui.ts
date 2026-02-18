@@ -15,8 +15,8 @@
  *   results     – student views their graded submission
  */
 
-import { getCurrentUser } from './auth';
-import { fetchStudents, fetchCourses } from './data';
+import { getCurrentUser } from '../core/auth';
+import { fetchStudents, fetchCourses } from '../data/data';
 import { showLoading, hideLoading } from './ui';
 import {
   fetchTeacherAssessments,
@@ -39,11 +39,11 @@ import {
   reopenSubmission,
   seedAssessmentDemoData,
   type StudentAssessmentRow,
-} from './assessment-data';
+} from '../data/assessment-data';
 import type {
   Assessment, AssessmentQuestion, Submission, QuestionAnswer,
   QuestionType, Course, Student, UserRole,
-} from './types';
+} from '../core/types';
 
 // ────────────────────────────────────────────────────────────────────────────
 //  STATE
@@ -73,7 +73,6 @@ let cachedStudentProfiles: Student[] = [];
 export function initAssessments(): void {
   container = document.getElementById('assessments-content');
   if (!container) {
-    console.warn('[Assessments] #assessments-content not found');
     return;
   }
   // Delegate all clicks inside the container
@@ -89,7 +88,6 @@ export function initAssessments(): void {
     } catch (e: any) { alert('Seed error: ' + e.message); }
   };
 
-  console.log('✅ [Assessments] UI initialized');
 }
 
 /** Called when user switches to the Assessments tab. */
@@ -1125,10 +1123,14 @@ function collectQuestionsFromDOM(): Omit<AssessmentQuestion, 'id'>[] {
       const correctText = (card.querySelector(`[data-role="q-correct-text"]`) as HTMLInputElement)?.value || '';
       correctAnswers = correctText ? [correctText] : [];
     }
+    // Firestore does not allow undefined; use empty arrays when not applicable
+    const optionsSafe = options ?? [];
+    const correctAnswersSafe = correctAnswers ?? [];
 
     questions.push({
       type, prompt, required, points,
-      options, correctAnswers,
+      options: optionsSafe,
+      correctAnswers: correctAnswersSafe,
       order: i + 1,
       shuffleOptions: shuffle,
     });

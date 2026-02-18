@@ -46,14 +46,11 @@
  * ENVIRONMENT VARIABLES:
  * 
  * LOCAL DEVELOPMENT:
- * - Loaded from .env file (if exists)
- * - Required: GEMINI_API_KEY=your_api_key_here
- * - Use Functions Emulator: npm run serve
+ * - Load from functions/.env (copy from functions/.env.example)
+ * - Set GEMINI_API_KEY in functions/.env
  * 
  * PRODUCTION:
- * - Set via Firebase CLI or Console
- * - Command: firebase functions:config:set gemini.api_key="YOUR_KEY"
- * - View: firebase functions:config:get
+ * - Set GEMINI_API_KEY in Firebase Functions config or Secret Manager (never in code)
  * - Access in code: process.env.GEMINI_API_KEY
  * 
  * ════════════════════════════════════════════════════════════════════════════
@@ -134,8 +131,7 @@
  * 
  * DEPLOYMENT STEPS:
  * 
- * 1. Set API Key (FIRST TIME ONLY):
- *    firebase functions:config:set gemini.api_key="YOUR_API_KEY"
+ * 1. Set GEMINI_API_KEY in functions/.env (see functions/.env.example). Never commit .env.
  * 
  * 2. Build TypeScript:
  *    cd functions && npm run build
@@ -170,8 +166,7 @@
  * COMMON ISSUES:
  * 
  * 1. "GEMINI_API_KEY not set"
- *    FIX: firebase functions:config:set gemini.api_key="YOUR_KEY"
- *    Then redeploy functions
+ *    FIX: Set GEMINI_API_KEY in functions/.env (or Firebase config), then redeploy
  * 
  * 2. "Permission denied"
  *    CHECK:
@@ -273,9 +268,7 @@
  * - Loads .env file when not in production (e.g. local testing with Gemini API)
  * 
  * PRODUCTION (Firebase deploy):
- * - Uses Firebase Functions config; set with:
- *   firebase functions:config:set gemini.api_key="YOUR_KEY"
- * - Or use Secret Manager / .env in Firebase Console
+ * - Set GEMINI_API_KEY via Firebase config or Secret Manager (never in code)
  * 
  * GRACEFUL FAILURE:
  * - If dotenv not installed, continues without error
@@ -312,10 +305,7 @@ import {
 initializeApp();
 const db = getFirestore();
 
-// Initialize Gemini AI
-// TODO: When migrating to dedicated API service, move this initialization to the service
-// The API key is read from environment variable GEMINI_API_KEY
-// Set it with: firebase functions:config:set gemini.api_key="YOUR_API_KEY"
+// Initialize Gemini AI; key is read from GEMINI_API_KEY (set in functions/.env or Firebase config)
 const apiKey = getApiKey();
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 

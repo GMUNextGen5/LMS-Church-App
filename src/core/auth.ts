@@ -1,0 +1,134 @@
+import {
+  auth,
+  db,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  deleteUser,
+  doc,
+  getDoc,
+  setDoc,
+  FirebaseUser
+} from './firebase';
+import { User, UserRole } from './types';
+import { showLoading, hideLoading } from '../ui/ui';
+
+let currentUser: User | null = null;
+
+export function getCurrentUser(): User | null {
+  return currentUser;
+}
+
+export function initAuth(onUserChanged: (user: User | null) => void): void {
+  onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+    if (firebaseUser) {
+      try {
+        showLoading();
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          currentUser = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            role: userData.role as UserRole,
+            createdAt: userData.createdAt
+          };
+          onUserChanged(currentUser);
+        } else {
+          currentUser = null;
+          onUserChanged(null);
+          await signOut(auth);
+        }
+      } catch {
+        currentUser = null;
+        onUserChanged(null);
+      } finally {
+        hideLoading();
+      }
+    } else {
+      currentUser = null;
+      onUserChanged(null);
+    }
+  });
+}
+
+export async function signUp(email: string, password: string): Promise<string> {
+  let userCredential: { user: import('firebase/auth').User } | null = null;
+
+  try {
+    showLoading();
+    userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+
+    const userDocRef = doc(db, 'users', uid);
+    await setDoc(userDocRef, {
+      email: String(email).trim(),
+      role: 'student',
+      createdAt: new Date().toISOString()
+    });
+
+    return uid;
+  } catch (error: unknown) {
+    if (userCredential?.user) {
+      try {
+        await deleteUser(userCredential.user);
+      } catch {
+        try {
+          await signOut(auth);
+        } catch {}
+      }
+    }
+
+    const err = error as { code?: string };
+    if (err?.code?.startsWith?.('auth/')) {
+      throw new Error(getAuthErrorMessage(err.code));
+    }
+    if (err?.code === 'permission-denied') {
+      throw new Error('Permission denied. Please try again.');
+    }
+    throw new Error('Signup failed. Please try again.');
+  } finally {
+    hideLoading();
+  }
+}
+
+export async function signIn(email: string, password: string): Promise<void> {
+  try {
+    showLoading();
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code ?? '';
+    throw new Error(getAuthErrorMessage(code));
+  } finally {
+    hideLoading();
+  }
+}
+
+export async function logout(): Promise<void> {
+  try {
+    showLoading();
+    await signOut(auth);
+  } catch {
+    throw new Error('Failed to sign out. Please try again.');
+  } finally {
+    hideLoading();
+  }
+}
+
+function getAuthErrorMessage(errorCode: string): string {
+  const messages: Record<string, string> = {
+    'auth/email-already-in-use': 'This email is already registered. Please sign in instead.',
+    'auth/invalid-email': 'Invalid email address format.',
+    'auth/operation-not-allowed': 'Email/password sign-in is not enabled. Please contact support.',
+    'auth/weak-password': 'Password must be at least 6 characters.',
+    'auth/user-disabled': 'This account has been disabled. Please contact support.',
+    'auth/user-not-found': 'No account found with this email. Please sign up first.',
+    'auth/wrong-password': 'Incorrect password. Please try again.',
+    'auth/too-many-requests': 'Too many attempts. Please try again later.',
+    'auth/network-request-failed': 'Network error. Please check your connection.'
+  };
+  return messages[errorCode] ?? 'Authentication failed. Please try again.';
+}

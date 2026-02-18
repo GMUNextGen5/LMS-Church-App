@@ -1,6 +1,6 @@
 # NG5 LMS - Learning Management System
 
-A Learning Management System built with Firebase, TypeScript, and AI integration. Features role-based access control, real-time data, assessments with auto-grading, and AI-powered performance reports.
+A Learning Management System built with Firebase (backend only), TypeScript, and AI integration. The **frontend is hosted on Cloudflare Pages**; Firebase provides Authentication, Firestore, and Cloud Functions. Features role-based access control, real-time data, assessments with auto-grading, and AI-powered performance reports.
 
 ## Features
 
@@ -18,41 +18,45 @@ A Learning Management System built with Firebase, TypeScript, and AI integration
 ## Tech Stack
 
 - **Frontend**: HTML, TypeScript, Tailwind CSS, Vite
-- **Backend**: Firebase (Authentication, Firestore, Cloud Functions v2)
+- **Backend**: Firebase (Authentication, Firestore, Cloud Functions v2) — backend only
 - **AI**: Google Gemini API (via Cloud Functions)
-- **Hosting**: Firebase Hosting
+- **Hosting**: Cloudflare Pages (frontend); Firebase is not used for hosting
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── main.ts              # Application entry point & UI orchestration
-│   ├── auth.ts              # Firebase Authentication logic
-│   ├── data.ts              # Firestore CRUD (students, grades, attendance)
-│   ├── firebase.ts          # Firebase SDK initialization & exports
-│   ├── config.ts            # Firebase project configuration
-│   ├── types.ts             # TypeScript type definitions
-│   ├── ui.ts                # UI utilities (loading, modals, toasts)
-│   ├── particles.ts         # Background particle effects
-│   ├── classes-data.ts      # Classes/courses Firestore operations
-│   ├── classes-ui.ts        # Classes tab UI (role-adaptive views)
-│   ├── assessment-data.ts   # Assessment CRUD, auto-grading, submissions
-│   ├── assessment-ui.ts     # Assessment tab UI & exam interface
-│   └── vite-env.d.ts        # Vite environment type declarations
+│   ├── main.ts              # Application entry point & orchestration
+│   ├── vite-env.d.ts        # Vite environment type declarations
+│   ├── core/                # Config, Firebase, auth, shared types
+│   │   ├── config.ts        # Env-based Firebase config
+│   │   ├── firebase.ts      # Firebase SDK init & exports
+│   │   ├── auth.ts          # Authentication logic
+│   │   └── types.ts         # TypeScript type definitions
+│   ├── data/                # Firestore & API layer
+│   │   ├── data.ts          # Students, grades, attendance, users
+│   │   ├── assessment-data.ts  # Assessments, questions, submissions
+│   │   └── classes-data.ts  # Classes/courses CRUD & roster
+│   └── ui/                  # UI components & views
+│       ├── ui.ts            # Loading, modals, auth forms
+│       ├── particles.ts     # Login background effects
+│       ├── assessment-ui.ts # Assessment tab & exam UI
+│       └── classes-ui.ts    # Classes tab (role-adaptive)
 ├── functions/
 │   └── src/
-│       ├── index.ts         # Cloud Functions (AI reports, user management)
-│       └── ai-config.ts     # AI prompt templates & model configuration
+│       ├── index.ts         # Cloud Functions (AI, user management)
+│       └── ai-config.ts    # AI prompts & model config
 ├── public/
-│   └── ng5-logo.png         # Application logo
-├── index.html               # Main HTML (app shell, styles, navigation)
-├── privacy.html             # Privacy policy page
-├── terms.html               # Terms of service page
+│   ├── _redirects           # Cloudflare Pages SPA fallback
+│   └── _headers             # Security headers
+├── index.html               # Main app (shell, styles, nav)
+├── privacy.html             # Privacy policy
+├── terms.html               # Terms of service
 ├── firestore.rules          # Firestore security rules
-├── firestore.indexes.json   # Firestore composite indexes
-├── firebase.json            # Firebase project configuration
-├── tsconfig.json            # TypeScript configuration
-├── vite.config.ts           # Vite build configuration
+├── firestore.indexes.json   # Firestore indexes
+├── firebase.json            # Firebase config (no hosting)
+├── tsconfig.json            # TypeScript config
+├── vite.config.ts           # Vite build config
 └── package.json             # Dependencies & scripts
 ```
 
@@ -72,41 +76,71 @@ npm install
 cd functions && npm install && cd ..
 ```
 
-### 2. Configure Firebase
+### 2. Environment variables (no API keys in code)
+
+All API keys and config are read from `.env` files. **Do not put secrets in source code.**
+
+**Frontend (Firebase):**
+- Copy `.env.example` to `.env` in the project root
+- Fill in the `VITE_FIREBASE_*` values from Firebase Console → Project Settings → General → Your apps
+
+**Cloud Functions (Gemini):**
+- Copy `functions/.env.example` to `functions/.env`
+- Set `GEMINI_API_KEY` in `functions/.env` (get a key at [ai.google.dev](https://ai.google.dev))
+
+### 3. Configure Firebase project
 
 1. Create a Firebase project and enable **Email/Password** authentication
 2. Enable **Firestore Database**
-3. Copy your Firebase config from Project Settings > General > Your apps
-4. Update `src/config.ts` with your config values
-5. Update `.firebaserc` with your project ID
+3. Set your Firebase project: run `firebase use your-project-id` (use the same project ID as in `.env`)
 
-### 3. Deploy Rules & Indexes
+### 4. Deploy Rules & Indexes
 
 ```bash
 firebase login
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-### 4. Configure & Deploy Cloud Functions
+### 5. Configure & Deploy Cloud Functions
+
+Ensure `functions/.env` exists with `GEMINI_API_KEY` (see step 2). Then:
 
 ```bash
-# Set Gemini API key (create a .env file in functions/ directory)
-# Add: GEMINI_API_KEY=your_key_here
-
-# Deploy
 firebase deploy --only functions
 ```
 
-### 5. Development
+### 6. Development
 
 ```bash
-npm run dev          # Start dev server at http://localhost:3000
-npm run build        # Production build to dist/
-npm run preview      # Preview production build
-npm run deploy       # Build & deploy everything to Firebase
+npm run dev            # Start dev server at http://localhost:3000
+npm run build          # Production build to dist/
+npm run preview        # Preview production build locally
+npm run deploy:backend # Deploy only Firebase (functions + Firestore rules/indexes)
 ```
 
-### 6. Create First Admin
+### 7. Deploy frontend to Cloudflare Pages
+
+The site is hosted on **Cloudflare Pages**; Firebase is used only for backend (Auth, Firestore, Functions).
+
+1. **Build** (uses your `.env` for Firebase config):
+   ```bash
+   npm run build
+   ```
+   Output is in `dist/` (includes `_redirects` for SPA routing).
+
+2. **Connect to Cloudflare Pages** (e.g. [dash.cloudflare.com](https://dash.cloudflare.com) → Pages → Create project):
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+   - **Root directory:** (leave default)
+   - Deploy via Git or upload the `dist/` folder.
+
+3. **Add your Pages URL to Firebase (required for sign-in):**
+   - Firebase Console → **Authentication** → **Settings** → **Authorized domains**
+   - Add your Cloudflare Pages domain (e.g. `your-project.pages.dev` or your custom domain).
+
+Without a populated `.env` in the build, the app will load but sign-in will not work. On Cloudflare Pages you can set **Environment variables** in the dashboard (same `VITE_FIREBASE_*` names) for production builds.
+
+### 8. Create First Admin
 
 1. Sign up through the app (creates a user with `student` role)
 2. Go to Firebase Console > Firestore > `users` collection

@@ -39,7 +39,6 @@ export class ParticleSystem {
     constructor(canvasId: string, config: Partial<ParticleConfig> = {}) {
         const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
         if (!canvas) {
-            console.warn(`Canvas with id ${canvasId} not found`);
             throw new Error("Canvas not found");
         }
 

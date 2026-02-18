@@ -212,7 +212,7 @@
  * 3. "AI features don't work"
  *    CHECK:
  *    - Cloud Functions are deployed
- *    - GEMINI_API_KEY is set in Functions config
+ *    - GEMINI_API_KEY is set in functions/.env
  *    - Network requests to Cloud Functions succeed
  *    - Console shows no CORS errors
  *    - Functions logs (firebase functions:log)
@@ -309,11 +309,10 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-// Import Firebase initialization (must be first to initialize services)
-import './firebase';
-import { auth } from './firebase';
-import { initAuth, signUp, signIn, logout } from './auth';
-import { ParticleSystem } from './particles';
+import './core/firebase';
+import { auth } from './core/firebase';
+import { initAuth, signUp, signIn, logout } from './core/auth';
+import { ParticleSystem } from './ui/particles';
 import {
   initUI,
   showAuthContainer,
@@ -328,8 +327,8 @@ import {
   loginError,
   signupError,
   getCurrentUserRole,
-  sanitizeHTML  // SECURITY: Import sanitizeHTML for XSS protection
-} from './ui';
+  sanitizeHTML
+} from './ui/ui';
 import {
   fetchStudents,
   addGrade,
@@ -338,10 +337,10 @@ import {
   exportGradesToCSV,
   fetchAttendance,
   markAttendance
-} from './data';
-import { User, Student, Grade, Attendance } from './types';
-import { initAssessments, loadAssessments } from './assessment-ui';
-import { initClasses, loadClasses } from './classes-ui';
+} from './data/data';
+import { User, Student, Grade, Attendance } from './core/types';
+import { initAssessments, loadAssessments } from './ui/assessment-ui';
+import { initClasses, loadClasses } from './ui/classes-ui';
 
 // Application state
 let currentStudents: Student[] = [];
@@ -378,7 +377,7 @@ async function init(): Promise<void> {
     } else if (tab === 'dashboard') {
       // Reload recent activity when switching to dashboard
       await loadRecentActivity();
-    } else     if (tab === 'assessments') {
+    } else if (tab === 'assessments') {
       await loadAssessments();
     }
     if (tab === 'users') {
@@ -455,28 +454,35 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
   }
 }
 
-// Setup authentication form handlers
 function setupAuthForms(): void {
-  // Login form
+  if (!loginForm || !signupForm) return;
+
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     clearError(loginError);
 
     const formData = new FormData(loginForm);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
+    if (!email || !password) {
+      showError(loginError, 'Please fill in all fields');
+      return;
+    }
+
     try {
       await signIn(email, password);
       loginForm.reset();
     } catch (error: any) {
-      showError(loginError, error.message);
+      showError(loginError, error.message || 'Login failed. Please try again.');
     }
   });
 
   // Signup form
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     clearError(signupError);
 
     const formData = new FormData(signupForm);
@@ -484,9 +490,20 @@ function setupAuthForms(): void {
     const password = formData.get('password') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
 
+    if (!email || !password || !confirmPassword) {
+      showError(signupError, 'Please fill in all fields');
+      return;
+    }
+
     // Validate passwords match
     if (password !== confirmPassword) {
       showError(signupError, 'Passwords do not match');
+      return;
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      showError(signupError, 'Password must be at least 6 characters');
       return;
     }
 
@@ -498,18 +515,19 @@ function setupAuthForms(): void {
 
       signupForm.reset();
     } catch (error: any) {
-      showError(signupError, error.message);
+      showError(signupError, error.message || 'Signup failed. Please try again.');
     }
   });
 
-  // Logout button
-  logoutBtn.addEventListener('click', async () => {
-    try {
-      await logout();
-    } catch (error: any) {
-      alert('Logout failed: ' + error.message);
-    }
-  });
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await logout();
+      } catch (err: unknown) {
+        alert('Logout failed. Please try again.');
+      }
+    });
+  }
 }
 
 // Setup application form handlers
@@ -520,10 +538,10 @@ function setupAppForms(): void {
     studentRegForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const errorEl = document.getElementById('registration-error')!;
-      const successEl = document.getElementById('registration-success')!;
-      errorEl.classList.add('hide');
-      successEl.classList.add('hide');
+      const errorEl = document.getElementById('registration-error');
+      const successEl = document.getElementById('registration-success');
+      errorEl?.classList.add('hide');
+      successEl?.classList.add('hide');
 
       const formData = new FormData(studentRegForm);
 
@@ -539,15 +557,17 @@ function setupAppForms(): void {
       };
 
       try {
-        const { showLoading } = await import('./ui');
-        const { createStudent } = await import('./data');
+        const { showLoading } = await import('./ui/ui');
+        const { createStudent } = await import('./data/data');
 
         showLoading();
 
         const studentId = await createStudent(studentData);
 
-        successEl.textContent = `✅ Student "${studentData.name}" registered successfully! (ID: ${studentId})`;
-        successEl.classList.remove('hide');
+        if (successEl) {
+          successEl.textContent = `Student "${studentData.name}" registered successfully. (ID: ${studentId})`;
+          successEl.classList.remove('hide');
+        }
 
         studentRegForm.reset();
 
@@ -555,12 +575,14 @@ function setupAppForms(): void {
         await loadDashboardData();
         await loadRegisteredStudents();
 
-      } catch (error: any) {
-        console.error('Error registering student:', error);
-        errorEl.textContent = 'Failed to register student: ' + error.message;
-        errorEl.classList.remove('hide');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Registration failed';
+        if (errorEl) {
+          errorEl.textContent = 'Failed to register student: ' + msg;
+          errorEl.classList.remove('hide');
+        }
       } finally {
-        const { hideLoading } = await import('./ui');
+        const { hideLoading } = await import('./ui/ui');
         hideLoading();
       }
     });
@@ -590,8 +612,8 @@ function setupAppForms(): void {
       const parsedYear = yearVal ? parseInt(String(yearVal), 10) : NaN;
       const yearOfBirth = Number.isNaN(parsedYear) ? undefined : parsedYear;
       try {
-        const { showLoading, hideLoading } = await import('./ui');
-        const { createTeacher } = await import('./data');
+        const { showLoading, hideLoading } = await import('./ui/ui');
+        const { createTeacher } = await import('./data/data');
         showLoading();
         await createTeacher({
           teacherUid,
@@ -611,7 +633,7 @@ function setupAppForms(): void {
         if (finalUidEl) finalUidEl.value = '';
         await loadRegisteredTeachers();
       } catch (error: unknown) {
-        const { hideLoading } = await import('./ui');
+        const { hideLoading } = await import('./ui/ui');
         hideLoading();
         const msg = error instanceof Error ? error.message : String(error);
         if (errorEl) {
@@ -655,8 +677,8 @@ function setupAppForms(): void {
     refreshTeacherAccountsBtn.addEventListener('click', () => populateTeacherAccountDropdown());
   }
 
-  // Student selection
-  const studentSelect = document.getElementById('student-select') as HTMLSelectElement;
+  const studentSelect = document.getElementById('student-select') as HTMLSelectElement | null;
+  if (studentSelect) {
   studentSelect.addEventListener('change', (e) => {
     const target = e.target as HTMLSelectElement;
     selectedStudentId = target.value;
@@ -677,9 +699,9 @@ function setupAppForms(): void {
       displayGrades([]);
     }
   });
+  }
 
-  // Grade entry form (Teacher/Admin only)
-  const gradeEntryForm = document.getElementById('grade-entry-form') as HTMLFormElement;
+  const gradeEntryForm = document.getElementById('grade-entry-form') as HTMLFormElement | null;
   if (gradeEntryForm) {
     gradeEntryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -817,18 +839,20 @@ function setupAppForms(): void {
     markAttendanceForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const errorEl = document.getElementById('mark-attendance-error')!;
-      const successEl = document.getElementById('mark-attendance-success')!;
-      errorEl.classList.add('hide');
-      successEl.classList.add('hide');
+      const errorEl = document.getElementById('mark-attendance-error');
+      const successEl = document.getElementById('mark-attendance-success');
+      errorEl?.classList.add('hide');
+      successEl?.classList.add('hide');
 
       const formData = new FormData(markAttendanceForm);
       const studentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
       const attendanceStudentId = studentSelect.value;
 
       if (!attendanceStudentId) {
-        errorEl.textContent = 'Please select a student';
-        errorEl.classList.remove('hide');
+        if (errorEl) {
+          errorEl.textContent = 'Please select a student';
+          errorEl.classList.remove('hide');
+        }
         return;
       }
 
@@ -840,13 +864,15 @@ function setupAppForms(): void {
       };
 
       try {
-        const { showLoading } = await import('./ui');
+        const { showLoading } = await import('./ui/ui');
         showLoading();
 
         await markAttendance(attendanceStudentId, attendanceData);
 
-        successEl.textContent = '✅ Attendance marked successfully!';
-        successEl.classList.remove('hide');
+        if (successEl) {
+          successEl.textContent = 'Attendance marked successfully.';
+          successEl.classList.remove('hide');
+        }
 
         markAttendanceForm.reset();
         dateInput.valueAsDate = new Date();
@@ -856,19 +882,20 @@ function setupAppForms(): void {
           await loadStudentAttendance(attendanceStudentId);
         }
 
-      } catch (error: any) {
-        console.error('Error marking attendance:', error);
-        errorEl.textContent = 'Failed to mark attendance: ' + error.message;
-        errorEl.classList.remove('hide');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to mark attendance';
+        if (errorEl) {
+          errorEl.textContent = 'Failed to mark attendance: ' + msg;
+          errorEl.classList.remove('hide');
+        }
       } finally {
-        const { hideLoading: hide } = await import('./ui');
+        const { hideLoading: hide } = await import('./ui/ui');
         hide();
       }
     });
   }
 
-  // Attendance student selector change
-  const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
+  const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement | null;
   if (attendanceStudentSelect) {
     attendanceStudentSelect.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
@@ -1056,7 +1083,7 @@ async function loadRegisteredStudents(): Promise<void> {
   if (!tableBody) return;
 
   try {
-    const { getCurrentUserRole } = await import('./ui');
+    const { getCurrentUserRole } = await import('./ui/ui');
     const role = getCurrentUserRole();
 
     // Only show for admins
@@ -1103,11 +1130,11 @@ async function loadRegisteredTeachers(): Promise<void> {
   if (!tableBody) return;
 
   try {
-    const { getCurrentUserRole } = await import('./ui');
+    const { getCurrentUserRole } = await import('./ui/ui');
     const role = getCurrentUserRole();
     if (role !== 'admin') return;
 
-    const { fetchAllUsers } = await import('./data');
+    const { fetchAllUsers } = await import('./data/data');
     const users = await fetchAllUsers();
     const teachers = users.filter((u: { role: string }) => u.role === 'teacher');
 
@@ -1151,13 +1178,13 @@ async function loadAllUsers(): Promise<void> {
   if (!tableBody) return;
 
   try {
-    const { getCurrentUserRole } = await import('./ui');
+    const { getCurrentUserRole } = await import('./ui/ui');
     const role = getCurrentUserRole();
 
     // Only load for admins
     if (role !== 'admin') return;
 
-    const { fetchAllUsers } = await import('./data');
+    const { fetchAllUsers } = await import('./data/data');
 
     tableBody.innerHTML = `
       <tr>
@@ -1234,13 +1261,13 @@ async function populateStudentAccountDropdown(): Promise<void> {
   if (!accountSelect) return;
 
   try {
-    const { getCurrentUserRole } = await import('./ui');
+    const { getCurrentUserRole } = await import('./ui/ui');
     const role = getCurrentUserRole();
 
     // Only populate for admins
     if (role !== 'admin') return;
 
-    const { fetchAllUsers } = await import('./data');
+    const { fetchAllUsers } = await import('./data/data');
     const users = await fetchAllUsers();
 
     // Clear existing options except the default
@@ -1264,7 +1291,6 @@ async function populateStudentAccountDropdown(): Promise<void> {
     });
 
   } catch (error: any) {
-    console.warn('Could not load accounts for dropdown:', error?.message);
 
     // Update dropdown to show helpful message
     accountSelect.innerHTML = '<option value="">Cloud Functions not deployed - use manual entry</option>';
@@ -1277,10 +1303,10 @@ async function populateTeacherAccountDropdown(): Promise<void> {
   if (!accountSelect) return;
 
   try {
-    const { getCurrentUserRole } = await import('./ui');
+    const { getCurrentUserRole } = await import('./ui/ui');
     if (getCurrentUserRole() !== 'admin') return;
 
-    const { fetchAllUsers } = await import('./data');
+    const { fetchAllUsers } = await import('./data/data');
     const users = await fetchAllUsers();
     accountSelect.innerHTML = '<option value="">-- Select Registered Account --</option>';
     users.sort((a: { email: string }, b: { email: string }) => (a.email || '').localeCompare(b.email || ''));
@@ -1379,13 +1405,6 @@ function updateStudentSelect(): void {
       attendanceStudentSelect.disabled = false;
     }
   }
-
-  // Initialize PDF report buttons after dropdown is populated
-  setTimeout(() => {
-    if (typeof (window as any).setupPDFReportGeneration === 'function') {
-      (window as any).setupPDFReportGeneration();
-    }
-  }, 100);
 }
 
 // Show skeleton loading state for grades table
@@ -1670,7 +1689,7 @@ function renderGradeCharts(grades: Grade[]): void {
   }
 
   try {
-    const { deleteStudent } = await import('./data');
+    const { deleteStudent } = await import('./data/data');
     await deleteStudent(studentId);
 
     // Reload data
@@ -1686,15 +1705,15 @@ function renderGradeCharts(grades: Grade[]): void {
 (window as any).handleDeleteTeacher = async (userId: string) => {
   if (!confirm('Remove this teacher? Their role will be set back to student.')) return;
   try {
-    const { updateUserRoleDirect } = await import('./data');
-    const { showLoading, hideLoading } = await import('./ui');
+    const { updateUserRoleDirect } = await import('./data/data');
+    const { showLoading, hideLoading } = await import('./ui/ui');
     showLoading();
     await updateUserRoleDirect(userId, 'student');
     await loadRegisteredTeachers();
     hideLoading();
     alert('Teacher removed (role set to student).');
   } catch (err: any) {
-    const { hideLoading } = await import('./ui');
+    const { hideLoading } = await import('./ui/ui');
     hideLoading();
     alert('Failed to remove teacher: ' + err?.message);
   }
@@ -1719,8 +1738,8 @@ function renderGradeCharts(grades: Grade[]): void {
   }
 
   try {
-    const { updateUserRoleDirect } = await import('./data');
-    const { showLoading } = await import('./ui');
+    const { updateUserRoleDirect } = await import('./data/data');
+    const { showLoading } = await import('./ui/ui');
 
     showLoading();
 
@@ -1734,7 +1753,7 @@ function renderGradeCharts(grades: Grade[]): void {
     console.error('Error changing role:', error);
     alert('Failed to change role: ' + error.message);
   } finally {
-    const { hideLoading } = await import('./ui');
+    const { hideLoading } = await import('./ui/ui');
     hideLoading();
   }
 };
@@ -2055,7 +2074,7 @@ function resetAppState(): void {
  * DEBUG:
  * - Check browser console for errors
  * - Verify Cloud Functions are deployed
- * - Check GEMINI_API_KEY is set in Firebase Functions config
+ * - Check GEMINI_API_KEY is set in functions/.env
  * - Review Cloud Functions logs for AI API errors
  */
 async function generatePerformanceSummary(studentId: string): Promise<void> {
@@ -2063,8 +2082,8 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
 
   try {
-    const { showLoading } = await import('./ui');
-    const { functions, httpsCallable } = await import('./firebase');
+    const { showLoading } = await import('./ui/ui');
+    const { functions, httpsCallable } = await import('./core/firebase');
 
     showLoading();
 
@@ -2077,7 +2096,7 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
 
     const data = result.data as any;
 
-    const { showModal } = await import('./ui');
+    const { showModal } = await import('./ui/ui');
     showModal(
       `Performance Summary - ${data.studentName}`,
       data.summaryHtml
@@ -2087,7 +2106,7 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
     console.error('Performance summary error:', error.message);
     alert(`Failed to generate summary: ${error.message || 'Unknown error occurred'}`);
   } finally {
-    const { hideLoading } = await import('./ui');
+    const { hideLoading } = await import('./ui/ui');
     hideLoading();
     if (btn) { btn.disabled = false; btn.textContent = 'AI Performance Summary'; }
   }
@@ -2112,7 +2131,7 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
  * DEBUG:
  * - Check browser console for errors
  * - Verify Cloud Functions are deployed
- * - Check GEMINI_API_KEY is set in Firebase Functions config
+ * - Check GEMINI_API_KEY is set in functions/.env
  * - Review Cloud Functions logs for AI API errors
  */
 async function generateStudyTips(studentId: string): Promise<void> {
@@ -2120,8 +2139,8 @@ async function generateStudyTips(studentId: string): Promise<void> {
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
 
   try {
-    const { showLoading } = await import('./ui');
-    const { functions, httpsCallable } = await import('./firebase');
+    const { showLoading } = await import('./ui/ui');
+    const { functions, httpsCallable } = await import('./core/firebase');
 
     showLoading();
 
@@ -2134,7 +2153,7 @@ async function generateStudyTips(studentId: string): Promise<void> {
 
     const data = result.data as any;
 
-    const { showModal } = await import('./ui');
+    const { showModal } = await import('./ui/ui');
     showModal(
       `Study Tips - ${data.studentName}`,
       data.tipsHtml
@@ -2144,7 +2163,7 @@ async function generateStudyTips(studentId: string): Promise<void> {
     console.error('Study tips error:', error.message);
     alert(`Failed to generate study tips: ${error.message || 'Unknown error occurred'}`);
   } finally {
-    const { hideLoading } = await import('./ui');
+    const { hideLoading } = await import('./ui/ui');
     hideLoading();
     if (btn) { btn.disabled = false; btn.textContent = 'Get Study Tips'; }
   }
@@ -2195,7 +2214,7 @@ function setupAIAgentChat(): void {
     const typingId = addTypingIndicator();
 
     try {
-      const { functions, httpsCallable } = await import('./firebase');
+      const { functions, httpsCallable } = await import('./core/firebase');
 
       // Call AI Agent Cloud Function
       const aiAgentChat = httpsCallable(functions, 'aiAgentChat');

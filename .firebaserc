@@ -1,6 +1,5 @@
 {
   "projects": {
-    "default": "dskm-eotc"
+    "default": "your-firebase-project-id"
   }
 }
-

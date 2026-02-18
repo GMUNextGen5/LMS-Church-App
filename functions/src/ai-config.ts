@@ -318,12 +318,8 @@ export const AI_MODEL_CONFIG = {
 };
 
 /**
- * API Key Configuration
- * 
- * CURRENT: Reads from environment variable GEMINI_API_KEY
- * SETUP: firebase functions:config:set gemini.api_key="YOUR_KEY"
- * 
- * TODO: Move to secure secrets manager when migrating to dedicated API service
+ * API key is read from environment variable GEMINI_API_KEY.
+ * Set it in functions/.env (see functions/.env.example). Never commit keys to the repo.
  */
 export function getApiKey(): string {
   const apiKey = process.env.GEMINI_API_KEY;

@@ -4016,6 +4016,79 @@
             display: none;
         }
 
+        /* ==================== LOGIN PAGE FOOTER & THEME TOGGLE ==================== */
+        .auth-footer {
+            margin-top: 3rem;
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            color: var(--login-text-muted);
+            font-size: 0.75rem;
+        }
+
+        .auth-style-toggle-wrapper {
+            order: 1;
+            flex-shrink: 0;
+        }
+
+        .auth-style-toggle-wrapper .style-toggle {
+            background: var(--login-glass-bg, rgba(255, 255, 255, 0.06));
+            border: 1px solid var(--login-glass-border, rgba(255, 255, 255, 0.12));
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .auth-style-toggle-wrapper .style-toggle:hover {
+            border-color: var(--login-glass-border, rgba(255, 255, 255, 0.2));
+            box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25), 0 0 20px var(--login-glow, rgba(139, 41, 66, 0.15));
+        }
+
+        .auth-style-toggle-wrapper .style-toggle-option {
+            padding: 8px 14px;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .auth-style-toggle-wrapper .style-toggle-option.active {
+            color: #fff;
+        }
+
+        .auth-footer-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            order: 2;
+        }
+
+        .auth-footer-links .link {
+            font-size: 0.75rem;
+            color: var(--login-text-muted);
+            transition: color 0.2s ease;
+        }
+
+        .auth-footer-links .link:hover {
+            color: var(--login-accent-2, rgba(255, 255, 255, 0.9));
+        }
+
+        @media (max-width: 480px) {
+            .auth-footer {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1.25rem;
+            }
+
+            .auth-style-toggle-wrapper .style-toggle-option {
+                padding: 6px 12px;
+                font-size: 0.65rem;
+            }
+
+            .auth-style-toggle-wrapper .style-toggle-option .toggle-icon {
+                display: inline-block;
+            }
+        }
+
         /* ==================== PAGE TRANSITION ANIMATIONS ==================== */
 
         /* Tab content transition */
@@ -4376,7 +4449,7 @@
 
             <!-- Login Form -->
             <div id="login-form-container">
-                <form id="login-form" aria-labelledby="login-form-title">
+                <form id="login-form" method="post" action="#" onsubmit="event.preventDefault(); return false;" aria-labelledby="login-form-title">
                     <h2 id="login-form-title" class="sr-only">Sign in to your account</h2>
                     <div class="input-group">
                         <label for="login-email">Email address</label>
@@ -4425,7 +4498,7 @@
 
             <!-- Signup Form -->
             <div id="signup-form-container" class="hide">
-                <form id="signup-form">
+                <form id="signup-form" method="post" action="#" onsubmit="event.preventDefault(); return false;">
                     <div class="input-group">
                         <label>Email address</label>
                         <div class="input-wrapper">
@@ -4483,12 +4556,24 @@
             </div>
         </div>
 
-        <!-- Footer -->
-        <div class="auth-footer"
-            style="margin-top: 3rem; color: var(--login-text-muted); font-size: 0.75rem; display: flex; gap: 1.5rem; align-items: center;">
-            <span>© 2026 NG5 LMS</span>
-            <a href="privacy.html" target="_blank" class="link" style="font-size: 0.75rem;">Privacy</a>
-            <a href="terms.html" target="_blank" class="link" style="font-size: 0.75rem;">Terms</a>
+        <!-- Footer: Theme (bottom left) + Copyright & links (right) -->
+        <div class="auth-footer">
+            <div id="auth-style-toggle" class="auth-style-toggle-wrapper" aria-label="Page theme">
+                <div class="style-toggle relative flex rounded-full p-1" role="radiogroup" aria-label="Style theme">
+                    <div class="style-toggle-slider" style="width: calc(50% - 4px);"></div>
+                    <button type="button" class="style-toggle-option active flex-1 text-center" data-style-value="scifi" role="radio" aria-checked="true">
+                        <span class="toggle-icon">🚀</span> Sci-Fi
+                    </button>
+                    <button type="button" class="style-toggle-option flex-1 text-center" data-style-value="classic" role="radio" aria-checked="false">
+                        <span class="toggle-icon">📘</span> Classic
+                    </button>
+                </div>
+            </div>
+            <div class="auth-footer-links">
+                <span>© 2026 NG5 LMS</span>
+                <a href="privacy.html" target="_blank" class="link">Privacy</a>
+                <a href="terms.html" target="_blank" class="link">Terms</a>
+            </div>
         </div>
     </div>
 
@@ -5492,10 +5577,8 @@
                                                 📋 <strong>How to get UID:</strong>
                                                 <ol class="ml-4 mt-1 list-decimal">
                                                     <li>Go to <a
-                                                            href="https://console.firebase.google.com/project/YOUR_PROJECT_ID/authentication/users"
-                                                            target="_blank" class="underline">Firebase
-                                                            Console →
-                                                            Authentication</a></li>
+                                                            href="https://console.firebase.google.com"
+                                                            target="_blank" class="underline">Firebase Console</a> → your project → Authentication → Users</li>
                                                     <li>Find student's email in Users list
                                                     </li>
                                                     <li>Copy their "User UID"</li>
@@ -6547,7 +6630,11 @@
          */
 
         function setupPDFReportGeneration() {
-            console.log('📄 [PDF] Setting up PDF report generation...');
+            if (window._pdfReportSetupDone) {
+                return;
+            }
+            window._pdfReportSetupDone = true;
+            console.log('📄 [PDF] Setting up PDF report generation (once)...');
 
             const gradesBtn = document.getElementById('download-grades-pdf-btn');
             const attendanceBtn = document.getElementById('download-attendance-pdf-btn');
@@ -6558,7 +6645,6 @@
                     console.log('🖱️ [PDF] Grades Report button clicked');
                     generateGradesReport();
                 });
-                console.log('✅ [PDF] Grades button listener attached');
             }
 
             if (attendanceBtn) {
@@ -6566,7 +6652,6 @@
                     console.log('🖱️ [PDF] Attendance Report button clicked');
                     generateAttendanceReport();
                 });
-                console.log('✅ [PDF] Attendance button listener attached');
             }
 
             if (transcriptBtn) {
@@ -6574,7 +6659,6 @@
                     console.log('🖱️ [PDF] Official Transcript button clicked');
                     generateOfficialTranscript();
                 });
-                console.log('✅ [PDF] Transcript button listener attached');
             }
 
             console.log('✅ [PDF] PDF report buttons initialized');
@@ -7276,10 +7360,16 @@
             const { jsPDF } = window.jspdf;
             const studentSelect = document.getElementById('student-select');
             const selectedStudentId = studentSelect?.value;
+            const transcriptBtn = document.getElementById('download-transcript-pdf-btn');
 
             if (!selectedStudentId) {
                 alert('Please select a student first!');
                 return;
+            }
+
+            if (transcriptBtn) {
+                transcriptBtn.disabled = true;
+                transcriptBtn.textContent = '⏳ Generating...';
             }
 
             console.log('📜 [PDF] Generating Official K-12 Transcript for:', selectedStudentId);
@@ -7723,6 +7813,11 @@
             } catch (error) {
                 console.error('❌ [PDF] Error generating official transcript:', error);
                 alert('Error generating transcript: ' + (error.message || 'Unknown error'));
+            } finally {
+                if (transcriptBtn) {
+                    transcriptBtn.disabled = false;
+                    transcriptBtn.innerHTML = '📜 Official Grade Transcript';
+                }
             }
         }
 
