@@ -12,9 +12,6 @@ functions/lib/
 .env.*.local
 functions/.env
 
-# Sensitive config
-src/core/config.ts
-
 # Firebase
 .firebase/
 firebase-debug.log
