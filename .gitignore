@@ -12,9 +12,6 @@ functions/lib/
 .env.*.local
 functions/.env
 
-# Local config with hardcoded keys - never commit
-src/core/config.ts
-
 # Firebase
 .firebase/
 firebase-debug.log
