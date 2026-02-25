@@ -4556,19 +4556,8 @@
             </div>
         </div>
 
-        <!-- Footer: Theme (bottom left) + Copyright & links (right) -->
+        <!-- Footer: Copyright & links -->
         <div class="auth-footer">
-            <div id="auth-style-toggle" class="auth-style-toggle-wrapper" aria-label="Page theme">
-                <div class="style-toggle relative flex rounded-full p-1" role="radiogroup" aria-label="Style theme">
-                    <div class="style-toggle-slider" style="width: calc(50% - 4px);"></div>
-                    <button type="button" class="style-toggle-option active flex-1 text-center" data-style-value="scifi" role="radio" aria-checked="true">
-                        <span class="toggle-icon">🚀</span> Sci-Fi
-                    </button>
-                    <button type="button" class="style-toggle-option flex-1 text-center" data-style-value="classic" role="radio" aria-checked="false">
-                        <span class="toggle-icon">📘</span> Classic
-                    </button>
-                </div>
-            </div>
             <div class="auth-footer-links">
                 <span>© 2026 NG5 LMS</span>
                 <a href="privacy.html" target="_blank" class="link">Privacy</a>
@@ -4731,19 +4720,6 @@
                             <p id="sidebar-user-email" class="text-sm text-white truncate">
                             </p>
                             <span id="sidebar-user-role" class="text-xs text-primary-400 font-medium"></span>
-                        </div>
-                    </div>
-
-                    <!-- Theme Toggle -->
-                    <div id="sidebar-style-toggle" class="sidebar-style-toggle-wrapper mb-3 p-2 rounded-xl border border-dark-700/50">
-                        <div class="style-toggle relative flex rounded-full bg-dark-800/80 border border-dark-700/50 p-1" role="radiogroup" aria-label="Style theme">
-                            <div class="style-toggle-slider" style="width: calc(50% - 4px);"></div>
-                            <button type="button" class="style-toggle-option active flex-1 text-center" data-style-value="scifi" role="radio" aria-checked="true">
-                                <span class="toggle-icon">🚀</span> Sci-Fi
-                            </button>
-                            <button type="button" class="style-toggle-option flex-1 text-center" data-style-value="classic" role="radio" aria-checked="false">
-                                <span class="toggle-icon">📘</span> Classic
-                            </button>
                         </div>
                     </div>
 
@@ -8409,37 +8385,10 @@
         })();
     </script>
 
-    <!-- Theme toggle: Sci-Fi / Classic -->
+    <!-- Style: always Classic -->
     <script>
-        (function initThemeToggle() {
-            const saved = localStorage.getItem('lms-style') || 'scifi';
-            document.documentElement.setAttribute('data-style', saved);
-
-            function applyStyle(style) {
-                document.documentElement.setAttribute('data-style', style);
-                localStorage.setItem('lms-style', style);
-                // Update all toggle buttons
-                document.querySelectorAll('.style-toggle-option').forEach(function(btn) {
-                    const val = btn.getAttribute('data-style-value');
-                    btn.classList.toggle('active', val === style);
-                    btn.setAttribute('aria-checked', String(val === style));
-                });
-                // Move slider
-                document.querySelectorAll('.style-toggle-slider').forEach(function(slider) {
-                    slider.style.transform = style === 'classic' ? 'translateX(100%)' : 'translateX(0)';
-                });
-            }
-
-            applyStyle(saved);
-
-            document.addEventListener('click', function(e) {
-                var btn = e.target.closest('.style-toggle-option');
-                if (btn) {
-                    var val = btn.getAttribute('data-style-value');
-                    if (val) applyStyle(val);
-                }
-            });
-        })();
+        document.documentElement.setAttribute('data-style', 'classic');
+        localStorage.setItem('lms-style', 'classic');
     </script>
 
     <script type="module" src="/src/main.ts"></script>
