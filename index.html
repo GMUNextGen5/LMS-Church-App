@@ -604,7 +604,7 @@
             position: relative;
             background: transparent;
             border: none;
-            padding: 12px 28px;
+            padding: 12px 20px;
             font-size: 0.9rem;
             font-weight: 600;
             color: var(--login-text-muted);
@@ -613,6 +613,10 @@
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             overflow: hidden;
             z-index: 1;
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+            min-width: 0;
         }
 
         .tab-btn::before {
@@ -1171,8 +1175,8 @@
             }
 
             .tab-btn {
-                padding: 10px 18px;
-                font-size: 0.85rem;
+                padding: 10px 12px;
+                font-size: 0.8rem;
             }
 
             .input-wrapper input {
@@ -2053,6 +2057,20 @@
         }
 
         /* ==================== THEME TOGGLE BUTTON ==================== */
+        .auth-theme-toggle {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+
+        @media (max-width: 640px) {
+            .auth-theme-toggle {
+                top: 1rem;
+                right: 1rem;
+            }
+        }
+
         .theme-toggle {
             position: relative;
             width: 64px;
@@ -3729,6 +3747,62 @@
             animation: fadeInUp 0.8s ease-out forwards;
         }
 
+        /* Light mode - Hero title with strong contrast */
+        [data-theme="light"] .hero-title {
+            color: #0f172a !important;
+            text-shadow: none;
+        }
+
+        /* Light mode - Hero subtitle with good contrast */
+        [data-theme="light"] .hero-subtitle {
+            color: #475569 !important;
+        }
+
+        /* Light mode - Professional badge */
+        [data-theme="light"] .pro-badge {
+            color: #0369a1 !important;
+            background: rgba(3, 105, 161, 0.1);
+            border-color: rgba(3, 105, 161, 0.3);
+        }
+
+        /* Light mode - Muted text (helper text, footer) */
+        [data-theme="light"] .text-muted {
+            color: #64748b !important;
+        }
+
+        /* Light mode - Form labels */
+        [data-theme="light"] label {
+            color: #334155 !important;
+        }
+
+        /* Light mode - Footer links */
+        [data-theme="light"] .auth-footer-links {
+            color: #64748b !important;
+        }
+
+        [data-theme="light"] .auth-footer-links .link {
+            color: #475569 !important;
+        }
+
+        [data-theme="light"] .auth-footer-links .link:hover {
+            color: #0369a1 !important;
+        }
+
+        /* Light mode - Divider text */
+        [data-theme="light"] .divider {
+            color: #64748b !important;
+        }
+
+        /* Light mode - Input placeholders */
+        [data-theme="light"] .input-wrapper input::placeholder {
+            color: #94a3b8 !important;
+        }
+
+        /* Light mode - Input icons */
+        [data-theme="light"] .input-icon {
+            color: #64748b !important;
+        }
+
         /* Classic theme - Simpler card effects */
         [data-style="classic"] .auth-card {
             background: rgba(17, 24, 39, 0.9);
@@ -4426,6 +4500,31 @@
     <!-- Authentication Container -->
     <div id="auth-container" role="main" aria-label="Authentication">
 
+        <!-- Theme Toggle (Top Right) -->
+        <div class="auth-theme-toggle">
+            <button id="auth-theme-toggle-btn" class="theme-toggle" title="Toggle dark/light mode"
+                aria-label="Toggle dark/light mode">
+                <div class="theme-toggle-slider">
+                    <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </div>
+            </button>
+        </div>
+
         <!-- Professional Badge -->
         <div class="pro-badge">Next Generation Learning</div>
 
@@ -4436,7 +4535,7 @@
             <img src="/ng5-logo.png" alt="NG5 Logo" class="ng5-logo" draggable="false">
         </div>
 
-        <h1 class="hero-title">Welcome to NG5</h1>
+        <h1 class="hero-title">Saint Mary Church LMS</h1>
         <p class="hero-subtitle" id="typewriter-subtitle"></p>
 
         <!-- Auth Card with Glassmorphism -->
@@ -8296,7 +8395,7 @@
             // Typewriter effect
             const subtitleEl = document.getElementById('typewriter-subtitle');
             if (subtitleEl) {
-                const text = 'Experience the next generation of intelligent learning';
+                const text = 'A learning platform for the Saint Mary church community';
                 let i = 0;
                 subtitleEl.style.borderRight = '2px solid var(--login-accent-1, #8B2942)';
 
