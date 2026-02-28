@@ -1251,10 +1251,11 @@ async function loadAllUsers(): Promise<void> {
 }
 
 /**
- * Populate student account dropdown with all registered users from Firestore
- * 
- * PURPOSE: Let admins link a student record to an existing Firebase Auth account
- * Uses direct Firestore read (fetchAllUsers); no Cloud Functions required.
+ * Populate student account dropdown with registered users from Firestore
+ *
+ * PURPOSE: Let admins/teachers link a student record to an existing Firebase Auth account.
+ * - Admins: see all users (students, teachers, admins).
+ * - Teachers: see only students (cannot link to other teachers or admins).
  */
 async function populateStudentAccountDropdown(): Promise<void> {
   const accountSelect = document.getElementById('student-account-select') as HTMLSelectElement;
@@ -1268,12 +1269,17 @@ async function populateStudentAccountDropdown(): Promise<void> {
     if (role !== 'admin' && role !== 'teacher') return;
 
     const { fetchAllUsers } = await import('./data/data');
-    const users = await fetchAllUsers();
+    let users = await fetchAllUsers();
+
+    // Teachers may only link to student accounts; admins see all users
+    if (role === 'teacher') {
+      users = users.filter((u) => u.role === 'student');
+    }
 
     // Clear existing options except the default
     accountSelect.innerHTML = '<option value="">-- Select Registered Account --</option>';
 
-    // Add all users (sorted by email)
+    // Add users (sorted by email)
     users.sort((a: { email: string }, b: { email: string }) => a.email.localeCompare(b.email));
 
     users.forEach((user: { uid: string; email: string; role: string } & { name?: string }) => {
