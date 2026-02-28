@@ -532,7 +532,7 @@ function setupAuthForms(): void {
 
 // Setup application form handlers
 function setupAppForms(): void {
-  // Student Registration Form (Admin only)
+  // Student Registration Form (Admin + Teacher)
   const studentRegForm = document.getElementById('student-registration-form') as HTMLFormElement;
   if (studentRegForm) {
     studentRegForm.addEventListener('submit', async (e) => {
@@ -788,7 +788,7 @@ function setupAppForms(): void {
     });
   }
 
-  // AI Agent Chat (Admin only)
+  // AI Agent Chat (Admin + Teacher)
   setupAIAgentChat();
 
   // Toggle between dropdown and manual UID input
@@ -1086,8 +1086,8 @@ async function loadRegisteredStudents(): Promise<void> {
     const { getCurrentUserRole } = await import('./ui/ui');
     const role = getCurrentUserRole();
 
-    // Only show for admins
-    if (role !== 'admin') return;
+    // Show for admins and teachers
+    if (role !== 'admin' && role !== 'teacher') return;
 
     if (currentStudents.length === 0) {
       tableBody.innerHTML = `
@@ -1264,8 +1264,8 @@ async function populateStudentAccountDropdown(): Promise<void> {
     const { getCurrentUserRole } = await import('./ui/ui');
     const role = getCurrentUserRole();
 
-    // Only populate for admins
-    if (role !== 'admin') return;
+    // Populate for admins and teachers (for student registration)
+    if (role !== 'admin' && role !== 'teacher') return;
 
     const { fetchAllUsers } = await import('./data/data');
     const users = await fetchAllUsers();
