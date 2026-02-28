@@ -7,13 +7,14 @@
  */
 
 import { getCurrentUser } from '../core/auth';
-import { fetchStudents, fetchAllUsers } from '../data/data';
+import { fetchStudents, fetchAllUsers, fetchAllStudentProfiles } from '../data/data';
 import { showLoading, hideLoading } from './ui';
 import {
   fetchStudentClasses,
   fetchTeacherClasses,
   fetchAllClasses,
   fetchClassRoster,
+  getCourse,
   createClass,
   updateClass,
   deleteClass,
@@ -22,13 +23,15 @@ import {
   assignTeacherToClass,
   getUserDisplayName,
 } from '../data/classes-data';
-import type { Student, User } from '../core/types';
+import type { Course, Student, User } from '../core/types';
 
 let container: HTMLElement | null = null;
 
 // Admin: cached for teacher dropdown and "available students" in roster
 let cachedTeachers: User[] = [];
 let cachedAllStudents: Student[] = [];
+// Teacher: cached courses so roster panel can compute enrolled/available
+let cachedTeacherCourses: Course[] = [];
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -335,15 +338,47 @@ function closeClassFormModal(): void {
 async function openTeacherClassFormModal(): Promise<void> {
   const modal = getTeacherModal();
   const form = modal.querySelector('#teacher-class-form') as HTMLFormElement;
+  const titleEl = modal.querySelector('h3');
   form.reset();
   form.setAttribute('data-course-id', '');
 
-  // Populate student checkbox dropdown (fetch fresh list for teachers)
+  if (titleEl) titleEl.textContent = 'Create Class';
+
+  // Populate student checkbox dropdown (all students so teacher can assign)
   try {
-    const students = await fetchStudents();
+    const students = await fetchAllStudentProfiles();
     populateStudentDropdown('teacher', students.map(s => ({ id: s.id, name: s.name })));
   } catch {
     // Fallback: empty dropdown
+    populateStudentDropdown('teacher', []);
+  }
+
+  modal.classList.remove('is-hidden');
+  lockScroll();
+}
+
+async function openTeacherClassFormModalForEdit(courseId: string): Promise<void> {
+  const modal = getTeacherModal();
+  const form = modal.querySelector('#teacher-class-form') as HTMLFormElement;
+  const titleEl = modal.querySelector('h3');
+  form.reset();
+  form.setAttribute('data-course-id', courseId);
+  if (titleEl) titleEl.textContent = 'Edit Class';
+
+  const course = await getCourse(courseId);
+  if (course) {
+    (form.querySelector('[name="courseName"]') as HTMLInputElement).value = course.courseName;
+    (form.querySelector('[name="courseCode"]') as HTMLInputElement).value = course.courseCode || '';
+    (form.querySelector('[name="schedule"]') as HTMLInputElement).value = course.schedule || '';
+    (form.querySelector('[name="description"]') as HTMLTextAreaElement).value = course.description || '';
+  }
+
+  // Populate dropdown with pre-selected enrolled students
+  try {
+    const students = await fetchAllStudentProfiles();
+    const enrolled = new Set(course?.studentIds ?? []);
+    populateStudentDropdown('teacher', students.map(s => ({ id: s.id, name: s.name })), enrolled);
+  } catch {
     populateStudentDropdown('teacher', []);
   }
 
@@ -425,7 +460,9 @@ async function renderStudentView(): Promise<void> {
 // ─── Teacher view ───────────────────────────────────────────────────────────
 
 async function renderTeacherView(): Promise<void> {
-  const courses = await fetchTeacherClasses();
+  const [courses, students] = await Promise.all([fetchTeacherClasses(), fetchAllStudentProfiles()]);
+  cachedTeacherCourses = courses;
+  cachedAllStudents = students;
   const teacherNames: Record<string, string> = {};
   await Promise.all(
     [...new Set(courses.map(c => c.teacherId))].map(async uid => {
@@ -433,25 +470,43 @@ async function renderTeacherView(): Promise<void> {
     })
   );
 
-  const cards = courses.map(c => `
-    <div class="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
-      <div class="p-5 flex items-center justify-between">
-        <div>
-          <h3 class="text-white font-semibold text-lg">${esc(c.courseName)}</h3>
-          <p class="text-dark-400 text-sm">${c.studentIds?.length ?? 0} students</p>
-        </div>
-        <button type="button" data-action="toggle-roster" data-course-id="${c.id}"
-          class="px-3 py-1.5 rounded-lg text-xs bg-dark-600 text-dark-200 hover:bg-dark-500">Show roster</button>
-      </div>
-      <div id="roster-${c.id}" class="roster-panel hidden border-t border-dark-700 p-4 bg-dark-900/50">
-        <p class="text-dark-400 text-sm">Loading…</p>
-      </div>
-    </div>`);
+  const rows = courses.map(c => `
+    <tr class="border-b border-dark-700 hover:bg-dark-800/50">
+      <td class="py-3 px-4 text-white font-medium">${esc(c.courseName)}</td>
+      <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
+      <td class="py-3 px-4 text-dark-300 text-sm">${esc(teacherNames[c.teacherId] || c.teacherId)}</td>
+      <td class="py-3 px-4 text-dark-300 text-sm">${c.studentIds?.length ?? 0}</td>
+      <td class="py-3 px-4 flex gap-1">
+        <button data-action="teacher-edit-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
+        <button data-action="teacher-delete-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
+        <button data-action="teacher-toggle-roster" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-dark-600 text-dark-300 hover:bg-dark-500">Roster</button>
+      </td>
+    </tr>
+    <tr id="teacher-roster-row-${c.id}" class="hidden border-b border-dark-700 bg-dark-900/30">
+      <td colspan="5" class="py-4 px-4">
+        <div id="teacher-roster-${c.id}" class="text-dark-400 text-sm">Loading roster…</div>
+      </td>
+    </tr>`);
 
   container!.innerHTML = `
     <div class="space-y-6">
       ${sectionHeader('My Classes', `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
-      ${courses.length === 0 ? emptyState('No classes yet', 'Create a class or ask an admin to assign you one.') : `<div class="grid gap-4">${cards.join('')}</div>`}
+      ${courses.length === 0 ? emptyState('No classes yet', 'Create a class or ask an admin to assign you one.') : `
+        <div class="overflow-x-auto rounded-xl border border-dark-700">
+          <table class="w-full text-sm">
+            <thead class="bg-dark-800/80">
+              <tr class="text-dark-300 text-xs uppercase tracking-wider">
+                <th class="py-3 px-4 text-left">Name</th>
+                <th class="py-3 px-4 text-left">Code</th>
+                <th class="py-3 px-4 text-left">Teacher</th>
+                <th class="py-3 px-4 text-left">Students</th>
+                <th class="py-3 px-4 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows.join('')}</tbody>
+          </table>
+        </div>
+      `}
     </div>`;
 }
 
@@ -514,16 +569,31 @@ async function renderAdminView(): Promise<void> {
 // ─── Roster helpers ─────────────────────────────────────────────────────────
 
 async function loadTeacherRoster(courseId: string): Promise<void> {
-  const panel = document.getElementById(`roster-${courseId}`);
-  if (!panel) return;
+  const el = document.getElementById(`teacher-roster-${courseId}`);
+  if (!el) return;
+  const course = cachedTeacherCourses.find(c => c.id === courseId);
+  if (!course) return;
   try {
     const roster = await fetchClassRoster(courseId);
-    panel.innerHTML = roster.length === 0
-      ? '<p class="text-dark-400 text-sm">No students enrolled.</p>'
-      : `<ul class="space-y-1 text-sm text-dark-200">${roster.map(s => `<li>${esc(s.name)}</li>`).join('')}</ul>`;
+    const enrolledIds = new Set(course.studentIds ?? []);
+    const available = cachedAllStudents.filter(s => !enrolledIds.has(s.id));
+    el.innerHTML = `
+      <div class="space-y-3">
+        <p class="text-dark-300 font-medium">Enrolled (${roster.length})</p>
+        ${roster.length === 0
+          ? '<p class="text-dark-500 text-sm">None</p>'
+          : `<ul class="space-y-1">${roster.map(s => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(s.name)}</span><button type="button" data-action="teacher-remove-student" data-course-id="${courseId}" data-student-id="${s.id}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`}
+        <div>
+          <p class="text-dark-300 font-medium mb-1">Add student</p>
+          <select data-course-id="${courseId}" data-action="teacher-add-student-select" class="w-full max-w-xs px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
+            <option value="">— Select student —</option>
+            ${available.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
   } catch (err) {
     console.error('[Classes] Failed to load roster:', err);
-    panel.innerHTML = '<p class="text-red-400 text-sm">Failed to load roster.</p>';
+    el.innerHTML = '<p class="text-red-400 text-sm">Failed to load roster.</p>';
   }
 }
 
@@ -571,13 +641,21 @@ function handleClick(e: Event): void {
   const courseId = target.getAttribute('data-course-id') || '';
 
   switch (action) {
-    case 'toggle-roster': {
-      const panel = document.getElementById(`roster-${courseId}`);
-      if (!panel) return;
-      if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); loadTeacherRoster(courseId); }
-      else panel.classList.add('hidden');
+    case 'teacher-toggle-roster': {
+      const row = document.getElementById(`teacher-roster-row-${courseId}`);
+      if (!row) return;
+      if (row.classList.contains('hidden')) { row.classList.remove('hidden'); loadTeacherRoster(courseId); }
+      else row.classList.add('hidden');
       return;
     }
+    case 'teacher-edit-class':
+      openTeacherClassFormModalForEdit(courseId);
+      return;
+    case 'teacher-delete-class':
+      if (!confirm('Delete this class? This does not delete students.')) return;
+      showLoading();
+      deleteClass(courseId).then(() => loadClasses()).catch(err => alert(err.message)).finally(hideLoading);
+      return;
     case 'admin-toggle-roster': {
       const row = document.getElementById(`admin-roster-row-${courseId}`);
       if (!row) return;
@@ -599,6 +677,13 @@ function handleClick(e: Event): void {
     case 'teacher-create-class':
       openTeacherClassFormModal();
       return;
+    case 'teacher-remove-student': {
+      const studentId = target.getAttribute('data-student-id');
+      if (!studentId) return;
+      showLoading();
+      removeStudentsFromClass(courseId, [studentId]).then(() => loadTeacherRoster(courseId)).catch(err => alert(err.message)).finally(hideLoading);
+      return;
+    }
     case 'admin-remove-student': {
       const studentId = target.getAttribute('data-student-id');
       if (!studentId) return;
@@ -611,13 +696,23 @@ function handleClick(e: Event): void {
 
 function handleChange(e: Event): void {
   const target = e.target as HTMLSelectElement;
-  if (target.getAttribute('data-action') === 'admin-add-student-select') {
+  const action = target.getAttribute('data-action');
+  if (action === 'admin-add-student-select') {
     const value = target.value;
     if (!value) return;
     const courseId = target.getAttribute('data-course-id') || '';
     showLoading();
     addStudentsToClass(courseId, [value])
       .then(() => { target.value = ''; return loadAdminRoster(courseId); })
+      .catch(err => alert(err.message))
+      .finally(hideLoading);
+  } else if (action === 'teacher-add-student-select') {
+    const value = target.value;
+    if (!value) return;
+    const courseId = target.getAttribute('data-course-id') || '';
+    showLoading();
+    addStudentsToClass(courseId, [value])
+      .then(() => { target.value = ''; return loadTeacherRoster(courseId); })
       .catch(err => alert(err.message))
       .finally(hideLoading);
   }
@@ -682,18 +777,29 @@ async function handleTeacherFormSubmit(e: Event): Promise<void> {
 
   // Collect selected student IDs from the custom checkbox dropdown
   const selectedStudentIds = getSelectedStudentIds('teacher');
+  const courseId = form.getAttribute('data-course-id') || '';
 
   showLoading();
   try {
-    await createClass({
-      courseName: name,
-      courseCode: (formData.get('courseCode') as string)?.trim() || '',
-      schedule: (formData.get('schedule') as string)?.trim() || '',
-      description: (formData.get('description') as string)?.trim() || '',
-      teacherId: user.uid,
-      studentIds: selectedStudentIds,
-      createdAt: new Date().toISOString(),
-    });
+    if (courseId) {
+      await updateClass(courseId, {
+        courseName: name,
+        courseCode: (formData.get('courseCode') as string)?.trim() || '',
+        schedule: (formData.get('schedule') as string)?.trim() || '',
+        description: (formData.get('description') as string)?.trim() || '',
+        studentIds: selectedStudentIds,
+      });
+    } else {
+      await createClass({
+        courseName: name,
+        courseCode: (formData.get('courseCode') as string)?.trim() || '',
+        schedule: (formData.get('schedule') as string)?.trim() || '',
+        description: (formData.get('description') as string)?.trim() || '',
+        teacherId: user.uid,
+        studentIds: selectedStudentIds,
+        createdAt: new Date().toISOString(),
+      });
+    }
     closeTeacherClassFormModal();
     await loadClasses();
   } catch (err) {

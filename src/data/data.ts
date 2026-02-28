@@ -54,6 +54,15 @@ export async function fetchStudents(): Promise<Student[]> {
   return students;
 }
 
+/** Fetch all student profiles (for class roster assignment). Allowed for admin and teacher. */
+export async function fetchAllStudentProfiles(): Promise<Student[]> {
+  const user = getCurrentUser();
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+    throw new Error('Only administrators and teachers can list all student profiles');
+  const snapshot = await getDocs(collection(db, 'students'));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
+}
+
 export async function createStudent(studentData: {
   name: string;
   memberId?: string;
