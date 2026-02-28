@@ -71,6 +71,19 @@ export async function fetchAllClasses(): Promise<Course[]> {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Course));
 }
 
+/** Get a single course by ID. Allowed for admin or the assigned teacher. */
+export async function getCourse(courseId: string): Promise<Course | null> {
+  const user = getCurrentUser();
+  if (!user) return null;
+  const snap = await getDoc(doc(db, COURSES, courseId));
+  if (!snap.exists()) return null;
+  const data = snap.data() as Course;
+  const course = { ...data, id: snap.id } as Course;
+  if (user.role === 'admin') return course;
+  if (user.role === 'teacher' && data.teacherId === user.uid) return course;
+  return null;
+}
+
 export async function createClass(data: Omit<Course, 'id'>): Promise<string> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
@@ -95,7 +108,13 @@ export async function updateClass(courseId: string, data: Partial<Omit<Course, '
 
 export async function deleteClass(courseId: string): Promise<void> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'admin') throw new Error('Only administrators can delete classes');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+    throw new Error('Only administrators or the assigned teacher can delete classes');
+  if (user.role === 'teacher') {
+    const courseSnap = await getDoc(doc(db, COURSES, courseId));
+    if (!courseSnap.exists() || (courseSnap.data()?.teacherId as string) !== user.uid)
+      throw new Error('You can only delete your assigned classes');
+  }
   await deleteDoc(doc(db, COURSES, courseId));
 }
 
