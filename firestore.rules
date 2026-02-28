@@ -65,8 +65,8 @@ service cloud.firestore {
       // WRITE (Update/Delete): Allowed by Admin or any Teacher.
       allow update, delete: if isAdmin() || isTeacher();
       
-      // CREATE: Only an Admin can create new student profiles.
-      allow create: if isAdmin();
+      // CREATE: Admin or Teacher can create new student profiles.
+      allow create: if isAdmin() || isTeacher();
 
       // ==================== SUB-COLLECTION RULES (GRADES & ATTENDANCE) ====================
       

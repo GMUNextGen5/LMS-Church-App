@@ -65,7 +65,7 @@ export async function createStudent(studentData: {
   notes?: string;
 }): Promise<string> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'admin') throw new Error('Only administrators can create student records');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can create student records');
   const studentsRef = collection(db, 'students');
   const docRef = await addDoc(studentsRef, {
     name: studentData.name,
@@ -161,7 +161,7 @@ export async function createCourse(course: Omit<Course, 'id'>): Promise<string> 
 
 export async function fetchAllUsers(): Promise<User[]> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'admin') throw new Error('Only administrators can list users');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can list users');
   const snapshot = await getDocs(collection(db, 'users'));
   return snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
 }

@@ -4742,7 +4742,7 @@
                     <!-- Admin Section -->
                     <div class="lms-nav-section admin-only teacher-only hide" id="admin-nav-section">
                         <div class="lms-nav-section-title">Administration</div>
-                        <button class="lms-nav-item admin-only hide" data-tab="registration">
+                        <button class="lms-nav-item admin-only teacher-only hide" data-tab="registration">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z">
@@ -4769,9 +4769,9 @@
                     </div>
 
                     <!-- AI Tools Section -->
-                    <div class="lms-nav-section admin-only hide" id="ai-nav-section">
+                    <div class="lms-nav-section admin-only teacher-only hide" id="ai-nav-section">
                         <div class="lms-nav-section-title">AI Tools</div>
-                        <button class="lms-nav-item admin-only hide" data-tab="ai-agent">
+                        <button class="lms-nav-item admin-only teacher-only hide" data-tab="ai-agent">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
@@ -5531,8 +5531,8 @@
                         <!-- Dynamically rendered by classes-ui.ts -->
                     </div>
 
-                    <!-- Student Registration Tab (Admin Only) -->
-                    <div id="registration-content" class="tab-content admin-only hide">
+                    <!-- Student Registration Tab (Admin + Teacher) -->
+                    <div id="registration-content" class="tab-content admin-only teacher-only hide">
                         <div class="glass-effect rounded-2xl p-6">
                             <h3 class="text-2xl font-bold text-white mb-6">Student
                                 Registration</h3>
@@ -6035,8 +6035,8 @@
                         </div>
                     </div>
 
-                    <!-- AI Agent Tab (Admin Only) -->
-                    <div id="ai-agent-content" class="tab-content admin-only hide">
+                    <!-- AI Agent Tab (Admin + Teacher) -->
+                    <div id="ai-agent-content" class="tab-content admin-only teacher-only hide">
                         <div
                             class="glass-effect rounded-2xl overflow-hidden h-[calc(100vh-200px)] flex flex-col shadow-2xl shadow-primary-500/10">
                             <!-- Header -->

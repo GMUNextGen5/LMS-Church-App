@@ -756,16 +756,17 @@ export const aiAgentChat = onCall(
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
   
-  // Verify admin role
+  // Verify admin or teacher role
   const userDoc = await db.doc(`users/${request.auth.uid}`).get();
-  if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
-    console.error('❌ [aiAgentChat] Non-admin access attempt', {
+  const role = userDoc.data()?.role;
+  if (!userDoc.exists || (role !== 'admin' && role !== 'teacher')) {
+    console.error('❌ [aiAgentChat] Access attempt without admin/teacher role', {
       userId: request.auth.uid,
       role: userDoc.data()?.role
     });
     throw new HttpsError(
       'permission-denied',
-      'Only administrators can use the AI Agent'
+      'Only administrators and teachers can use the AI Agent'
     );
   }
   
