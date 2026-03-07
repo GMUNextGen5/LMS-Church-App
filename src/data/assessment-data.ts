@@ -1,14 +1,3 @@
-/**
- * ═══════════════════════════════════════════════════════════════════════════
- * ASSESSMENT DATA LAYER – Firestore CRUD, auto-grading, seed helpers
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * Firestore paths:
- *   courses/{classId}/assessments/{assessmentId}
- *   courses/{classId}/assessments/{assessmentId}/questions/{questionId}
- *   courses/{classId}/assessments/{assessmentId}/submissions/{studentProfileId}
- */
-
 import { db } from '../core/firebase';
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc,

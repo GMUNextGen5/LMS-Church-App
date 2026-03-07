@@ -1,11 +1,3 @@
-/**
- * Classes tab UI – role-adaptive views (student, teacher, admin).
- * Renders into #classes-content; uses classes-data for all Firestore operations.
- *
- * Modals are portaled to <body> so they always sit above the sticky header
- * and sidebar. Body scroll is locked while a modal is open.
- */
-
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchAllUsers, fetchAllStudentProfiles } from '../data/data';
 import { showLoading, hideLoading } from './ui';
@@ -35,10 +27,10 @@ let cachedTeacherCourses: Course[] = [];
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+const _escEl = document.createElement('div');
 function esc(s: string): string {
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
+  _escEl.textContent = s;
+  return _escEl.innerHTML;
 }
 
 function sectionHeader(title: string, rightHtml?: string): string {
@@ -592,7 +584,6 @@ async function loadTeacherRoster(courseId: string): Promise<void> {
         </div>
       </div>`;
   } catch (err) {
-    console.error('[Classes] Failed to load roster:', err);
     el.innerHTML = '<p class="text-red-400 text-sm">Failed to load roster.</p>';
   }
 }

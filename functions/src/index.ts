@@ -496,7 +496,7 @@ export const getPerformanceSummary = onCall(
     // TODO: When migrating prompts to database, fetch them here instead
     const systemPrompt = PERFORMANCE_SUMMARY_SYSTEM_PROMPT;
     const userPrompt = buildPerformanceSummaryPrompt(
-      studentData.name,
+      studentData?.name ?? 'Student',
       gradesData,
       attendanceData
     );
@@ -515,11 +515,14 @@ export const getPerformanceSummary = onCall(
     
     const response = result.response;
     const text = response.text();
+    if (typeof text !== 'string' || !text.trim()) {
+      throw new Error('AI returned an empty response. Please try again.');
+    }
     
     // STEP 9: Return the AI-generated summary
     return { 
       summaryHtml: text,
-      studentName: studentData.name,
+      studentName: studentData?.name ?? 'Student',
       generatedAt: new Date().toISOString(),
       metadata: {
         gradesAnalyzed: grades.length,
@@ -535,7 +538,7 @@ export const getPerformanceSummary = onCall(
       code: error.code,
       stack: error.stack,
       studentId,
-      studentName: studentData.name
+      studentName: studentData?.name
     });
     
     // Provide user-friendly error message
@@ -631,10 +634,12 @@ export const getStudyTips = onCall(
   // STEP 5: Analyze grades to identify weak areas
   const categoryAverages = calculateCategoryAverages(grades);
   
-  // Prepare recent assignments summary
-  const recentAssignments = grades.slice(0, 5).map(g => 
-    `- ${g.assignmentName} (${g.category}): ${((g.score/g.totalPoints)*100).toFixed(1)}%`
-  );
+  // Prepare recent assignments summary (guard division by zero and missing fields)
+  const recentAssignments = grades.slice(0, 5).map(g => {
+    const total = Number(g.totalPoints);
+    const pct = total > 0 ? ((Number(g.score) / total) * 100).toFixed(1) : '0';
+    return `- ${g.assignmentName ?? 'Assignment'} (${g.category ?? 'General'}): ${pct}%`;
+  });
   
   // STEP 6: Check if AI is configured
   if (!genAI) {
@@ -656,7 +661,7 @@ export const getStudyTips = onCall(
     // TODO: When migrating prompts to database, fetch them here instead
     const systemPrompt = STUDY_TIPS_SYSTEM_PROMPT;
     const userPrompt = buildStudyTipsPrompt(
-      studentData.name,
+      studentData?.name ?? 'Student',
       categoryAverages,
       recentAssignments
     );
@@ -675,11 +680,14 @@ export const getStudyTips = onCall(
     
     const response = result.response;
     const text = response.text();
+    if (typeof text !== 'string' || !text.trim()) {
+      throw new Error('AI returned an empty response. Please try again.');
+    }
     
     // STEP 8: Return the AI-generated study tips
     return { 
       tipsHtml: text,
-      studentName: studentData.name,
+      studentName: studentData?.name ?? 'Student',
       generatedAt: new Date().toISOString(),
       metadata: {
         gradesAnalyzed: grades.length,
@@ -695,7 +703,7 @@ export const getStudyTips = onCall(
       code: error.code,
       stack: error.stack,
       studentId,
-      studentName: studentData.name
+      studentName: studentData?.name
     });
     
     // Provide user-friendly error message
@@ -776,7 +784,13 @@ export const aiAgentChat = onCall(
     throw new HttpsError('invalid-argument', 'Message is required');
   }
   
-  // STEP 2: Load all student data
+  // Validate conversationHistory is an array of { user, assistant }
+  const safeHistory = Array.isArray(conversationHistory)
+    ? conversationHistory
+        .filter((h: any) => h && typeof h.user === 'string' && typeof h.assistant === 'string')
+        .slice(-10)
+        .map((h: any) => ({ user: String(h.user), assistant: String(h.assistant) }))
+    : [];
   const studentsSnapshot = await db.collection('students').get();
   const students = studentsSnapshot.docs.map(doc => ({
     id: doc.id,
@@ -834,15 +848,19 @@ export const aiAgentChat = onCall(
     })),
     totalGrades: allGrades.length,
     totalAttendance: allAttendance.length,
-    recentGrades: allGrades.slice(0, 30).map(g => ({
-      studentName: g.studentName,
-      assignment: g.assignmentName,
-      category: g.category,
-      score: g.score,
-      totalPoints: g.totalPoints,
-      percentage: ((g.score / g.totalPoints) * 100).toFixed(1) + '%',
-      date: g.date
-    })),
+    recentGrades: allGrades.slice(0, 30).map(g => {
+      const total = Number(g.totalPoints);
+      const pct = total > 0 ? ((Number(g.score) / total) * 100).toFixed(1) + '%' : '0%';
+      return {
+        studentName: g.studentName,
+        assignment: g.assignmentName,
+        category: g.category,
+        score: g.score,
+        totalPoints: g.totalPoints,
+        percentage: pct,
+        date: g.date
+      };
+    }),
     attendanceStats: allAttendance.reduce((acc, a) => {
       if (!acc[a.studentName]) {
         acc[a.studentName] = { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
@@ -939,8 +957,8 @@ ${Object.entries(contextSummary.attendanceStats).map(([name, stats]: [string, an
 }).join('\n') || 'No attendance records available'}
 
 === CONVERSATION CONTEXT ===
-${conversationHistory.length > 0 
-  ? conversationHistory.map((h: any, i: number) => `[Turn ${i + 1}]\nUser: ${h.user}\nAssistant: ${h.assistant}`).join('\n---\n')
+${safeHistory.length > 0 
+  ? safeHistory.map((h: any, i: number) => `[Turn ${i + 1}]\nUser: ${h.user}\nAssistant: ${h.assistant}`).join('\n---\n')
   : '(New conversation - no previous context)'
 }
 
@@ -959,6 +977,9 @@ Instructions: Answer this question using ONLY the data provided above. If the us
     
     const response = result.response;
     const text = response.text();
+    if (typeof text !== 'string' || !text.trim()) {
+      throw new Error('AI returned an empty response. Please try again.');
+    }
     
     // STEP 7: Return response
     return {

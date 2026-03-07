@@ -1,8 +1,3 @@
-/**
- * Type definitions for the LMS application.
- * Maps to Firestore document structures: users, students, grades, attendance, courses, assessments.
- */
-
 export type UserRole = 'admin' | 'teacher' | 'student';
 
 export interface User {

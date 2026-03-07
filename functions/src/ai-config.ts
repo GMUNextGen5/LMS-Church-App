@@ -299,6 +299,30 @@
 
 // ==================== API CONFIGURATION ====================
 
+/** Maximum number of grade records to include in prompts (prevents token abuse / cost DoS) */
+export const MAX_GRADES_FOR_PROMPT = 100;
+
+/** Maximum number of attendance records to process */
+export const MAX_ATTENDANCE_FOR_PROMPT = 200;
+
+/** Maximum length for student name / text fields in prompts (mitigates prompt injection size) */
+export const MAX_PROMPT_STRING_LENGTH = 500;
+
+/** Allowed status values for attendance (ignore unknown to prevent injection) */
+const ATTENDANCE_STATUSES = new Set(['present', 'absent', 'late', 'excused']);
+
+/**
+ * Sanitize a string for safe inclusion in AI prompts.
+ * Truncates to max length and strips control characters to reduce prompt injection risk.
+ */
+export function sanitizeForPrompt(value: unknown, maxLength: number = MAX_PROMPT_STRING_LENGTH): string {
+  if (value == null) return '';
+  const s = String(value);
+  const trimmed = s.replace(/[\x00-\x1f\x7f]/g, '').trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return trimmed.slice(0, maxLength);
+}
+
 /**
  * AI Model Configuration
  * 
@@ -439,21 +463,26 @@ export function buildPerformanceSummaryPrompt(
     late: number;
   }
 ): string {
+  const name = sanitizeForPrompt(studentName, 200);
+  const safeGrades = Array.isArray(gradesData) ? gradesData.slice(0, MAX_GRADES_FOR_PROMPT) : [];
+  const total = Number(attendanceData?.total) || 0;
+  const present = Number(attendanceData?.present) || 0;
+  const absent = Number(attendanceData?.absent) || 0;
+  const late = Number(attendanceData?.late) || 0;
+  const rate = total > 0 ? ((present + late) / total * 100).toFixed(1) : '0';
   return `Please analyze this student's performance:
 
-Student Name: ${studentName}
+Student Name: ${name}
 
 Recent Grades (last 20 assignments):
-${JSON.stringify(gradesData, null, 2)}
+${JSON.stringify(safeGrades, null, 2)}
 
 Attendance Record (last 30 days):
-- Total records: ${attendanceData.total}
-- Present: ${attendanceData.present}
-- Absent: ${attendanceData.absent}
-- Late: ${attendanceData.late}
-- Attendance Rate: ${attendanceData.total > 0 
-    ? ((attendanceData.present + attendanceData.late) / attendanceData.total * 100).toFixed(1) 
-    : 0}%
+- Total records: ${total}
+- Present: ${present}
+- Absent: ${absent}
+- Late: ${late}
+- Attendance Rate: ${rate}%
 
 Please provide a comprehensive performance summary including:
 1. Overall academic performance assessment
@@ -483,15 +512,20 @@ export function buildStudyTipsPrompt(
   categoryAverages: Array<{ category: string; average: string; count: number }>,
   recentAssignments: string[]
 ): string {
+  const name = sanitizeForPrompt(studentName, 200);
+  const safeAverages = Array.isArray(categoryAverages) ? categoryAverages.slice(0, 50) : [];
+  const safeAssignments = Array.isArray(recentAssignments)
+    ? recentAssignments.slice(0, 30).map(s => sanitizeForPrompt(s, 200))
+    : [];
   return `Please provide personalized study tips for this student:
 
-Student Name: ${studentName}
+Student Name: ${name}
 
 Performance by Category:
-${JSON.stringify(categoryAverages, null, 2)}
+${JSON.stringify(safeAverages, null, 2)}
 
 Recent Assignments:
-${recentAssignments.join('\n')}
+${safeAssignments.join('\n')}
 
 Please provide specific study tips including:
 1. Strategies for improving in weaker areas (identify which categories need work)
@@ -508,29 +542,31 @@ Format your response in HTML with clear sections, headings, and bullet points.`;
 // ==================== DATA PREPARATION HELPERS ====================
 
 /**
- * Prepare grades data for AI analysis
- * 
- * PURPOSE: Transform raw grade data into structured format for AI
- * 
- * DEBUG: Log this data to verify correct formatting before sending to AI
+ * Prepare grades data for AI analysis.
+ * Secured: input limited, numbers validated, strings sanitized.
  */
 export function prepareGradesData(grades: any[]): any[] {
-  return grades.map(grade => ({
-    assignment: grade.assignmentName,
-    category: grade.category,
-    score: grade.score,
-    total: grade.totalPoints,
-    percentage: ((grade.score / grade.totalPoints) * 100).toFixed(1) + '%',
-    date: grade.date
-  }));
+  if (!Array.isArray(grades)) return [];
+  return grades.slice(0, MAX_GRADES_FOR_PROMPT).map(grade => {
+    const total = Number(grade.totalPoints);
+    const score = Number(grade.score);
+    const safeTotal = Number.isFinite(total) && total >= 0 ? total : 0;
+    const safeScore = Number.isFinite(score) && score >= 0 ? score : 0;
+    const pct = safeTotal > 0 ? ((safeScore / safeTotal) * 100).toFixed(1) + '%' : '0%';
+    return {
+      assignment: sanitizeForPrompt(grade.assignmentName ?? grade.assignment ?? 'Unknown', 200),
+      category: sanitizeForPrompt(grade.category ?? 'Uncategorized', 100),
+      score: safeScore,
+      total: safeTotal,
+      percentage: pct,
+      date: grade.date
+    };
+  });
 }
 
 /**
- * Prepare attendance data for AI analysis
- * 
- * PURPOSE: Calculate attendance statistics for AI context
- * 
- * DEBUG: Log this data to verify correct calculations
+ * Prepare attendance data for AI analysis.
+ * Secured: input limited, only known statuses counted.
  */
 export function prepareAttendanceData(attendance: any[]): {
   total: number;
@@ -540,11 +576,15 @@ export function prepareAttendanceData(attendance: any[]): {
   excused: number;
   attendanceRate: string;
 } {
-  const total = attendance.length;
-  const present = attendance.filter(a => a.status === 'present').length;
-  const absent = attendance.filter(a => a.status === 'absent').length;
-  const late = attendance.filter(a => a.status === 'late').length;
-  const excused = attendance.filter(a => a.status === 'excused').length;
+  if (!Array.isArray(attendance)) {
+    return { total: 0, present: 0, absent: 0, late: 0, excused: 0, attendanceRate: '0%' };
+  }
+  const limited = attendance.slice(0, MAX_ATTENDANCE_FOR_PROMPT);
+  const total = limited.length;
+  const present = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'present').length;
+  const absent = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'absent').length;
+  const late = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'late').length;
+  const excused = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'excused').length;
   const attended = present + late + excused;
   const attendanceRate = total > 0 
     ? ((attended / total) * 100).toFixed(1) 
@@ -561,11 +601,8 @@ export function prepareAttendanceData(attendance: any[]): {
 }
 
 /**
- * Calculate category averages from grades
- * 
- * PURPOSE: Analyze performance by category for study tips
- * 
- * DEBUG: Log this data to verify correct calculations
+ * Calculate category averages from grades.
+ * Secured: input limited, only finite numbers, category strings sanitized.
  */
 export function calculateCategoryAverages(grades: any[]): Array<{
   category: string;
@@ -573,22 +610,29 @@ export function calculateCategoryAverages(grades: any[]): Array<{
   count: number;
   trend?: 'improving' | 'declining' | 'stable';
 }> {
+  if (!Array.isArray(grades)) return [];
   const gradesByCategory: { [key: string]: number[] } = {};
+  const limited = grades.slice(0, MAX_GRADES_FOR_PROMPT);
   
-  // Group grades by category
-  grades.forEach(grade => {
-    const percentage = (grade.score / grade.totalPoints) * 100;
-    if (!gradesByCategory[grade.category]) {
-      gradesByCategory[grade.category] = [];
+  limited.forEach(grade => {
+    const total = Number(grade.totalPoints);
+    if (!Number.isFinite(total) || total <= 0) return;
+    const score = Number(grade.score);
+    if (!Number.isFinite(score) || score < 0) return;
+    const percentage = (score / total) * 100;
+    const category = sanitizeForPrompt(grade.category ?? 'Uncategorized', 100);
+    if (!gradesByCategory[category]) {
+      gradesByCategory[category] = [];
     }
-    gradesByCategory[grade.category].push(percentage);
+    gradesByCategory[category].push(percentage);
   });
   
-  // Calculate averages and trends
   return Object.entries(gradesByCategory).map(([category, scores]) => {
+    if (scores.length === 0) {
+      return { category, average: '0%', count: 0, trend: 'stable' as const };
+    }
     const average = scores.reduce((a, b) => a + b, 0) / scores.length;
     
-    // Simple trend detection (compare first half vs second half)
     let trend: 'improving' | 'declining' | 'stable' = 'stable';
     if (scores.length >= 4) {
       const firstHalf = scores.slice(0, Math.floor(scores.length / 2));

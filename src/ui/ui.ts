@@ -158,8 +158,8 @@ function clearForms(): void {
 }
 
 export function showModal(title: string, content: string): void {
-  if (aiModalTitle) aiModalTitle.textContent = title;
-  if (aiModalContent) aiModalContent.innerHTML = sanitizeHTML(content);
+  if (aiModalTitle) aiModalTitle.textContent = title ?? '';
+  if (aiModalContent) aiModalContent.innerHTML = sanitizeHTML(typeof content === 'string' ? content : '');
   aiModal?.classList.remove('hide');
 }
 
