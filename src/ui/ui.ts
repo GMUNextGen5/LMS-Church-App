@@ -1,3 +1,6 @@
+/**
+ * Shared UI: sanitizeHTML (DOMPurify), auth/app containers, tab switching, loading, modal, role-based visibility.
+ */
 import { User, UserRole } from '../core/types';
 import DOMPurify from 'dompurify';
 

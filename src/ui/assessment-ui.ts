@@ -1,3 +1,6 @@
+/**
+ * Assessment UI. Renders into #assessments-content. Views: list, builder, take, submissions, grade, results. Event delegation on container.
+ */
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchCourses } from '../data/data';
 import { showLoading, hideLoading } from './ui';

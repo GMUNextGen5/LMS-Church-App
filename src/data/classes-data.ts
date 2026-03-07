@@ -1,3 +1,6 @@
+/**
+ * Classes (courses) data layer. Firestore CRUD and roster; uses existing `courses` collection. Student IDs = profile doc IDs.
+ */
 import {
   db,
   collection,

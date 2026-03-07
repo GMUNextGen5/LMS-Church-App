@@ -1,3 +1,6 @@
+/**
+ * Assessment data layer. Firestore: courses/{classId}/assessments, questions, submissions. CRUD, auto-grading, grade sync to students/grades.
+ */
 import { db } from '../core/firebase';
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc,

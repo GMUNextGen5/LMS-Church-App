@@ -1327,17 +1327,16 @@
         }
 
         .input-glow:focus {
-            box-shadow:
-                0 0 0 3px rgba(6, 182, 212, 0.15),
-                0 0 20px rgba(6, 182, 212, 0.2);
             border-color: #06b6d4 !important;
+            outline: 2px solid rgba(6, 182, 212, 0.4);
+            outline-offset: 0;
         }
 
         [data-theme="light"] .input-glow:focus {
-            box-shadow:
-                0 0 0 3px rgba(3, 105, 161, 0.2),
-                0 0 8px rgba(3, 105, 161, 0.15);
             border-color: #0369a1 !important;
+            outline: 2px solid rgba(3, 105, 161, 0.35);
+            outline-offset: 0;
+            box-shadow: none;
         }
 
         /* ==================== AI RESPONSE CARD STYLES ==================== */
@@ -2289,9 +2288,7 @@
         }
 
         /* Focus states - 3px for visibility */
-        [data-theme="light"
-
-        ] input:focus,
+        [data-theme="light"] input:focus,
         [data-theme="light"] select:focus,
         [data-theme="light"] textarea:focus {
             border-color: #0369a1 !important;
@@ -2299,8 +2296,40 @@
             outline-offset: 0;
         }
 
-        /*
-                    Mobile menu - ADA compliant */
+        /* Search fields: single box, symmetric; light theme shading */
+        [data-theme="light"] .lms-global-search,
+        [data-theme="light"] .lms-dashboard-search {
+            background-color: #ffffff !important;
+            border-color: #94a3b8 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        [data-theme="light"] .lms-global-search:focus-within,
+        [data-theme="light"] .lms-dashboard-search:focus-within {
+            border-color: #0369a1 !important;
+            box-shadow: 0 0 0 2px rgba(3, 105, 161, 0.2), 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        [data-theme="light"] .lms-global-search input,
+        [data-theme="light"] .lms-dashboard-search input {
+            color: #1e293b !important;
+        }
+        [data-theme="light"] .lms-global-search input::placeholder,
+        [data-theme="light"] .lms-dashboard-search input::placeholder {
+            color: #64748b;
+        }
+        [data-theme="light"] .lms-global-search svg,
+        [data-theme="light"] .lms-dashboard-search svg {
+            color: #64748b !important;
+        }
+
+        /* Role badge - light theme: better contrast and subtle depth */
+        [data-theme="light"] #user-role-badge {
+            background-color: #e0f2fe !important;
+            border-color: #7dd3fc !important;
+            color: #0369a1 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Mobile menu - ADA compliant */
         [data-theme="light"] .mobile-menu-btn,
         [data-theme="light"] .mobile-menu-btn:hover {
             background-color: #f1f5f9 !important;
@@ -2357,9 +2386,7 @@
         [data-theme="light"] input:disabled,
         [data-theme="light"] select:disabled,
         [data-theme="light"] textarea:disabled,
-        [data-theme="light"
-
-        ] button:disabled {
+        [data-theme="light"] button:disabled {
             opacity: 1;
             cursor: not-allowed;
             background-color: #f1f5f9 !important;
@@ -4873,15 +4900,15 @@
 
                     <!-- Header Actions -->
                     <div class="lms-header-actions">
-                        <!-- Global Search -->
+                        <!-- Global Search: single box, symmetric padding -->
                         <div
-                            class="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-800/50 border border-dark-700">
-                            <svg class="w-4 h-4 text-dark-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="lms-global-search hidden md:flex items-center gap-2 rounded-lg bg-dark-800 border border-dark-600 px-3 py-2 min-w-[10rem] w-40 lg:w-56 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
+                            <svg class="w-4 h-4 text-dark-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
                             <input id="global-search" type="text" placeholder="Search students, grades..."
-                                class="bg-transparent text-sm text-white placeholder-dark-400 outline-none w-40 lg:w-56">
+                                class="flex-1 min-w-0 bg-transparent border-0 text-sm text-white placeholder-dark-400 outline-none focus:ring-0">
                         </div>
 
                         <!-- Theme Toggle -->
@@ -4946,16 +4973,16 @@
                                     <h3 class="text-xl font-bold text-white">View Student
                                         Dashboard</h3>
                                     <div class="flex-1 max-w-md">
-                                        <div class="relative">
-                                            <input type="text" id="dashboard-student-search"
-                                                placeholder="Search by name or ID..."
-                                                class="w-full px-4 py-3 pl-10 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                            <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-400"
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <!-- Single search box: wrapper has bg/border, input is borderless for symmetry -->
+                                        <div class="lms-dashboard-search relative flex items-center rounded-lg bg-dark-800 border border-dark-600 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
+                                            <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z">
                                                 </path>
                                             </svg>
+                                            <input type="text" id="dashboard-student-search"
+                                                placeholder="Search by name or ID..."
+                                                class="w-full bg-transparent border-0 py-3 pl-10 pr-4 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:ring-0">
                                         </div>
                                     </div>
                                     <select id="dashboard-student-select"
@@ -5613,12 +5640,17 @@
 
                                         <!-- Dropdown Method (requires Cloud Functions) -->
                                         <div id="dropdown-method" class="space-y-2">
-                                            <div class="flex gap-2">
-                                                <select id="student-account-select"
-                                                    class="flex-1 px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                                    <option value="">-- Select Registered
-                                                        Account --</option>
-                                                </select>
+                                            <div class="flex gap-2 items-stretch">
+                                                <div id="student-account-dropdown" class="account-dropdown flex-1 relative">
+                                                    <div class="account-dropdown-trigger flex items-center justify-between w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="Link to student account">
+                                                        <span class="account-dropdown-value text-left truncate">-- Select Registered Account --</span>
+                                                        <svg class="w-5 h-5 text-dark-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    </div>
+                                                    <div class="account-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 rounded-lg bg-dark-800 border border-dark-600 shadow-xl hide">
+                                                        <input type="text" class="account-dropdown-search w-full px-4 py-2 border-b border-dark-600 bg-dark-900 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 rounded-t-lg" placeholder="Search by email..." autocomplete="off" aria-label="Search accounts by email">
+                                                        <div class="account-dropdown-list max-h-60 overflow-y-auto py-1" role="listbox"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" id="refresh-accounts-btn"
                                                     class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
                                                     title="Refresh accounts list">
@@ -5664,13 +5696,6 @@
 
                                         <!-- Hidden input that actually submits -->
                                         <input type="hidden" name="studentUid" id="final-student-uid" required>
-
-                                        <p class="text-xs text-dark-400 mt-2">
-                                            🔗 Student must create an account first!
-                                            <span class="text-blue-400">Get UID from
-                                                Firebase Console →
-                                                Authentication</span>
-                                        </p>
                                     </div>
 
                                 </div>
@@ -5704,6 +5729,11 @@
                         <div class="glass-effect rounded-2xl p-6 mt-6">
                             <h3 class="text-xl font-bold text-white mb-4">Registered
                                 Students</h3>
+                            <div class="mb-4">
+                                <input type="text" id="registered-students-search" placeholder="Search by Member ID, name, or email..."
+                                    class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                                    aria-label="Search registered students">
+                            </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full">
                                     <thead>
@@ -5809,11 +5839,17 @@
                                             Link to Teacher Account <span class="text-red-400">*</span>
                                         </label>
                                         <div id="teacher-dropdown-method" class="space-y-2">
-                                            <div class="flex gap-2">
-                                                <select id="teacher-account-select"
-                                                    class="flex-1 px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                                    <option value="">-- Select Registered Account --</option>
-                                                </select>
+                                            <div class="flex gap-2 items-stretch">
+                                                <div id="teacher-account-dropdown" class="account-dropdown flex-1 relative">
+                                                    <div class="account-dropdown-trigger flex items-center justify-between w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="Link to teacher account">
+                                                        <span class="account-dropdown-value text-left truncate">-- Select Registered Account --</span>
+                                                        <svg class="w-5 h-5 text-dark-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    </div>
+                                                    <div class="account-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 rounded-lg bg-dark-800 border border-dark-600 shadow-xl hide">
+                                                        <input type="text" class="account-dropdown-search w-full px-4 py-2 border-b border-dark-600 bg-dark-900 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 rounded-t-lg" placeholder="Search by email..." autocomplete="off" aria-label="Search accounts by email">
+                                                        <div class="account-dropdown-list max-h-60 overflow-y-auto py-1" role="listbox"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" id="refresh-teacher-accounts-btn"
                                                     class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
                                                     title="Refresh accounts list">
@@ -5840,9 +5876,6 @@
                                             </div>
                                         </div>
                                         <input type="hidden" name="teacherUid" id="final-teacher-uid" required>
-                                        <p class="text-xs text-dark-400 mt-2">
-                                            🔗 Teacher must create an account first! Get UID from Firebase Console → Authentication
-                                        </p>
                                     </div>
                                 </div>
 
@@ -5868,6 +5901,11 @@
                         <!-- Registered Teachers List (same structure as Registered Students) -->
                         <div class="glass-effect rounded-2xl p-6 mt-6">
                             <h3 class="text-xl font-bold text-white mb-4">Registered Teachers</h3>
+                            <div class="mb-4">
+                                <input type="text" id="registered-teachers-search" placeholder="Search by Member ID, name, or email..."
+                                    class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                                    aria-label="Search registered teachers">
+                            </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full">
                                     <thead>

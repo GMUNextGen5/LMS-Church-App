@@ -1,3 +1,9 @@
+/**
+ * Main application entry. Orchestrates auth, UI, data loading, and tab behavior.
+ * State: currentStudents, currentGrades, currentAttendance, selectedStudentId.
+ * Real-time: grades use listenToGrades; unsubscribe on student change to avoid leaks.
+ */
+
 import './core/firebase';
 import { auth } from './core/firebase';
 import { functions, httpsCallable } from './core/firebase';
@@ -45,6 +51,7 @@ let currentAttendance: Attendance[] = [];
 let selectedStudentId: string | null = null;
 let gradesUnsubscribe: (() => void) | null = null;
 
+// Reused for HTML escaping to avoid XSS when rendering user/AI content
 const escapeEl = document.createElement('div');
 function escapeHtml(s: string): string {
   escapeEl.textContent = s;
@@ -59,6 +66,7 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   }) as unknown as T;
 }
 
+// --- Auth & init ---
 async function init(): Promise<void> {
   initUI();
   initAuth(handleAuthStateChange);
@@ -82,6 +90,7 @@ async function init(): Promise<void> {
   try { new ParticleSystem('background-canvas'); } catch { /* canvas not available */ }
 }
 
+// --- Auth state & form handlers ---
 async function handleAuthStateChange(user: User | null): Promise<void> {
   if (user) {
     showAppContainer();
@@ -176,6 +185,7 @@ function setupAuthForms(): void {
   }
 }
 
+// --- App form setup (student/teacher reg, grades, attendance, dashboard) ---
 function setupAppForms(): void {
   const studentRegForm = document.getElementById('student-registration-form') as HTMLFormElement;
   if (studentRegForm) {
@@ -204,6 +214,8 @@ function setupAppForms(): void {
           successEl.classList.remove('hide');
         }
         studentRegForm.reset();
+        const studentDropdownValue = document.querySelector('#student-account-dropdown .account-dropdown-value');
+        if (studentDropdownValue) studentDropdownValue.textContent = '-- Select Registered Account --';
         await Promise.all([loadDashboardData(), loadRegisteredStudents()]);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Registration failed';
@@ -257,6 +269,8 @@ function setupAppForms(): void {
         }
         teacherRegForm.reset();
         if (finalUidEl) finalUidEl.value = '';
+        const teacherDropdownValue = document.querySelector('#teacher-account-dropdown .account-dropdown-value');
+        if (teacherDropdownValue) teacherDropdownValue.textContent = '-- Select Registered Account --';
         await loadRegisteredTeachers();
       } catch (error: unknown) {
         hideLoading();
@@ -283,14 +297,9 @@ function setupAppForms(): void {
       teacherManualMethod.classList.add('hide');
     });
   }
-  const teacherAccountSelect = document.getElementById('teacher-account-select') as HTMLSelectElement;
-  const finalTeacherUidInput = document.getElementById('final-teacher-uid') as HTMLInputElement;
-  if (teacherAccountSelect && finalTeacherUidInput) {
-    teacherAccountSelect.addEventListener('change', () => {
-      finalTeacherUidInput.value = teacherAccountSelect.value;
-    });
-  }
+  setupAccountDropdown('teacher-account-dropdown', 'final-teacher-uid', populateTeacherAccountDropdown);
   const manualTeacherUidInput = document.getElementById('manual-teacher-uid') as HTMLInputElement;
+  const finalTeacherUidInput = document.getElementById('final-teacher-uid') as HTMLInputElement;
   if (manualTeacherUidInput && finalTeacherUidInput) {
     manualTeacherUidInput.addEventListener('input', () => {
       finalTeacherUidInput.value = manualTeacherUidInput.value.trim();
@@ -299,6 +308,39 @@ function setupAppForms(): void {
   const refreshTeacherAccountsBtn = document.getElementById('refresh-teacher-accounts-btn');
   if (refreshTeacherAccountsBtn) {
     refreshTeacherAccountsBtn.addEventListener('click', () => populateTeacherAccountDropdown());
+  }
+
+  const registeredStudentsSearch = document.getElementById('registered-students-search') as HTMLInputElement;
+  if (registeredStudentsSearch) {
+    registeredStudentsSearch.addEventListener('input', () => {
+      const q = (registeredStudentsSearch.value || '').toLowerCase().trim();
+      const tbody = document.getElementById('registered-students-table-body');
+      if (!tbody) return;
+      tbody.querySelectorAll('.registered-student-row').forEach((row) => {
+        const el = row as HTMLElement;
+        const memberId = (el.getAttribute('data-member-id') || '').toLowerCase();
+        const name = (el.getAttribute('data-name') || '').toLowerCase();
+        const email = (el.getAttribute('data-email') || '').toLowerCase();
+        const show = !q || memberId.includes(q) || name.includes(q) || email.includes(q);
+        el.style.display = show ? '' : 'none';
+      });
+    });
+  }
+  const registeredTeachersSearch = document.getElementById('registered-teachers-search') as HTMLInputElement;
+  if (registeredTeachersSearch) {
+    registeredTeachersSearch.addEventListener('input', () => {
+      const q = (registeredTeachersSearch.value || '').toLowerCase().trim();
+      const tbody = document.getElementById('registered-teachers-table-body');
+      if (!tbody) return;
+      tbody.querySelectorAll('.registered-teacher-row').forEach((row) => {
+        const el = row as HTMLElement;
+        const memberId = (el.getAttribute('data-member-id') || '').toLowerCase();
+        const name = (el.getAttribute('data-name') || '').toLowerCase();
+        const email = (el.getAttribute('data-email') || '').toLowerCase();
+        const show = !q || memberId.includes(q) || name.includes(q) || email.includes(q);
+        el.style.display = show ? '' : 'none';
+      });
+    });
   }
 
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement | null;
@@ -391,12 +433,9 @@ function setupAppForms(): void {
     });
   }
 
-  const accountSelect = document.getElementById('student-account-select') as HTMLSelectElement;
-  const finalUidInput = document.getElementById('final-student-uid') as HTMLInputElement;
-  if (accountSelect && finalUidInput) {
-    accountSelect.addEventListener('change', () => { finalUidInput.value = accountSelect.value; });
-  }
+  setupAccountDropdown('student-account-dropdown', 'final-student-uid', populateStudentAccountDropdown);
   const manualUidInput = document.getElementById('manual-student-uid') as HTMLInputElement;
+  const finalUidInput = document.getElementById('final-student-uid') as HTMLInputElement;
   if (manualUidInput && finalUidInput) {
     manualUidInput.addEventListener('input', () => { finalUidInput.value = manualUidInput.value.trim(); });
   }
@@ -531,6 +570,7 @@ function setupAppForms(): void {
   }
 }
 
+// --- Dashboard data loading ---
 async function loadDashboardData(): Promise<void> {
   try {
     currentStudents = await fetchStudents();
@@ -557,8 +597,12 @@ async function loadRegisteredStudents(): Promise<void> {
       tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-dark-300">No students registered yet</td></tr>';
       return;
     }
-    tableBody.innerHTML = currentStudents.map(student => `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
+    tableBody.innerHTML = currentStudents.map(student => {
+      const memberId = (student.memberId || '').toLowerCase().replace(/"/g, '&quot;');
+      const name = (student.name || '').toLowerCase().replace(/"/g, '&quot;');
+      const email = ((student as any).contactEmail || '').toLowerCase().replace(/"/g, '&quot;');
+      return `
+      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors registered-student-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
         <td class="py-3 px-4 text-white font-semibold">${student.memberId || 'N/A'}</td>
         <td class="py-3 px-4 text-white">${escapeHtml(student.name)}</td>
         <td class="py-3 px-4 text-center text-dark-300">${(student as any).yearOfBirth || 'N/A'}</td>
@@ -571,7 +615,8 @@ async function loadRegisteredStudents(): Promise<void> {
             class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   } catch { /* registered students load error */ }
 }
 
@@ -586,8 +631,12 @@ async function loadRegisteredTeachers(): Promise<void> {
       tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-dark-300">No teachers registered yet</td></tr>';
       return;
     }
-    tableBody.innerHTML = teachers.map((t: any) => `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
+    tableBody.innerHTML = teachers.map((t: any) => {
+      const memberId = (t.memberId || '').toLowerCase().replace(/"/g, '&quot;');
+      const name = (t.name || t.email || '').toLowerCase().replace(/"/g, '&quot;');
+      const email = (t.email || '').toLowerCase().replace(/"/g, '&quot;');
+      return `
+      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors registered-teacher-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
         <td class="py-3 px-4 text-white font-semibold">${escapeHtml(t.memberId || 'N/A')}</td>
         <td class="py-3 px-4 text-white">${escapeHtml(t.name || t.email || 'N/A')}</td>
         <td class="py-3 px-4 text-center text-dark-300">${t.yearOfBirth ?? 'N/A'}</td>
@@ -599,7 +648,8 @@ async function loadRegisteredTeachers(): Promise<void> {
             class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   } catch { /* teacher load error */ }
 }
 
@@ -644,52 +694,148 @@ async function loadAllUsers(): Promise<void> {
   }
 }
 
+function filterAccountDropdownList(listEl: Element, query: string): void {
+  const items = listEl.querySelectorAll('[data-uid]');
+  items.forEach((el) => {
+    const email = (el.getAttribute('data-email') || '').toLowerCase();
+    const name = (el.getAttribute('data-name') || '').toLowerCase();
+    const text = (el.textContent || '').toLowerCase();
+    const show = !query || email.includes(query) || name.includes(query) || text.includes(query);
+    (el as HTMLElement).style.display = show ? '' : 'none';
+  });
+}
+
+function setupAccountDropdown(containerId: string, hiddenInputId: string, populateCallback: () => Promise<void>): void {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const trigger = container.querySelector('.account-dropdown-trigger');
+  const panel = container.querySelector('.account-dropdown-panel');
+  const searchInput = container.querySelector('.account-dropdown-search') as HTMLInputElement | null;
+  const listEl = container.querySelector('.account-dropdown-list');
+  const valueEl = container.querySelector('.account-dropdown-value');
+  const hiddenInput = document.getElementById(hiddenInputId) as HTMLInputElement;
+  if (!trigger || !panel || !listEl || !valueEl || !hiddenInput) return;
+  const triggerEl = trigger;
+  const panelEl = panel;
+  const listElRef = listEl;
+
+  function open(): void {
+    panelEl.classList.remove('hide');
+    triggerEl.setAttribute('aria-expanded', 'true');
+    if (searchInput) {
+      searchInput.value = '';
+      filterAccountDropdownList(listElRef, '');
+      setTimeout(() => searchInput.focus(), 0);
+    }
+  }
+  function close(): void {
+    panelEl.classList.add('hide');
+    triggerEl.setAttribute('aria-expanded', 'false');
+  }
+
+  triggerEl.addEventListener('click', () => {
+    if (panelEl.classList.contains('hide')) open();
+    else close();
+  });
+  triggerEl.addEventListener('keydown', (e: Event) => {
+    const ke = e as KeyboardEvent;
+    if (ke.key === 'Enter' || ke.key === ' ') {
+      e.preventDefault();
+      if (panelEl.classList.contains('hide')) open();
+      else close();
+    }
+  });
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      filterAccountDropdownList(listElRef, (searchInput.value || '').toLowerCase().trim());
+    });
+    searchInput.addEventListener('keydown', (e: Event) => {
+      if ((e as KeyboardEvent).key === 'Escape') close();
+    });
+  }
+  listEl.addEventListener('click', (e) => {
+    const opt = (e.target as HTMLElement).closest('[data-uid]');
+    if (!opt) return;
+    const uid = opt.getAttribute('data-uid');
+    const label = opt.textContent || '-- Select Registered Account --';
+    hiddenInput.value = uid || '';
+    valueEl.textContent = label;
+    close();
+  });
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target as Node)) close();
+  });
+
+  populateCallback();
+}
+
 async function populateStudentAccountDropdown(): Promise<void> {
-  const accountSelect = document.getElementById('student-account-select') as HTMLSelectElement;
-  if (!accountSelect) return;
+  const container = document.getElementById('student-account-dropdown');
+  if (!container) return;
+  const listEl = container.querySelector('.account-dropdown-list');
+  const valueEl = container.querySelector('.account-dropdown-value');
+  const searchInput = container.querySelector('.account-dropdown-search') as HTMLInputElement;
+  const finalUidInput = document.getElementById('final-student-uid') as HTMLInputElement;
+  if (!listEl || !valueEl || !finalUidInput) return;
   try {
     const role = getCurrentUserRole();
     if (role !== 'admin' && role !== 'teacher') return;
     let users = await fetchAllUsers();
-    if (role === 'teacher') users = users.filter((u) => u.role === 'student');
-    accountSelect.innerHTML = '<option value="">-- Select Registered Account --</option>';
-    users.sort((a: any, b: any) => a.email.localeCompare(b.email));
+    if (role === 'teacher') users = users.filter((u: { role: string }) => u.role === 'student');
+    (users as any[]).sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+    listEl.innerHTML = '';
     users.forEach((user: any) => {
-      const option = document.createElement('option');
-      option.value = user.uid;
-      let displayText = user.email;
-      if (user.name) displayText += ` (${user.name})`;
-      displayText += ` - ${user.role}`;
-      option.textContent = displayText;
-      accountSelect.appendChild(option);
+      const displayText = user.email + (user.name ? ` (${user.name})` : '') + ` - ${user.role}`;
+      const opt = document.createElement('div');
+      opt.setAttribute('role', 'option');
+      opt.setAttribute('data-uid', user.uid);
+      opt.setAttribute('data-email', (user.email || '').toLowerCase());
+      opt.setAttribute('data-name', (user.name || '').toLowerCase());
+      opt.textContent = displayText;
+      opt.className = 'px-4 py-2 cursor-pointer hover:bg-dark-700 text-white text-sm';
+      listEl.appendChild(opt);
     });
+    if (searchInput) {
+      const q = (searchInput.value || '').toLowerCase().trim();
+      filterAccountDropdownList(listEl, q);
+    }
   } catch {
-    accountSelect.innerHTML = '<option value="">Cloud Functions not deployed - use manual entry</option>';
+    listEl.innerHTML = '<div class="px-4 py-3 text-dark-400 text-sm">Cloud Functions not deployed - use manual entry</div>';
   }
 }
 
 async function populateTeacherAccountDropdown(): Promise<void> {
-  const accountSelect = document.getElementById('teacher-account-select') as HTMLSelectElement;
-  if (!accountSelect) return;
+  const container = document.getElementById('teacher-account-dropdown');
+  if (!container) return;
+  const listEl = container.querySelector('.account-dropdown-list');
+  const searchInput = container.querySelector('.account-dropdown-search') as HTMLInputElement;
+  if (!listEl) return;
   try {
     if (getCurrentUserRole() !== 'admin') return;
     const users = await fetchAllUsers();
-    accountSelect.innerHTML = '<option value="">-- Select Registered Account --</option>';
-    users.sort((a: any, b: any) => (a.email || '').localeCompare(b.email || ''));
+    (users as any[]).sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+    listEl.innerHTML = '';
     users.forEach((user: any) => {
-      const option = document.createElement('option');
-      option.value = user.uid;
-      let displayText = user.email || user.uid;
-      if (user.name) displayText += ` (${user.name})`;
-      displayText += ` - ${user.role}`;
-      option.textContent = displayText;
-      accountSelect.appendChild(option);
+      const displayText = (user.email || user.uid) + (user.name ? ` (${user.name})` : '') + ` - ${user.role}`;
+      const opt = document.createElement('div');
+      opt.setAttribute('role', 'option');
+      opt.setAttribute('data-uid', user.uid);
+      opt.setAttribute('data-email', (user.email || '').toLowerCase());
+      opt.setAttribute('data-name', (user.name || '').toLowerCase());
+      opt.textContent = displayText;
+      opt.className = 'px-4 py-2 cursor-pointer hover:bg-dark-700 text-white text-sm';
+      listEl.appendChild(opt);
     });
+    if (searchInput) {
+      const q = (searchInput.value || '').toLowerCase().trim();
+      filterAccountDropdownList(listEl, q);
+    }
   } catch {
-    accountSelect.innerHTML = '<option value="">Use manual UID entry below</option>';
+    listEl.innerHTML = '<div class="px-4 py-3 text-dark-400 text-sm">Use manual UID entry below</div>';
   }
 }
 
+// --- Student dropdowns (registration, dashboard, attendance) ---
 function updateStudentSelect(): void {
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement;
   const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
@@ -743,6 +889,7 @@ function updateStudentSelect(): void {
   }
 }
 
+// --- Grades: load, display, charts; delete handlers ---
 function showGradesSkeletonLoading(): void {
   const gradesTableBody = document.getElementById('grades-table-body');
   const chartsSection = document.getElementById('grade-charts-section');
@@ -908,6 +1055,7 @@ function renderGradeCharts(grades: Grade[]): void {
   } finally { hideLoading(); }
 };
 
+// --- Dashboard stats & recent activity ---
 function getLetterGrade(percentage: number): string {
   if (percentage >= 97) return 'A+';
   if (percentage >= 93) return 'A';
@@ -1037,9 +1185,10 @@ function resetAppState(): void {
   currentStudents = [];
   currentGrades = [];
   selectedStudentId = null;
-  if (gradesUnsubscribe) { gradesUnsubscribe(); gradesUnsubscribe = null; }
+  if (gradesUnsubscribe) { gradesUnsubscribe(); gradesUnsubscribe = null;   }
 }
 
+// --- AI: performance summary, study tips, agent chat ---
 async function generatePerformanceSummary(studentId: string): Promise<void> {
   const btn = document.getElementById('ai-summary-btn') as HTMLButtonElement | null;
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
@@ -1244,6 +1393,7 @@ function setupAIAgentChat(): void {
   }
 }
 
+// --- Attendance: load, display, stats ---
 async function loadStudentAttendance(studentId: string): Promise<void> {
   try {
     currentAttendance = await fetchAttendance(studentId);
@@ -1300,6 +1450,7 @@ function updateAttendanceStats(attendance: Attendance[]): void {
   if (rateEl) rateEl.textContent = rate + '%';
 }
 
+// --- Student profile & UID display ---
 let passwordToggleInitialized = false;
 
 function loadStudentProfile(): void {

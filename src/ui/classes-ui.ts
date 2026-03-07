@@ -1,3 +1,6 @@
+/**
+ * Classes tab UI. Role-adaptive views (student / teacher / admin). Renders into #classes-content. Modals portaled to body.
+ */
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchAllUsers, fetchAllStudentProfiles } from '../data/data';
 import { showLoading, hideLoading } from './ui';

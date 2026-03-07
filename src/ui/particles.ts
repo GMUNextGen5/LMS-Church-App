@@ -1,3 +1,6 @@
+/**
+ * Login background particle canvas. Cached colors, debounced resize, requestAnimationFrame loop. Call destroy() on teardown.
+ */
 interface ParticleConfig {
   colors: string[];
   particleDensity: number;
