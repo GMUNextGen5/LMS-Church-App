@@ -37,6 +37,7 @@ import {
   markAttendance,
   createStudent,
   deleteStudent,
+  updateStudent,
   fetchAllUsers,
   updateUserRoleDirect,
   createTeacher,
@@ -343,6 +344,46 @@ function setupAppForms(): void {
     });
   }
 
+  const editStudentModal = document.getElementById('edit-student-modal');
+  const editStudentForm = document.getElementById('edit-student-form') as HTMLFormElement;
+  const editStudentModalClose = document.getElementById('edit-student-modal-close');
+  const editStudentCancel = document.getElementById('edit-student-cancel');
+  if (editStudentForm && editStudentModal) {
+    editStudentForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const studentId = (document.getElementById('edit-student-id') as HTMLInputElement)?.value;
+      if (!studentId) return;
+      const formData = new FormData(editStudentForm);
+      const yearVal = formData.get('yearOfBirth');
+      const yearOfBirth = yearVal ? parseInt(String(yearVal), 10) : undefined;
+      try {
+        showLoading();
+        await updateStudent(studentId, {
+          name: (formData.get('name') as string)?.trim() ?? '',
+          memberId: (formData.get('memberId') as string)?.trim() ?? '',
+          yearOfBirth: Number.isNaN(yearOfBirth) ? undefined : yearOfBirth,
+          contactPhone: (formData.get('contactPhone') as string)?.trim() ?? '',
+          contactEmail: (formData.get('contactEmail') as string)?.trim() ?? '',
+          notes: (formData.get('notes') as string)?.trim() ?? '',
+        });
+        editStudentModal.classList.add('hide');
+        await Promise.all([loadDashboardData(), loadRegisteredStudents()]);
+        alert('Student updated successfully');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Update failed';
+        alert('Failed to update student: ' + msg);
+      } finally {
+        hideLoading();
+      }
+    });
+  }
+  if (editStudentModalClose && editStudentModal) {
+    editStudentModalClose.addEventListener('click', () => editStudentModal.classList.add('hide'));
+  }
+  if (editStudentCancel && editStudentModal) {
+    editStudentCancel.addEventListener('click', () => editStudentModal.classList.add('hide'));
+  }
+
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement | null;
   if (studentSelect) {
     studentSelect.addEventListener('change', (e) => {
@@ -611,6 +652,8 @@ async function loadRegisteredStudents(): Promise<void> {
           ${(student as any).contactPhone || ''}
         </td>
         <td class="py-3 px-4 text-center">
+          <button onclick="handleEditStudent('${student.id}')"
+            class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm mr-2">Edit</button>
           <button onclick="handleDeleteStudent('${student.id}')"
             class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
@@ -1023,6 +1066,28 @@ function renderGradeCharts(grades: Grade[]): void {
     await loadDashboardData();
     alert('Student deleted successfully');
   } catch (error: any) { alert('Failed to delete student: ' + error.message); }
+};
+
+(window as any).handleEditStudent = (studentId: string) => {
+  const student = currentStudents.find(s => s.id === studentId);
+  if (!student) return;
+  const modal = document.getElementById('edit-student-modal');
+  const idEl = document.getElementById('edit-student-id') as HTMLInputElement;
+  const nameEl = document.getElementById('edit-student-name') as HTMLInputElement;
+  const memberIdEl = document.getElementById('edit-student-memberId') as HTMLInputElement;
+  const yearEl = document.getElementById('edit-student-yearOfBirth') as HTMLInputElement;
+  const phoneEl = document.getElementById('edit-student-contactPhone') as HTMLInputElement;
+  const emailEl = document.getElementById('edit-student-contactEmail') as HTMLInputElement;
+  const notesEl = document.getElementById('edit-student-notes') as HTMLInputElement;
+  if (!modal || !idEl || !nameEl) return;
+  idEl.value = studentId;
+  nameEl.value = student.name;
+  memberIdEl.value = (student.memberId || '');
+  yearEl.value = String((student as any).yearOfBirth ?? '');
+  phoneEl.value = (student as any).contactPhone || '';
+  emailEl.value = (student as any).contactEmail || '';
+  notesEl.value = (student as any).notes || '';
+  modal.classList.remove('hide');
 };
 
 (window as any).handleDeleteTeacher = async (userId: string) => {

@@ -97,6 +97,28 @@ export async function deleteStudent(studentId: string): Promise<void> {
   await deleteDoc(doc(db, 'students', studentId));
 }
 
+export async function updateStudent(studentId: string, data: Partial<{
+  name: string;
+  memberId: string;
+  yearOfBirth: number;
+  contactPhone: string;
+  contactEmail: string;
+  notes: string;
+}>): Promise<void> {
+  const user = getCurrentUser();
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can update student records');
+  const ref = doc(db, 'students', studentId);
+  const updates: Record<string, unknown> = {};
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.memberId !== undefined) updates.memberId = data.memberId;
+  if (data.yearOfBirth !== undefined) updates.yearOfBirth = data.yearOfBirth;
+  if (data.contactPhone !== undefined) updates.contactPhone = data.contactPhone;
+  if (data.contactEmail !== undefined) updates.contactEmail = data.contactEmail;
+  if (data.notes !== undefined) updates.notes = data.notes;
+  if (Object.keys(updates).length === 0) return;
+  await updateDoc(ref, updates);
+}
+
 export async function fetchGrades(studentId: string): Promise<Grade[]> {
   const gradesRef = collection(db, 'students', studentId, 'grades');
   const q = query(gradesRef, orderBy('date', 'desc'));
