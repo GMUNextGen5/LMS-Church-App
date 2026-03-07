@@ -311,6 +311,22 @@ function setupAppForms(): void {
     refreshTeacherAccountsBtn.addEventListener('click', () => populateTeacherAccountDropdown());
   }
 
+  const usersSearch = document.getElementById('users-search') as HTMLInputElement;
+  if (usersSearch) {
+    usersSearch.addEventListener('input', () => {
+      const q = (usersSearch.value || '').toLowerCase().trim();
+      const tbody = document.getElementById('users-table-body');
+      if (!tbody) return;
+      tbody.querySelectorAll('.user-management-row').forEach((row) => {
+        const el = row as HTMLElement;
+        const email = (el.getAttribute('data-email') || '').toLowerCase();
+        const name = (el.getAttribute('data-name') || '').toLowerCase();
+        const show = !q || email.includes(q) || name.includes(q);
+        el.style.display = show ? '' : 'none';
+      });
+    });
+  }
+
   const registeredStudentsSearch = document.getElementById('registered-students-search') as HTMLInputElement;
   if (registeredStudentsSearch) {
     registeredStudentsSearch.addEventListener('input', () => {
@@ -570,17 +586,10 @@ function setupAppForms(): void {
 
   if (dashboardStudentSearch && dashboardStudentSelect) {
     const doSearch = debounce((searchTerm: string) => {
-      const options = dashboardStudentSelect.querySelectorAll('option');
-      options.forEach(option => {
-        if (option.value === '') return;
-        const name = option.getAttribute('data-name') || '';
-        const memberId = option.getAttribute('data-member-id') || '';
-        const text = option.textContent?.toLowerCase() || '';
-        option.style.display =
-          (searchTerm === '' || name.includes(searchTerm) || memberId.includes(searchTerm) || text.includes(searchTerm))
-            ? '' : 'none';
-      });
-      const visibleOptions = Array.from(options).filter(opt => opt.style.display !== 'none' && opt.value !== '');
+      filterStudentSelectOptions(dashboardStudentSelect, searchTerm);
+      const visibleOptions = Array.from(dashboardStudentSelect.querySelectorAll('option')).filter(
+        opt => opt.value !== '' && opt.style.display !== 'none'
+      );
       if (visibleOptions.length === 1 && searchTerm) {
         dashboardStudentSelect.value = visibleOptions[0].value;
         dashboardStudentSelect.dispatchEvent(new Event('change'));
@@ -598,6 +607,28 @@ function setupAppForms(): void {
         dashboardStudentSelect.dispatchEvent(new Event('change'));
       }
       if (dashboardStudentSearch) dashboardStudentSearch.value = '';
+    });
+  }
+
+  const gradesStudentSearch = document.getElementById('grades-student-search') as HTMLInputElement;
+  const studentSelectGrades = document.getElementById('student-select') as HTMLSelectElement;
+  if (gradesStudentSearch && studentSelectGrades) {
+    const doGradesSearch = debounce((searchTerm: string) => {
+      filterStudentSelectOptions(studentSelectGrades, searchTerm);
+    }, 200);
+    gradesStudentSearch.addEventListener('input', (e) => {
+      doGradesSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
+    });
+  }
+
+  const attendanceStudentSearch = document.getElementById('attendance-student-search') as HTMLInputElement;
+  const attendanceSelectEl = document.getElementById('attendance-student-select') as HTMLSelectElement;
+  if (attendanceStudentSearch && attendanceSelectEl) {
+    const doAttendanceSearch = debounce((searchTerm: string) => {
+      filterStudentSelectOptions(attendanceSelectEl, searchTerm);
+    }, 200);
+    attendanceStudentSearch.addEventListener('input', (e) => {
+      doAttendanceSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
     });
   }
 
@@ -715,8 +746,11 @@ async function loadAllUsers(): Promise<void> {
         default: return 'bg-gray-500/20 text-gray-400';
       }
     };
-    tableBody.innerHTML = users.map((user: any) => `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
+    tableBody.innerHTML = users.map((user: any) => {
+      const email = (user.email || '').toLowerCase().replace(/"/g, '&quot;');
+      const name = (user.name || '').toLowerCase().replace(/"/g, '&quot;');
+      return `
+      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors user-management-row" data-email="${email}" data-name="${name}">
         <td class="py-3 px-4 text-white">${escapeHtml(user.email)}</td>
         <td class="py-3 px-4 text-center">
           <span class="px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeClass(user.role)}">
@@ -729,7 +763,8 @@ async function loadAllUsers(): Promise<void> {
             class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm">Change Role</button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   } catch (error: any) {
     if (tableBody) {
       tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-400">Error loading users: ${escapeHtml(error?.message || '')}</td></tr>`;
@@ -878,6 +913,20 @@ async function populateTeacherAccountDropdown(): Promise<void> {
   }
 }
 
+function filterStudentSelectOptions(selectEl: HTMLSelectElement, searchTerm: string): void {
+  const q = searchTerm.toLowerCase();
+  const options = selectEl.querySelectorAll('option');
+  options.forEach(option => {
+    if (option.value === '') return;
+    const name = option.getAttribute('data-name') || '';
+    const email = option.getAttribute('data-email') || '';
+    const memberId = option.getAttribute('data-member-id') || '';
+    const text = option.textContent?.toLowerCase() || '';
+    option.style.display =
+      !q || name.includes(q) || email.includes(q) || memberId.includes(q) || text.includes(q) ? '' : 'none';
+  });
+}
+
 // --- Student dropdowns (registration, dashboard, attendance) ---
 function updateStudentSelect(): void {
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement;
@@ -889,6 +938,9 @@ function updateStudentSelect(): void {
     const option = document.createElement('option');
     option.value = student.id;
     option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
+    option.setAttribute('data-name', student.name.toLowerCase());
+    option.setAttribute('data-email', ((student as any).contactEmail || '').toLowerCase());
+    option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
     studentSelect.appendChild(option);
   });
 
@@ -898,6 +950,9 @@ function updateStudentSelect(): void {
       const option = document.createElement('option');
       option.value = student.id;
       option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
+      option.setAttribute('data-name', student.name.toLowerCase());
+      option.setAttribute('data-email', ((student as any).contactEmail || '').toLowerCase());
+      option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
       attendanceStudentSelect.appendChild(option);
     });
   }
@@ -909,6 +964,7 @@ function updateStudentSelect(): void {
       option.value = student.id;
       option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
       option.setAttribute('data-name', student.name.toLowerCase());
+      option.setAttribute('data-email', ((student as any).contactEmail || '').toLowerCase());
       option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
       dashboardStudentSelect.appendChild(option);
     });
