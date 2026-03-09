@@ -16,6 +16,9 @@ functions/coverage/
 .env.production
 functions/.env
 
+# Local config (for local testing)
+src/core/config.ts
+
 # Firebase
 .firebase/
 firebase-debug.log
