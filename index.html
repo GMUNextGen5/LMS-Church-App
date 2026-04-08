@@ -3843,6 +3843,30 @@
             color: #64748b !important;
         }
 
+        /* Bible verse section styling */
+        .bible-verse-section {
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .bible-verse-section:hover {
+            opacity: 1;
+        }
+
+        /* Light mode - Bible verse */
+        [data-theme="light"] .bible-verse-section p {
+            color: #64748b !important;
+        }
+
+        [data-theme="light"] .bible-verse-section p:last-child {
+            color: #94a3b8 !important;
+        }
+
+        /* Light mode - Welcome title */
+        [data-theme="light"] h1 {
+            color: #0f172a !important;
+        }
+
         /* Classic theme - Simpler card effects */
         [data-style="classic"] .auth-card {
             background: rgba(17, 24, 39, 0.9);
@@ -4955,6 +4979,13 @@
                     <!-- Dashboard Tab -->
                     <div id="dashboard-content" class="tab-content">
 
+                        <!-- Welcome Title (Student View Only) -->
+                        <div class="student-only hide mb-8">
+                            <h1 class="text-3xl md:text-4xl font-bold text-white dark:text-white" style="color: #ffffff;">
+                                Welcome Students
+                            </h1>
+                        </div>
+
                         <!-- Student Selection for Admin/Teacher -->
                         <div class="admin-only teacher-only hide mb-6">
                             <div class="glass-effect rounded-2xl p-6">
@@ -5101,6 +5132,16 @@
                                     No recent activity
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Bible Verse Section -->
+                        <div class="mt-12 mb-8 text-center bible-verse-section">
+                            <p class="text-sm text-dark-300 italic leading-relaxed">
+                                "I can do all things through Christ who strengthens me."
+                            </p>
+                            <p class="text-xs text-dark-400 mt-2">
+                                – Philippians 4:13
+                            </p>
                         </div>
                     </div>
 
