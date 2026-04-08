@@ -1,20 +1,6 @@
 /**
- * ═══════════════════════════════════════════════════════════════════════════
- * ASSESSMENT UI MODULE
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * Self-contained UI module for the assessment/grading feature.
- * Renders dynamically into #assessments-content container.
- *
- * Views:
- *   list        – default; shows assessments by role
- *   builder     – teacher creates / edits assessment + questions
- *   take        – student takes an assessment
- *   submissions – teacher views submissions for an assessment
- *   grade       – teacher grades a single submission
- *   results     – student views their graded submission
+ * Assessment UI. Renders into #assessments-content. Views: list, builder, take, submissions, grade, results. Event delegation on container.
  */
-
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchCourses } from '../data/data';
 import { showLoading, hideLoading } from './ui';
@@ -44,10 +30,6 @@ import type {
   Assessment, AssessmentQuestion, Submission, QuestionAnswer,
   QuestionType, Course, Student, UserRole,
 } from '../core/types';
-
-// ────────────────────────────────────────────────────────────────────────────
-//  STATE
-// ────────────────────────────────────────────────────────────────────────────
 
 type ViewState =
   | { view: 'list' }
@@ -976,7 +958,6 @@ async function handleClick(e: Event): Promise<void> {
   } catch (err: any) {
     hideLoading();
     alert('Error: ' + err.message);
-    console.error('[Assessments] Action error:', err);
   }
 }
 
@@ -1314,10 +1295,10 @@ async function handleSaveGrades(classId: string, assessmentId: string, studentPr
 //  UI HELPERS
 // ────────────────────────────────────────────────────────────────────────────
 
+const _escEl = document.createElement('div');
 function esc(s: string): string {
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
+  _escEl.textContent = s;
+  return _escEl.innerHTML;
 }
 
 function formatDate(isoStr: string): string {
