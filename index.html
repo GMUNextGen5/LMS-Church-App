@@ -2786,19 +2786,25 @@
             border-color: #cbd5e1;
         }
 
-        /* Email hover - show full text */
+        /* Email hover - show full text inline with smaller font */
         .sidebar-user-email {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             transition: all 0.3s ease;
             cursor: pointer;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            max-height: 1.25rem;
         }
 
         .sidebar-user-info:hover .sidebar-user-email {
             white-space: normal;
-            word-break: break-all;
+            word-break: break-word;
             overflow: visible;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            max-height: 3rem;
         }
 
         /* Light mode email text */
