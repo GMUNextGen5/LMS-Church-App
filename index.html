@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0a0f1a">
-    <title>NG5 LMS</title>
+    <title>DSKM LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
@@ -2763,6 +2763,55 @@
             border-top: 1px solid #e2e8f0;
         }
 
+        /* Sidebar user info styling */
+        .sidebar-user-info {
+            background: rgba(15, 23, 42, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-user-info:hover {
+            background: rgba(15, 23, 42, 0.5);
+            border-color: rgba(6, 182, 212, 0.2);
+        }
+
+        /* Light mode - clean neutral background */
+        [data-theme="light"] .sidebar-user-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        [data-theme="light"] .sidebar-user-info:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        /* Email hover - show full text inline with smaller font */
+        .sidebar-user-email {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            max-height: 1.25rem;
+        }
+
+        .sidebar-user-info:hover .sidebar-user-email {
+            white-space: normal;
+            word-break: break-word;
+            overflow: visible;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            max-height: 3rem;
+        }
+
+        /* Light mode email text */
+        [data-theme="light"] .sidebar-user-email {
+            color: #1e293b !important;
+        }
+
         /* Main Content Area */
         .lms-main {
             flex: 1;
@@ -3843,6 +3892,30 @@
             color: #64748b !important;
         }
 
+        /* Bible verse section styling */
+        .bible-verse-section {
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .bible-verse-section:hover {
+            opacity: 1;
+        }
+
+        /* Light mode - Bible verse */
+        [data-theme="light"] .bible-verse-section p {
+            color: #64748b !important;
+        }
+
+        [data-theme="light"] .bible-verse-section p:last-child {
+            color: #94a3b8 !important;
+        }
+
+        /* Light mode - Welcome title */
+        [data-theme="light"] h1 {
+            color: #0f172a !important;
+        }
+
         /* Classic theme - Simpler card effects */
         [data-style="classic"] .auth-card {
             background: rgba(17, 24, 39, 0.9);
@@ -4575,7 +4648,7 @@
             <img src="/ng5-logo.png" alt="NG5 Logo" class="ng5-logo" draggable="false">
         </div>
 
-        <h1 class="hero-title">NG5 LMS</h1>
+        <h1 class="hero-title">DSKM LMS</h1>
         <p class="hero-subtitle" id="typewriter-subtitle"></p>
 
         <!-- Auth Card with Glassmorphism -->
@@ -4698,7 +4771,7 @@
         <!-- Footer: Copyright & links -->
         <div class="auth-footer">
             <div class="auth-footer-links">
-                <span>© 2026 NG5 LMS</span>
+                <span>© 2026 DSKM LMS</span>
                 <a href="/privacy" class="link">Privacy</a>
                 <a href="/terms" class="link">Terms</a>
             </div>
@@ -4717,10 +4790,10 @@
                 <div class="lms-sidebar-header">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-lg">
-                            <img src="/ng5-logo.png" alt="NG5 Logo" class="w-10 h-10 object-contain" loading="lazy">
+                            <img src="/ng5-logo.png" alt="DSKM Logo" class="w-10 h-10 object-contain" loading="lazy">
                         </div>
                         <div>
-                            <span class="text-lg font-bold text-white">NG5 <span
+                            <span class="text-lg font-bold text-white">DSKM <span
                                     class="text-primary-400">LMS</span></span>
                             <p class="text-xs text-dark-400">Learning Platform</p>
                         </div>
@@ -4846,7 +4919,7 @@
 
                 <!-- Sidebar Footer - User Info -->
                 <div class="lms-sidebar-footer">
-                    <div class="flex items-center gap-3 p-3 rounded-xl bg-dark-800/50 mb-3">
+                    <div class="sidebar-user-info flex items-center gap-3 p-3 rounded-xl mb-3">
                         <div
                             class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
                             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4856,7 +4929,7 @@
                             </svg>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p id="sidebar-user-email" class="text-sm text-white truncate">
+                            <p id="sidebar-user-email" class="text-sm text-white truncate sidebar-user-email">
                             </p>
                             <span id="sidebar-user-role" class="text-xs text-primary-400 font-medium"></span>
                         </div>
@@ -4887,18 +4960,6 @@
                             </svg>
                         </button>
 
-                        <!-- Brand Logo -->
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-lg">
-                                <img src="/ng5-logo.png" alt="NG5 Logo" class="w-8 h-8 object-contain" loading="lazy">
-                            </div>
-                            <div class="flex flex-col leading-tight">
-                                <span class="text-white font-semibold text-sm sm:text-base tracking-wide">NG5
-                                    LMS</span>
-                                <span class="text-dark-400 text-xs hidden sm:block">Industry
-                                    Dashboard</span>
-                            </div>
-                        </div>
 
                         <!-- Breadcrumbs -->
                         <nav class="lms-breadcrumbs" aria-label="Breadcrumb">
@@ -4966,6 +5027,13 @@
 
                     <!-- Dashboard Tab -->
                     <div id="dashboard-content" class="tab-content">
+
+                        <!-- Welcome Title (Student View Only) -->
+                        <div class="student-only hide mb-8">
+                            <h1 class="text-3xl md:text-4xl font-bold text-white dark:text-white" style="color: #ffffff;">
+                                Welcome Back Students
+                            </h1>
+                        </div>
 
                         <!-- Student Selection for Admin/Teacher -->
                         <div class="admin-only teacher-only hide mb-6">
@@ -5113,6 +5181,16 @@
                                     No recent activity
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Bible Verse Section -->
+                        <div class="mt-12 mb-8 text-center bible-verse-section">
+                            <p class="text-sm text-dark-300 italic leading-relaxed">
+                                "I can do all things through Christ who strengthens me."
+                            </p>
+                            <p class="text-xs text-dark-400 mt-2">
+                                – Philippians 4:13
+                            </p>
                         </div>
                     </div>
 
@@ -6998,7 +7076,7 @@
                 if (finalY < pageHeight - 30) {
                     doc.setFontSize(9);
                     doc.setTextColor(150, 150, 150);
-                    doc.text('This is an official grades report from NG5 LMS.', pageWidth / 2, pageHeight - 20, { align: 'center' });
+                    doc.text('This is an official grades report from DSKM LMS.', pageWidth / 2, pageHeight - 20, { align: 'center' });
                     doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
                 }
 
@@ -7202,7 +7280,7 @@
                 if (finalY < pageHeight - 30) {
                     doc.setFontSize(9);
                     doc.setTextColor(150, 150, 150);
-                    doc.text('This is an official attendance report from NG5 LMS.', pageWidth / 2, pageHeight - 20, { align: 'center' });
+                    doc.text('This is an official attendance report from DSKM LMS.', pageWidth / 2, pageHeight - 20, { align: 'center' });
                     doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
                 }
 
@@ -8496,7 +8574,7 @@
             // Typewriter effect
             const subtitleEl = document.getElementById('typewriter-subtitle');
             if (subtitleEl) {
-                const text = 'AI first Learning Management System with Secure by Design';
+                const text = 'Secure Learning Management System for Church Education';
                 let i = 0;
                 subtitleEl.style.borderRight = '2px solid var(--login-accent-1, #8B2942)';
 

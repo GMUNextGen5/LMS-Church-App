@@ -188,7 +188,6 @@ function setupAuthForms(): void {
 
 // --- App form setup (student/teacher reg, grades, attendance, dashboard) ---
 function setupAppForms(): void {
-  // Student Registration Form (Admin + Teacher)
   const studentRegForm = document.getElementById('student-registration-form') as HTMLFormElement;
   if (studentRegForm) {
     studentRegForm.addEventListener('submit', async (e) => {
@@ -474,7 +473,6 @@ function setupAppForms(): void {
     refreshAccountsBtn.addEventListener('click', () => populateStudentAccountDropdown());
   }
 
-  // AI Agent Chat (Admin + Teacher)
   setupAIAgentChat();
 
   const useManualBtn = document.getElementById('use-manual-uid-btn');
