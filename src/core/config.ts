@@ -7,6 +7,7 @@
 /**
  * Reads a string value from Vite env. Returns empty string if missing or not a string.
  * Use this for all config to avoid undefined and to keep secrets out of source.
+ * test comment
  */
 function env(key: string): string {
   const v = import.meta.env[key];

@@ -1327,17 +1327,16 @@
         }
 
         .input-glow:focus {
-            box-shadow:
-                0 0 0 3px rgba(6, 182, 212, 0.15),
-                0 0 20px rgba(6, 182, 212, 0.2);
             border-color: #06b6d4 !important;
+            outline: 2px solid rgba(6, 182, 212, 0.4);
+            outline-offset: 0;
         }
 
         [data-theme="light"] .input-glow:focus {
-            box-shadow:
-                0 0 0 3px rgba(3, 105, 161, 0.2),
-                0 0 8px rgba(3, 105, 161, 0.15);
             border-color: #0369a1 !important;
+            outline: 2px solid rgba(3, 105, 161, 0.35);
+            outline-offset: 0;
+            box-shadow: none;
         }
 
         /* ==================== AI RESPONSE CARD STYLES ==================== */
@@ -2181,6 +2180,19 @@
                 * All contrast ratios verified for WCAG 2.1 AA compliance:
                 * - Normal text (< 18pt): 4.5:1 minimum * - Large text (18pt+ or 14pt bold): 3:1 minimum * - UI
                     components: 3:1 minimum * - Focus indicators: 3px solid borders */
+        /* Light mode: ensure app content and cards show data with dark text */
+        [data-theme="light"] #app-container,
+        [data-theme="light"] .lms-content,
+        [data-theme="light"] .glass-effect {
+            color: #1e293b;
+        }
+        [data-theme="light"] #app-container .text-white:not(.tab-active):not(button):not([class*="bg-gradient"]):not(.bg-primary-500):not(.bg-red-500):not(.bg-green-500):not(.bg-blue-500) {
+            color: #1e293b !important;
+        }
+        [data-theme="light"] .glass-effect .text-white:not(button):not([class*="bg-"]) {
+            color: #1e293b !important;
+        }
+
         /* Convert white text to dark for
                     light backgrounds */
         [data-theme="light"] .text-white {
@@ -2289,9 +2301,7 @@
         }
 
         /* Focus states - 3px for visibility */
-        [data-theme="light"
-
-        ] input:focus,
+        [data-theme="light"] input:focus,
         [data-theme="light"] select:focus,
         [data-theme="light"] textarea:focus {
             border-color: #0369a1 !important;
@@ -2299,8 +2309,40 @@
             outline-offset: 0;
         }
 
-        /*
-                    Mobile menu - ADA compliant */
+        /* Search fields: single box, symmetric; light theme shading */
+        [data-theme="light"] .lms-global-search,
+        [data-theme="light"] .lms-dashboard-search {
+            background-color: #ffffff !important;
+            border-color: #94a3b8 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        [data-theme="light"] .lms-global-search:focus-within,
+        [data-theme="light"] .lms-dashboard-search:focus-within {
+            border-color: #0369a1 !important;
+            box-shadow: 0 0 0 2px rgba(3, 105, 161, 0.2), 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        [data-theme="light"] .lms-global-search input,
+        [data-theme="light"] .lms-dashboard-search input {
+            color: #1e293b !important;
+        }
+        [data-theme="light"] .lms-global-search input::placeholder,
+        [data-theme="light"] .lms-dashboard-search input::placeholder {
+            color: #64748b;
+        }
+        [data-theme="light"] .lms-global-search svg,
+        [data-theme="light"] .lms-dashboard-search svg {
+            color: #64748b !important;
+        }
+
+        /* Role badge - light theme: better contrast and subtle depth */
+        [data-theme="light"] #user-role-badge {
+            background-color: #e0f2fe !important;
+            border-color: #7dd3fc !important;
+            color: #0369a1 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Mobile menu - ADA compliant */
         [data-theme="light"] .mobile-menu-btn,
         [data-theme="light"] .mobile-menu-btn:hover {
             background-color: #f1f5f9 !important;
@@ -2357,9 +2399,7 @@
         [data-theme="light"] input:disabled,
         [data-theme="light"] select:disabled,
         [data-theme="light"] textarea:disabled,
-        [data-theme="light"
-
-        ] button:disabled {
+        [data-theme="light"] button:disabled {
             opacity: 1;
             cursor: not-allowed;
             background-color: #f1f5f9 !important;
@@ -4659,8 +4699,8 @@
         <div class="auth-footer">
             <div class="auth-footer-links">
                 <span>© 2026 NG5 LMS</span>
-                <a href="privacy.html" target="_blank" class="link">Privacy</a>
-                <a href="terms.html" target="_blank" class="link">Terms</a>
+                <a href="/privacy" class="link">Privacy</a>
+                <a href="/terms" class="link">Terms</a>
             </div>
         </div>
     </div>
@@ -4873,17 +4913,6 @@
 
                     <!-- Header Actions -->
                     <div class="lms-header-actions">
-                        <!-- Global Search -->
-                        <div
-                            class="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-800/50 border border-dark-700">
-                            <svg class="w-4 h-4 text-dark-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                            <input id="global-search" type="text" placeholder="Search students, grades..."
-                                class="bg-transparent text-sm text-white placeholder-dark-400 outline-none w-40 lg:w-56">
-                        </div>
-
                         <!-- Theme Toggle -->
                         <button id="theme-toggle-btn" class="theme-toggle" title="Toggle dark/light mode"
                             aria-label="Toggle theme">
@@ -4946,16 +4975,16 @@
                                     <h3 class="text-xl font-bold text-white">View Student
                                         Dashboard</h3>
                                     <div class="flex-1 max-w-md">
-                                        <div class="relative">
-                                            <input type="text" id="dashboard-student-search"
-                                                placeholder="Search by name or ID..."
-                                                class="w-full px-4 py-3 pl-10 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                            <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-400"
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <!-- Single search box: wrapper has bg/border, input is borderless for symmetry -->
+                                        <div class="lms-dashboard-search relative flex items-center rounded-lg bg-dark-800 border border-dark-600 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
+                                            <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z">
                                                 </path>
                                             </svg>
+                                            <input type="text" id="dashboard-student-search"
+                                                placeholder="Search by name or ID..."
+                                                class="w-full bg-transparent border-0 py-3 pl-10 pr-4 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:ring-0">
                                         </div>
                                     </div>
                                     <select id="dashboard-student-select"
@@ -5095,6 +5124,9 @@
                                 <div class="glass-effect rounded-2xl p-6 sticky top-24">
                                     <h3 class="text-xl font-bold text-white mb-4">Select
                                         Student</h3>
+                                    <input type="text" id="grades-student-search" placeholder="Search by name or email..."
+                                        class="w-full px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 text-sm mb-2"
+                                        aria-label="Search students by name or email">
                                     <select id="student-select"
                                         class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                         <option value="">-- Select a student --</option>
@@ -5387,6 +5419,9 @@
                                 <form id="mark-attendance-form" class="space-y-4">
                                     <div>
                                         <label class="block text-dark-200 text-sm font-semibold mb-2">Student</label>
+                                        <input type="text" id="attendance-student-search" placeholder="Search by name or email..."
+                                            class="w-full px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 text-sm mb-2"
+                                            aria-label="Search students by name or email">
                                         <select id="attendance-student-select" required
                                             class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                             <option value="">-- Select a student --</option>
@@ -5613,12 +5648,17 @@
 
                                         <!-- Dropdown Method (requires Cloud Functions) -->
                                         <div id="dropdown-method" class="space-y-2">
-                                            <div class="flex gap-2">
-                                                <select id="student-account-select"
-                                                    class="flex-1 px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                                    <option value="">-- Select Registered
-                                                        Account --</option>
-                                                </select>
+                                            <div class="flex gap-2 items-stretch">
+                                                <div id="student-account-dropdown" class="account-dropdown flex-1 relative">
+                                                    <div class="account-dropdown-trigger flex items-center justify-between w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="Link to student account">
+                                                        <span class="account-dropdown-value text-left truncate">-- Select Registered Account --</span>
+                                                        <svg class="w-5 h-5 text-dark-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    </div>
+                                                    <div class="account-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 rounded-lg bg-dark-800 border border-dark-600 shadow-xl hide">
+                                                        <input type="text" class="account-dropdown-search w-full px-4 py-2 border-b border-dark-600 bg-dark-900 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 rounded-t-lg" placeholder="Search by email..." autocomplete="off" aria-label="Search accounts by email">
+                                                        <div class="account-dropdown-list max-h-60 overflow-y-auto py-1" role="listbox"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" id="refresh-accounts-btn"
                                                     class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
                                                     title="Refresh accounts list">
@@ -5664,13 +5704,6 @@
 
                                         <!-- Hidden input that actually submits -->
                                         <input type="hidden" name="studentUid" id="final-student-uid" required>
-
-                                        <p class="text-xs text-dark-400 mt-2">
-                                            🔗 Student must create an account first!
-                                            <span class="text-blue-400">Get UID from
-                                                Firebase Console →
-                                                Authentication</span>
-                                        </p>
                                     </div>
 
                                 </div>
@@ -5704,6 +5737,11 @@
                         <div class="glass-effect rounded-2xl p-6 mt-6">
                             <h3 class="text-xl font-bold text-white mb-4">Registered
                                 Students</h3>
+                            <div class="mb-4">
+                                <input type="text" id="registered-students-search" placeholder="Search by Member ID, name, or email..."
+                                    class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                                    aria-label="Search registered students">
+                            </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full">
                                     <thead>
@@ -5809,11 +5847,17 @@
                                             Link to Teacher Account <span class="text-red-400">*</span>
                                         </label>
                                         <div id="teacher-dropdown-method" class="space-y-2">
-                                            <div class="flex gap-2">
-                                                <select id="teacher-account-select"
-                                                    class="flex-1 px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                                    <option value="">-- Select Registered Account --</option>
-                                                </select>
+                                            <div class="flex gap-2 items-stretch">
+                                                <div id="teacher-account-dropdown" class="account-dropdown flex-1 relative">
+                                                    <div class="account-dropdown-trigger flex items-center justify-between w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-label="Link to teacher account">
+                                                        <span class="account-dropdown-value text-left truncate">-- Select Registered Account --</span>
+                                                        <svg class="w-5 h-5 text-dark-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    </div>
+                                                    <div class="account-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 rounded-lg bg-dark-800 border border-dark-600 shadow-xl hide">
+                                                        <input type="text" class="account-dropdown-search w-full px-4 py-2 border-b border-dark-600 bg-dark-900 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 rounded-t-lg" placeholder="Search by email..." autocomplete="off" aria-label="Search accounts by email">
+                                                        <div class="account-dropdown-list max-h-60 overflow-y-auto py-1" role="listbox"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" id="refresh-teacher-accounts-btn"
                                                     class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
                                                     title="Refresh accounts list">
@@ -5840,9 +5884,6 @@
                                             </div>
                                         </div>
                                         <input type="hidden" name="teacherUid" id="final-teacher-uid" required>
-                                        <p class="text-xs text-dark-400 mt-2">
-                                            🔗 Teacher must create an account first! Get UID from Firebase Console → Authentication
-                                        </p>
                                     </div>
                                 </div>
 
@@ -5868,6 +5909,11 @@
                         <!-- Registered Teachers List (same structure as Registered Students) -->
                         <div class="glass-effect rounded-2xl p-6 mt-6">
                             <h3 class="text-xl font-bold text-white mb-4">Registered Teachers</h3>
+                            <div class="mb-4">
+                                <input type="text" id="registered-teachers-search" placeholder="Search by Member ID, name, or email..."
+                                    class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                                    aria-label="Search registered teachers">
+                            </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full">
                                     <thead>
@@ -6072,8 +6118,6 @@
                                                         class="w-1.5 h-1.5 bg-accent-400 rounded-full animate-pulse"></span>
                                                     Online
                                                 </span>
-                                                <span class="text-dark-500">•</span>
-                                                <span>Powered by Google Gemini</span>
                                             </p>
                                         </div>
                                     </div>
@@ -6349,6 +6393,11 @@
                                 </p>
                             </div>
 
+                            <div class="mb-4">
+                                <input type="text" id="users-search" placeholder="Search by name or email..."
+                                    class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                                    aria-label="Search users by name or email">
+                            </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full">
                                     <thead>
@@ -6408,6 +6457,58 @@
             <div id="ai-modal-content" class="text-dark-200 prose prose-invert max-w-none">
                 <!-- AI generated content will be inserted here -->
             </div>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal (Teacher/Admin) -->
+    <div id="edit-student-modal"
+        class="fixed inset-0 bg-dark-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 hide">
+        <div class="glass-effect rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-2xl font-bold text-white">Edit Student</h3>
+                <button type="button" id="edit-student-modal-close" class="p-2 rounded-lg hover:bg-dark-700 transition-all" aria-label="Close">
+                    <svg class="w-6 h-6 text-dark-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="edit-student-form" class="space-y-4">
+                <input type="hidden" id="edit-student-id" name="studentId">
+                <div>
+                    <label class="block text-dark-200 text-sm font-semibold mb-1">Name</label>
+                    <input type="text" id="edit-student-name" name="name" required
+                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
+                </div>
+                <div>
+                    <label class="block text-dark-200 text-sm font-semibold mb-1">Member ID</label>
+                    <input type="text" id="edit-student-memberId" name="memberId"
+                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
+                </div>
+                <div>
+                    <label class="block text-dark-200 text-sm font-semibold mb-1">Year of Birth</label>
+                    <input type="number" id="edit-student-yearOfBirth" name="yearOfBirth" min="1950" max="2015"
+                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
+                </div>
+                <div>
+                    <label class="block text-dark-200 text-sm font-semibold mb-1">Contact Phone</label>
+                    <input type="tel" id="edit-student-contactPhone" name="contactPhone" required
+                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
+                </div>
+                <div>
+                    <label class="block text-dark-200 text-sm font-semibold mb-1">Contact Email</label>
+                    <input type="email" id="edit-student-contactEmail" name="contactEmail" required
+                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
+                </div>
+                <div>
+                    <label class="block text-dark-200 text-sm font-semibold mb-1">Notes</label>
+                    <textarea id="edit-student-notes" name="notes" rows="2"
+                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all"></textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 py-3 px-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-all">Save</button>
+                    <button type="button" id="edit-student-cancel" class="py-3 px-4 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-all">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 
