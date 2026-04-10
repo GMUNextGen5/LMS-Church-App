@@ -253,7 +253,7 @@
  * ════════════════════════════════════════════════════════════════════════════
  * 
  * IF AI RESPONSES ARE POOR:
- * 1. Check prompt logs (console.log in Cloud Functions)
+ * 1. Check Cloud Functions logs for prompt and response traces
  * 2. Verify data is formatted correctly
  * 3. Test prompt with different students
  * 4. Try adjusting temperature (0.7 = balanced, 0.0 = deterministic, 1.0 = creative)
@@ -330,8 +330,6 @@ export function sanitizeForPrompt(value: unknown, maxLength: number = MAX_PROMPT
  * ALTERNATIVES: 
  *   - 'gemini-1.5-pro' (more capable, slower, more expensive)
  *   - 'gemini-pro' (older version)
- * 
- * TODO: Move to environment variable when migrating to dedicated API service
  */
 export const AI_MODEL_CONFIG = {
   model: 'gemini-2.5-flash',

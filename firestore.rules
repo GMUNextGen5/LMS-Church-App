@@ -1,175 +1,186 @@
 rules_version = '2';
+// Teacher access to student profiles and grades uses students.teacherIds (kept in sync from course rosters in app code).
+// Legacy data: run a one-time backfill of teacherIds from courses, or re-save affected class rosters after deploy.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ==================== HELPER FUNCTIONS ====================
-    
-    // Get the requesting user's role from their user document
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+
+    function userRef() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
     }
-    
-    // Check if the user is an Admin
+
+    function userDocExists() {
+      return exists(userRef());
+    }
+
+    function getUserRole() {
+      return userDocExists() ? get(userRef()).data.role : null;
+    }
+
     function isAdmin() {
       return request.auth != null && getUserRole() == 'admin';
     }
-    
-    // Check if the user is a Teacher
+
     function isTeacher() {
       return request.auth != null && getUserRole() == 'teacher';
     }
-    
-    // Check if the user is authenticated
+
+    function isStudentRole() {
+      return request.auth != null && getUserRole() == 'student';
+    }
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    function userStudentProfileId() {
+      return userDocExists() && get(userRef()).data.keys().hasAll(['studentProfileId'])
+        ? get(userRef()).data.studentProfileId
+        : null;
+    }
+
+    function isStudentEnrolledInCourse(courseId) {
+      let pid = userStudentProfileId();
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return isStudentRole() &&
+        pid != null &&
+        course.keys().hasAll(['studentIds']) &&
+        course.studentIds.hasAny([pid]);
+    }
+
+    function assessmentPublished(courseId, assessmentId) {
+      let a = get(/databases/$(database)/documents/courses/$(courseId)/assessments/$(assessmentId)).data;
+      return a.status == 'published';
+    }
+
+    // Teacher may only add/update studentProfileId on existing student accounts (registration link)
+    function isTeacherLinkingStudentProfile() {
+      return isTeacher() &&
+        resource.data.role == 'student' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentProfileId']);
+    }
+
+    function studentTeacherIdsDoc(studentId) {
+      return get(/databases/$(database)/documents/students/$(studentId)).data;
+    }
+
+    function teacherLinkedToStudent(studentId) {
+      let sd = studentTeacherIdsDoc(studentId);
+      return sd.keys().hasAll(['teacherIds']) &&
+        sd.teacherIds.hasAny([request.auth.uid]);
+    }
+
     // ==================== USER PROFILE RULES ====================
-    
-    // A user can read/update their own profile.
-    // An Admin can read/update anyone's profile.
-    // An Admin is the only one who can change the 'role' field.
+
     match /users/{uid} {
-      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin() || isTeacher());
-      
-      // Allow users to create their own document during signup with default 'student' role
-      allow create: if isAuthenticated() && request.auth.uid == uid && 
-                       request.resource.data.role == 'student';
-      
-      // Users can update their own profile EXCEPT the 'role' field
-      // Admins can update any profile including roles
-      allow update: if isAuthenticated() && (
-        (request.auth.uid == uid && !('role' in request.resource.data.diff(resource.data).affectedKeys())) 
-        || isAdmin()
+      allow read: if isAuthenticated() && (
+        request.auth.uid == uid ||
+        isAdmin() ||
+        (isTeacher() && resource.data.role == 'student')
       );
-      
+
+      allow create: if isAuthenticated() && request.auth.uid == uid &&
+        request.resource.data.role == 'student';
+
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == uid &&
+          !('role' in request.resource.data.diff(resource.data).affectedKeys()) &&
+          !('studentProfileId' in request.resource.data.diff(resource.data).affectedKeys())) ||
+        isAdmin() ||
+        isTeacherLinkingStudentProfile()
+      );
+
       allow delete: if isAdmin();
     }
 
-    // ==================== STUDENT DATA RULES (FERPA-COMPLIANT) ====================
-    
+    // ==================== STUDENT DATA RULES ====================
+
     match /students/{studentId} {
-    
-      // Helper: Check if this user is the parent or the student
+
       function isOwner() {
-        return request.auth.uid == resource.data.parentUid || 
-               request.auth.uid == resource.data.studentUid;
+        return request.auth.uid == resource.data.parentUid ||
+          request.auth.uid == resource.data.studentUid;
       }
 
-      // READ: Allowed by Admin, Owner (Parent/Student), or any Teacher.
-      // Note: Firestore rules cannot check array membership across collections,
-      // so we allow any teacher to read student records. Application-level filtering
-      // in fetchStudents() ensures teachers only see students in their courses.
-      allow read: if isAuthenticated() && (isAdmin() || isOwner() || isTeacher());
-      
-      // WRITE (Update/Delete): Allowed by Admin or any Teacher.
-      allow update, delete: if isAdmin() || isTeacher();
-      
-      // CREATE: Admin or Teacher can create new student profiles.
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isOwner() ||
+        (isTeacher() && resource.data.keys().hasAll(['teacherIds']) && resource.data.teacherIds.hasAny([request.auth.uid]))
+      );
+
+      // Profile edits and roster-driven teacherIds updates use app-layer checks; grade/attendance are rule-scoped below.
       allow create: if isAdmin() || isTeacher();
 
-      // ==================== SUB-COLLECTION RULES (GRADES & ATTENDANCE) ====================
-      
-      // Grades sub-collection
+      allow update, delete: if isAdmin() || isTeacher();
+
       match /grades/{gradeId} {
-        // Read access: Admin, Owner (student/parent), or any Teacher
         allow read: if isAuthenticated() && (
-          isAdmin() || 
-          isTeacher() ||
+          isAdmin() ||
+          (isTeacher() && teacherLinkedToStudent(studentId)) ||
           get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
           get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid
         );
-        
-        // Write access: Admin or any Teacher (for manual grade entry)
-        allow create, update, delete: if isAdmin() || isTeacher();
-        
-        // Allow the student/parent to create/update their own assessment-synced grades
-        // (when source == 'assessment', the grade was auto-synced after assessment submission)
-        allow create, update: if isAuthenticated() && 
-          request.resource.data.source == 'assessment' && (
-            get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid ||
-            get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid
-          );
+
+        allow create, update, delete: if isAdmin() || (isTeacher() && teacherLinkedToStudent(studentId));
       }
-      
-      // Attendance sub-collection
+
       match /attendance/{attendanceId} {
-        // Read access: Admin, Owner (student/parent), or any Teacher
         allow read: if isAuthenticated() && (
-          isAdmin() || 
-          isTeacher() ||
+          isAdmin() ||
+          (isTeacher() && teacherLinkedToStudent(studentId)) ||
           get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
           get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid
         );
-        
-        // Write access: Admin or any Teacher
-        allow create, update, delete: if isAdmin() || isTeacher();
+
+        allow create, update, delete: if isAdmin() || (isTeacher() && teacherLinkedToStudent(studentId));
       }
     }
-    
+
     // ==================== COURSE RULES ====================
-    
-    // Courses define teacher-to-student relationships
+
     match /courses/{courseId} {
       function isCourseTeacher() {
         return isTeacher() && request.auth.uid == resource.data.teacherId;
       }
-      
-      // Read: Admin, assigned teacher, or enrolled student
-      allow read: if isAuthenticated() && (isAdmin() || isCourseTeacher() || isEnrolledStudent(courseId));
-      
-      // Create: Admin or Teacher can create courses
+
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isCourseTeacher() ||
+        isStudentEnrolledInCourse(courseId)
+      );
+
       allow create: if isAdmin() || isTeacher();
-      
-      // Update/Delete: Admin or the assigned teacher
+
       allow update, delete: if isAdmin() || isCourseTeacher();
 
-      // ==================== ASSESSMENT RULES ====================
-      
-      // Assessments subcollection under courses
       match /assessments/{assessmentId} {
-        
-        // Helper: Check if user is teacher of this course
+
         function isAssessmentTeacher() {
           return request.auth != null && (
             isAdmin() ||
             get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid
           );
         }
-        
-        // Helper: Check if requesting student is enrolled in this course
-        // Students must have a student profile whose ID is in the course's studentIds array
-        function isEnrolledStudentForAssessment() {
-          return isAuthenticated();
-          // Note: Fine-grained per-student check is enforced at the submissions level.
-          // Published assessments are readable by any authenticated user who can read the course.
-        }
-        
-        // Read: Teachers/Admins can read all (draft + published).
-        //        Students can read only published assessments for courses they're enrolled in.
+
         allow read: if isAuthenticated() && (
           isAssessmentTeacher() ||
-          (resource.data.status == 'published')
+          (assessmentPublished(courseId, assessmentId) && isStudentEnrolledInCourse(courseId))
         );
-        
-        // Create/Update/Delete: Only course teacher or admin
+
         allow create, update, delete: if isAssessmentTeacher();
-        
-        // ==================== QUESTIONS SUBCOLLECTION ====================
+
         match /questions/{questionId} {
-          // Read: Anyone who can read the parent assessment
-          allow read: if isAuthenticated();
-          
-          // Write: Only course teacher or admin
+          allow read: if isAuthenticated() && (
+            isAssessmentTeacher() ||
+            (assessmentPublished(courseId, assessmentId) && isStudentEnrolledInCourse(courseId))
+          );
+
           allow create, update, delete: if isAssessmentTeacher();
         }
-        
-        // ==================== SUBMISSIONS SUBCOLLECTION ====================
-        // Document ID == studentProfileId
+
         match /submissions/{studentProfileId} {
 
-          // Helper: Check if this is the student's own submission
-          // The student profile's studentUid must match the requesting user's UID
           function isOwnSubmission() {
             let studentDoc = get(/databases/$(database)/documents/students/$(studentProfileId));
             return studentDoc != null && (
@@ -177,39 +188,22 @@ service cloud.firestore {
               studentDoc.data.parentUid == request.auth.uid
             );
           }
-          
-          // Read: Teacher/Admin can read all submissions. Student can read only their own.
+
           allow read: if isAuthenticated() && (
-            isAssessmentTeacher() || isOwnSubmission()
+            isAssessmentTeacher() ||
+            isOwnSubmission()
           );
-          
-          // Create: Student can create their own submission (start assessment)
+
           allow create: if isAuthenticated() && isOwnSubmission();
-          
-          // Update: 
-          //   - Student can update only if status is 'in_progress' (save progress, submit)
-          //   - Teacher/Admin can update any submission (grading, releasing, reopening)
+
           allow update: if isAuthenticated() && (
             isAssessmentTeacher() ||
             (isOwnSubmission() && resource.data.status == 'in_progress')
           );
-          
-          // Delete: Only admin can delete submissions
+
           allow delete: if isAdmin();
         }
       }
     }
-
-    // ==================== HELPER: Enrolled Student Check ====================
-    // Used by course read rule to allow students to see courses they're enrolled in.
-    // This is a simplified check – students can read courses to discover their assessments.
-    function isEnrolledStudent(courseId) {
-      // Allow any authenticated user to read courses for now.
-      // The studentIds array membership is checked at the application level.
-      // Firestore doesn't support "array-contains where element matches a query",
-      // so we rely on application-level filtering for student enrollment checks.
-      return isAuthenticated();
-    }
   }
 }
-

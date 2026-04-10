@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0a0f1a">
+    <meta name="theme-color" id="meta-theme-color" content="#0a0f1a">
     <title>DSKM LMS</title>
+    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
@@ -19,6 +20,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
         tailwind.config = {
+            darkMode: ['selector', '[data-theme="dark"] &'],
             theme: {
                 extend: {
                     colors: {
@@ -520,12 +522,51 @@
             padding: 48px;
             width: 100%;
             max-width: 420px;
+            min-height: min(28rem, 88vh);
             position: relative;
             overflow: hidden;
             animation: cardReveal 1s 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
                 box-shadow 0.4s ease,
                 border-color 0.4s ease;
+        }
+
+        /* Login / signup labels: inherit dark-theme vars by default; light uses slate-900 */
+        #auth-container label.auth-form-label {
+            color: var(--login-text-secondary);
+        }
+
+        [data-theme="light"] #auth-container label.auth-form-label {
+            color: #1e293b !important;
+        }
+
+        /* All auth field labels (guaranteed contrast on white card in light mode) */
+        [data-theme="light"] #auth-container .input-group label {
+            color: #1e293b !important;
+        }
+
+        #auth-container .input-group:focus-within label.auth-form-label {
+            color: var(--login-accent-1);
+        }
+
+        [data-theme="light"] #auth-container .input-group:focus-within label.auth-form-label {
+            color: #8b2942 !important;
+        }
+
+        /* Logo halo: lighter, intentional ring on light background */
+        [data-theme="light"] .ng5-logo-glow {
+            opacity: 0.2;
+            filter: blur(44px);
+        }
+
+        [data-theme="light"] .ng5-logo-ring {
+            background: linear-gradient(#f8fafc, #f8fafc) padding-box,
+                conic-gradient(from 0deg, var(--login-accent-1), var(--login-accent-2), var(--login-accent-3), var(--login-accent-1)) border-box;
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
+        }
+
+        [data-theme="light"] .ng5-logo-container {
+            filter: drop-shadow(0 6px 16px rgba(15, 23, 42, 0.06));
         }
 
         .auth-card::before {
@@ -569,7 +610,7 @@
         @keyframes cardReveal {
             from {
                 opacity: 0;
-                transform: translateY(30px) scale(0.95);
+                transform: translateY(8px) scale(0.99);
             }
 
             to {
@@ -1261,6 +1302,17 @@
             /* 5.1:1 on white - AA */
             --accent-gradient: linear-gradient(135deg, #0369a1 0%, #047857 100%);
             --accent-glow: rgba(3, 105, 161, 0.25);
+            /* Login / auth card — must stay dark-on-light (classic block must not override these) */
+            --login-text-primary: #0f172a;
+            --login-text-secondary: #1e293b;
+            --login-text-muted: #64748b;
+            --login-glass-bg: #ffffff;
+            --login-glass-border: #e2e8f0;
+        }
+
+        /* Form labels in main app: same contrast as Tailwind text-slate-900 in light mode */
+        [data-theme="light"] #app-container label.text-dark-200 {
+            color: #0f172a;
         }
 
         body {
@@ -1447,7 +1499,7 @@
         [data-theme="light"] input:focus-visible,
         [data-theme="light"] select:focus-visible,
         [data-theme="light"] textarea:focus-visible,
-        [data-theme="light"] .tab-btn:focus-visible {
+        [data-theme="light"] #app-container .tab-btn:focus-visible {
             outline: 3px solid #0369a1;
             outline-offset: 2px;
         }
@@ -2351,20 +2403,20 @@
                 1px solid #cbd5e1;
         }
 
-        /* Tab buttons - ADA compliant */
-        [data-theme="light"] .tab-btn:not(.tab-active) {
+        /* Tab buttons (main app only — auth uses .tab-btn.active, not .tab-active) */
+        [data-theme="light"] #app-container .tab-btn:not(.tab-active) {
             color: #475569 !important;
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
         }
 
-        [data-theme="light"] .tab-btn:not(.tab-active):hover {
+        [data-theme="light"] #app-container .tab-btn:not(.tab-active):hover {
             background: #e2e8f0;
             color:
                 #0369a1 !important;
         }
 
-        [data-theme="light"] .tab-btn.tab-active {
+        [data-theme="light"] #app-container .tab-btn.tab-active {
             color: #ffffff !important;
             background: linear-gradient(135deg, #0369a1 0%, #047857 100%);
         }
@@ -2579,6 +2631,22 @@
             border: 1px solid #cbd5e1;
             box-shadow: 0 25px 50px rgba(15, 23, 42, 0.25),
                 0 10px 20px rgba(15, 23, 42, 0.15);
+        }
+
+        /* AI modal body: readable on white when Typography plugin is absent */
+        [data-theme="light"] #ai-modal-content {
+            color: #334155 !important;
+        }
+
+        [data-theme="light"] #ai-modal-content h1,
+        [data-theme="light"] #ai-modal-content h2,
+        [data-theme="light"] #ai-modal-content h3,
+        [data-theme="light"] #ai-modal-content h4 {
+            color: #0f172a !important;
+        }
+
+        [data-theme="light"] #ai-modal-content a {
+            color: #0369a1 !important;
         }
 
         /* Button styles in light mode - ADA compliant */
@@ -2849,6 +2917,13 @@
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
             animation: classModalIn 0.2s ease-out;
         }
+
+        [data-theme="light"] .classes-modal-box {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #1e293b;
+            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12);
+        }
         @keyframes classModalIn {
             from { opacity: 0; transform: scale(0.95) translateY(10px); }
             to   { opacity: 1; transform: scale(1) translateY(0); }
@@ -2884,6 +2959,14 @@
         .student-dropdown-menu.hidden { display: none; }
         .student-dropdown-item { display: flex; align-items: center; gap: 0.5rem; }
         .student-dropdown-item:hover { background: rgba(6, 182, 212, 0.08); }
+        [data-theme="light"] .student-dropdown-menu {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        }
+        [data-theme="light"] .student-dropdown-item:hover {
+            background: #f1f5f9;
+        }
         .student-dropdown-item input[type="checkbox"] {
             width: 16px; height: 16px;
             accent-color: #06b6d4;
@@ -3259,10 +3342,16 @@
                 padding: 0.75rem;
             }
 
-            #ai-agent-input {
+            .ai-input-autogrow-scroll {
+                min-height: 56px;
+            }
+
+            .ai-autogrow-mirror,
+            .ai-autogrow-textarea {
+                min-height: 56px;
                 padding: 0.75rem 1rem;
+                padding-right: 5rem;
                 font-size: 0.95rem;
-                min-height: 48px;
             }
 
             #ai-agent-send-btn {
@@ -3608,11 +3697,17 @@
             }
 
             /* Input area small */
-            #ai-agent-input {
-                padding: 0.6rem 0.75rem;
-                font-size: 0.9rem;
-                min-height: 44px;
+            .ai-input-autogrow-scroll {
+                min-height: 56px;
                 border-radius: 0.75rem;
+            }
+
+            .ai-autogrow-mirror,
+            .ai-autogrow-textarea {
+                min-height: 56px;
+                padding: 0.6rem 0.75rem;
+                padding-right: 4.5rem;
+                font-size: 0.9rem;
             }
 
             #ai-agent-send-btn {
@@ -3785,7 +3880,7 @@
 
         /* ==================== STYLE THEME SYSTEM (Classic/Sci-Fi) ==================== */
 
-        /* Classic Theme - Cyan/Teal colors, minimal animations */
+        /* Classic Theme - Cyan/Teal accents (shared). Login text/glass tokens only in DARK — never override light mode. */
         [data-style="classic"] {
             --login-bg-primary: #0a0f1a;
             --login-bg-secondary: #111827;
@@ -3793,12 +3888,15 @@
             --login-accent-2: #22d3ee;
             --login-accent-3: #0891b2;
             --login-accent-4: #10b981;
+            --login-glow: rgba(6, 182, 212, 0.4);
+        }
+
+        [data-theme="dark"][data-style="classic"] {
             --login-text-primary: #f1f5f9;
             --login-text-secondary: rgba(241, 245, 249, 0.8);
             --login-text-muted: rgba(241, 245, 249, 0.5);
             --login-glass-bg: rgba(6, 182, 212, 0.05);
             --login-glass-border: rgba(6, 182, 212, 0.2);
-            --login-glow: rgba(6, 182, 212, 0.4);
         }
 
         /* Classic theme - Hide Sci-Fi specific elements */
@@ -3859,8 +3957,8 @@
             color: #64748b !important;
         }
 
-        /* Light mode - Form labels */
-        [data-theme="light"] label {
+        /* Light mode - Form labels (app shell only; auth labels use --login-text-* on #auth-container) */
+        [data-theme="light"] #app-container label {
             color: #334155 !important;
         }
 
@@ -3890,6 +3988,60 @@
         /* Light mode - Input icons */
         [data-theme="light"] .input-icon {
             color: #64748b !important;
+        }
+
+        /* Light mode - Auth card: solid surface, tab rail, inputs (complements --login-* on html) */
+        [data-theme="light"] #auth-container .auth-card {
+            box-shadow:
+                0 4px 24px rgba(15, 23, 42, 0.08),
+                0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+
+        [data-theme="light"] #auth-container .auth-card::before {
+            background: linear-gradient(135deg, rgba(3, 105, 161, 0.06) 0%, transparent 55%);
+        }
+
+        [data-theme="light"] #auth-container .auth-card:hover {
+            border-color: rgba(139, 41, 66, 0.35);
+            box-shadow:
+                0 24px 48px rgba(15, 23, 42, 0.1),
+                0 0 24px rgba(139, 41, 66, 0.08);
+        }
+
+        [data-theme="light"] #auth-container .auth-tabs {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+        }
+
+        [data-theme="light"] #auth-container .input-wrapper input {
+            color: #0f172a !important;
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+        }
+
+        [data-theme="light"] #auth-container .input-wrapper input:hover {
+            border-color: #cbd5e1 !important;
+            background: #f8fafc !important;
+        }
+
+        [data-theme="light"] #auth-container .input-wrapper input:focus {
+            background: #ffffff !important;
+            border-color: var(--login-accent-1) !important;
+        }
+
+        [data-theme="light"] #auth-container .divider::before,
+        [data-theme="light"] #auth-container .divider::after {
+            background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+        }
+
+        [data-theme="light"] #auth-container .auth-card .link {
+            color: #8b2942 !important;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        [data-theme="light"] #auth-container .auth-card .link:hover {
+            color: #6b1d32 !important;
         }
 
         /* Bible verse section styling */
@@ -3930,6 +4082,21 @@
         [data-style="classic"] .auth-card:hover {
             border-color: rgba(6, 182, 212, 0.4);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(6, 182, 212, 0.1);
+        }
+
+        [data-theme="light"][data-style="classic"] .auth-card {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow:
+                0 4px 24px rgba(15, 23, 42, 0.08),
+                0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+
+        [data-theme="light"][data-style="classic"] .auth-card:hover {
+            border-color: rgba(139, 41, 66, 0.35) !important;
+            box-shadow:
+                0 24px 48px rgba(15, 23, 42, 0.1),
+                0 0 24px rgba(139, 41, 66, 0.08);
         }
 
         /* Classic theme - Tab styling */
@@ -4500,6 +4667,57 @@
             flex: 1;
         }
 
+        /* ==================== AI CHAT AUTO-GROW (CSS grid + mirror) ==================== */
+        .ai-input-autogrow-scroll {
+            min-height: 56px;
+            max-height: 150px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .ai-input-autogrow-grid {
+            display: grid;
+            width: 100%;
+        }
+
+        .ai-autogrow-mirror,
+        .ai-autogrow-textarea {
+            grid-column: 1;
+            grid-row: 1;
+            width: 100%;
+            margin: 0;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.5;
+            padding: 1rem 1.25rem;
+            padding-right: 6rem;
+        }
+
+        .ai-autogrow-mirror {
+            visibility: hidden;
+            white-space: pre-wrap;
+            word-break: break-word;
+            min-height: 56px;
+            border: 2px solid transparent;
+            pointer-events: none;
+        }
+
+        .ai-autogrow-textarea {
+            align-self: stretch;
+            resize: none;
+            overflow: hidden;
+            min-height: 56px;
+            border: none;
+            background: transparent;
+            color: inherit;
+        }
+
+        .ai-autogrow-textarea:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
         /* ==================== CHART STYLING ==================== */
 
         .chart-container {
@@ -4551,13 +4769,23 @@
 
         .chart-canvas-wrapper {
             position: relative;
-            height: 250px;
             width: 100%;
+            min-height: 220px;
+            height: 0;
+            padding-bottom: 56.25%;
+            /* 16:9 reserved space reduces CLS before Chart.js paints */
+        }
+
+        .chart-canvas-wrapper>canvas {
+            position: absolute;
+            inset: 0;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .charts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
             gap: 1.5rem;
             margin-top: 1.5rem;
         }
@@ -4568,7 +4796,8 @@
             }
 
             .chart-canvas-wrapper {
-                height: 200px;
+                min-height: 200px;
+                padding-bottom: 62.5%;
             }
         }
 
@@ -4596,6 +4825,70 @@
         .chart-purple {
             background: #8b5cf6;
         }
+
+        /* Light mode: chart card copy + canvas chrome (non-Tailwind variables) */
+        [data-theme="light"] .chart-container {
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --bg-secondary: rgba(248, 250, 252, 0.98);
+            --border-color: rgba(15, 23, 42, 0.1);
+        }
+
+        /* Loading overlay stays on a dark scrim in both themes */
+        [data-theme="light"] #loading-overlay,
+        [data-theme="light"] #loading-overlay .text-white {
+            color: #f8fafc !important;
+        }
+
+        /* Main shell: prevent viewport horizontal scroll on narrow phones */
+        #app-container {
+            max-width: 100%;
+            overflow-x: clip;
+        }
+
+        .lms-main {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .lms-content,
+        .tab-content {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .overflow-x-auto {
+            max-width: 100%;
+        }
+
+        /* AI chat user bubble text (readable on light tinted backgrounds) */
+        .ai-chat-user-text {
+            color: #f8fafc;
+        }
+
+        [data-theme="light"] .ai-chat-user-text {
+            color: #0f172a;
+        }
+
+        .stats-letter-placeholder {
+            color: #cbd5e1;
+        }
+
+        [data-theme="light"] .stats-letter-placeholder {
+            color: #64748b;
+        }
+
+        /*
+         * Final cascade guard: when data-theme="light", login semantic tokens MUST win over
+         * [data-style="classic"] (same specificity; this block is last in the sheet).
+         */
+        [data-theme="light"] {
+            --login-text-primary: #0f172a;
+            --login-text-secondary: #1e293b;
+            --login-text-muted: #64748b;
+            --login-glass-bg: #ffffff;
+            --login-glass-border: #e2e8f0;
+        }
     </style>
 </head>
 
@@ -4622,8 +4915,8 @@
                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                     </svg>
-                    <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <svg class="theme-icon sun-icon hide" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"></circle>
                         <line x1="12" y1="1" x2="12" y2="3"></line>
                         <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -4664,7 +4957,7 @@
                 <form id="login-form" method="post" action="#" onsubmit="event.preventDefault(); return false;" aria-labelledby="login-form-title">
                     <h2 id="login-form-title" class="sr-only">Sign in to your account</h2>
                     <div class="input-group">
-                        <label for="login-email">Email address</label>
+                        <label for="login-email" class="auth-form-label text-slate-900 dark:text-slate-300">Email address</label>
                         <div class="input-wrapper">
                             <input type="email" id="login-email" name="email" required placeholder="name@example.com"
                                 autocomplete="email" aria-describedby="login-email-desc">
@@ -4678,7 +4971,7 @@
                         </div>
                     </div>
                     <div class="input-group">
-                        <label for="login-password">Password</label>
+                        <label for="login-password" class="auth-form-label text-slate-900 dark:text-slate-300">Password</label>
                         <div class="input-wrapper">
                             <input type="password" id="login-password" name="password" required
                                 placeholder="Enter your password" autocomplete="current-password"
@@ -4695,7 +4988,7 @@
                     <button type="submit" class="btn-primary" aria-label="Sign in to your account">
                         <span>Sign in</span>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" style="margin-left: 8px;" aria-hidden="true">
+                            stroke-width="2" class="ml-2 shrink-0" aria-hidden="true">
                             <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
                     </button>
@@ -4712,7 +5005,7 @@
             <div id="signup-form-container" class="hide">
                 <form id="signup-form" method="post" action="#" onsubmit="event.preventDefault(); return false;">
                     <div class="input-group">
-                        <label>Email address</label>
+                        <label class="auth-form-label text-slate-900 dark:text-slate-300">Email address</label>
                         <div class="input-wrapper">
                             <input type="email" name="email" required placeholder="name@example.com"
                                 autocomplete="email">
@@ -4725,7 +5018,7 @@
                         </div>
                     </div>
                     <div class="input-group">
-                        <label>Password</label>
+                        <label class="auth-form-label text-slate-900 dark:text-slate-300">Password</label>
                         <div class="input-wrapper">
                             <input type="password" name="password" required minlength="6"
                                 placeholder="Create a password" autocomplete="new-password">
@@ -4737,7 +5030,7 @@
                         </div>
                     </div>
                     <div class="input-group">
-                        <label>Confirm Password</label>
+                        <label class="auth-form-label text-slate-900 dark:text-slate-300">Confirm Password</label>
                         <div class="input-wrapper">
                             <input type="password" name="confirmPassword" required minlength="6"
                                 placeholder="Confirm your password" autocomplete="new-password">
@@ -4751,7 +5044,7 @@
                     <button type="submit" class="btn-primary">
                         <span>Create account</span>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" style="margin-left: 8px;">
+                            stroke-width="2" class="ml-2 shrink-0">
                             <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                             <circle cx="8.5" cy="7" r="4"></circle>
                             <line x1="20" y1="8" x2="20" y2="14"></line>
@@ -5030,7 +5323,7 @@
 
                         <!-- Welcome Title (Student View Only) -->
                         <div class="student-only hide mb-8">
-                            <h1 class="text-3xl md:text-4xl font-bold text-white dark:text-white" style="color: #ffffff;">
+                            <h1 class="text-3xl md:text-4xl font-bold text-white">
                                 Welcome Back Students
                             </h1>
                         </div>
@@ -5039,10 +5332,10 @@
                         <div class="admin-only teacher-only hide mb-6">
                             <div class="glass-effect rounded-2xl p-6">
                                 <div
-                                    class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
-                                    <h3 class="text-xl font-bold text-white">View Student
+                                    class="flex flex-col md:flex-row md:flex-wrap gap-4 items-stretch md:items-center justify-between mb-4">
+                                    <h3 class="text-xl font-bold text-white w-full md:w-auto shrink-0">View Student
                                         Dashboard</h3>
-                                    <div class="flex-1 max-w-md">
+                                    <div class="w-full md:flex-1 md:max-w-md md:min-w-0">
                                         <!-- Single search box: wrapper has bg/border, input is borderless for symmetry -->
                                         <div class="lms-dashboard-search relative flex items-center rounded-lg bg-dark-800 border border-dark-600 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
                                             <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5056,7 +5349,7 @@
                                         </div>
                                     </div>
                                     <select id="dashboard-student-select"
-                                        class="px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all min-w-[250px]">
+                                        class="w-full md:w-auto md:min-w-[12rem] px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                         <option value="">-- Select a student --</option>
                                     </select>
                                 </div>
@@ -5081,7 +5374,7 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <!-- Quick Stats Cards -->
-                            <div class="glass-effect rounded-2xl p-6 card-hover">
+                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-dark-200 font-semibold">Total Students
                                     </h3>
@@ -5097,7 +5390,7 @@
                                 <p id="stats-total-students" class="text-4xl font-bold text-white">0</p>
                             </div>
 
-                            <div class="glass-effect rounded-2xl p-6 card-hover teacher-only admin-only hide">
+                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover teacher-only admin-only hide">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-dark-200 font-semibold">Active Courses
                                     </h3>
@@ -5113,7 +5406,7 @@
                                 <p id="stats-active-courses" class="text-4xl font-bold text-white">0</p>
                             </div>
 
-                            <div class="glass-effect rounded-2xl p-6 card-hover">
+                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-dark-200 font-semibold">Average Grade
                                     </h3>
@@ -5132,7 +5425,7 @@
                                     assignments</p>
                             </div>
 
-                            <div class="glass-effect rounded-2xl p-6 card-hover">
+                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-dark-200 font-semibold">Letter Grade
                                     </h3>
@@ -5149,7 +5442,7 @@
                             </div>
 
                             <!-- Attendance Rate Card (shown when student selected) -->
-                            <div id="dashboard-attendance-card" class="glass-effect rounded-2xl p-6 card-hover hide">
+                            <div id="dashboard-attendance-card" class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover hide">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-dark-200 font-semibold">Attendance Rate
                                     </h3>
@@ -6226,8 +6519,7 @@
                             </div>
 
                             <!-- Chat Messages Container -->
-                            <div id="ai-agent-messages" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth"
-                                style="scroll-behavior: smooth;">
+                            <div id="ai-agent-messages" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
                                 <!-- Welcome message -->
                                 <div class="flex items-start gap-4 animate-fade-in-up">
                                     <div
@@ -6339,8 +6631,8 @@
                                 </div>
 
                                 <!-- Quick Suggestions -->
-                                <div id="ai-quick-suggestions" class="flex flex-wrap gap-2 px-2 animate-fade-in-up"
-                                    style="animation-delay: 0.2s;">
+                                <div id="ai-quick-suggestions"
+                                    class="flex flex-wrap gap-2 px-2 animate-fade-in-up [animation-delay:200ms]">
                                     <p class="w-full text-dark-400 text-sm mb-1 flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -6409,15 +6701,19 @@
                                 </div>
 
                                 <div class="flex gap-3 items-end">
-                                    <div class="flex-1 relative group">
-                                        <textarea id="ai-agent-input"
-                                            placeholder="Ask me anything about your students..." rows="1"
-                                            maxlength="500"
-                                            class="w-full px-5 py-4 pr-24 rounded-2xl bg-dark-800/80 border-2 border-dark-700 text-white placeholder-dark-500 focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all resize-none overflow-hidden"
-                                            style="min-height: 56px; max-height: 150px;" autocomplete="off"
-                                            onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('ai-agent-send-btn').click(); }"
-                                            oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 150) + 'px'; document.getElementById('ai-char-count').textContent = this.value.length + ' / 500';"></textarea>
-                                        <div class="absolute right-4 bottom-4 flex items-center gap-2">
+                                    <div class="relative flex min-w-0 flex-1 group">
+                                        <div
+                                            class="ai-input-autogrow-scroll w-full rounded-2xl border-2 border-dark-700 bg-dark-800/80 text-white transition-all focus-within:border-primary-500 focus-within:ring-4 focus-within:ring-primary-500/10">
+                                            <div class="ai-input-autogrow-grid">
+                                                <span id="ai-agent-input-mirror" class="ai-autogrow-mirror"
+                                                    aria-hidden="true"></span>
+                                                <textarea id="ai-agent-input" rows="1" maxlength="500"
+                                                    autocomplete="off"
+                                                    placeholder="Ask me anything about your students..."
+                                                    class="ai-autogrow-textarea placeholder-dark-500"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="pointer-events-none absolute bottom-4 right-4 flex items-center gap-2">
                                             <kbd
                                                 class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded-md bg-dark-700/50 text-dark-400 text-xs border border-dark-600">
                                                 <span>Enter</span>
@@ -6532,8 +6828,7 @@
                     </svg>
                 </button>
             </div>
-            <div id="ai-modal-content" class="text-dark-200 prose prose-invert max-w-none">
-                <!-- AI generated content will be inserted here -->
+            <div id="ai-modal-content" class="text-dark-200 prose max-w-none dark:prose-invert">
             </div>
         </div>
     </div>
@@ -6690,61 +6985,68 @@
          * - Animated toggle button
          */
 
-        // Theme state
+        const LMS_THEME_STORAGE_KEY = 'theme';
+        const LMS_ALLOWED_THEMES = new Set(['dark', 'light']);
+
         let currentTheme = 'dark';
 
         /**
-         * Initialize theme on page load
+         * Reads a validated theme from localStorage (invalid keys are removed).
          */
         function initTheme() {
-            console.log('🎨 [Theme] Initializing theme system...');
+            let stored = null;
+            try {
+                const raw = localStorage.getItem(LMS_THEME_STORAGE_KEY);
+                if (raw && LMS_ALLOWED_THEMES.has(raw)) stored = raw;
+                else if (raw) localStorage.removeItem(LMS_THEME_STORAGE_KEY);
+            } catch (e) {
+                stored = null;
+            }
 
-            // Get saved theme or detect system preference
-            const savedTheme = localStorage.getItem('theme');
             const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            currentTheme = stored || (systemPrefersDark ? 'dark' : 'light');
 
-            currentTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
-
-            console.log('🎨 [Theme] Detected theme:', currentTheme);
-
-            // Apply theme immediately (before page renders)
             applyTheme(currentTheme, false);
-
-            // Set up theme toggle buttons
             setupThemeToggles();
 
-            // Listen for system theme changes
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-                if (!localStorage.getItem('theme')) {
-                    // Only auto-switch if user hasn't set a preference
-                    const newTheme = e.matches ? 'dark' : 'light';
-                    console.log('🎨 [Theme] System preference changed to:', newTheme);
-                    applyTheme(newTheme, true);
+                try {
+                    if (localStorage.getItem(LMS_THEME_STORAGE_KEY)) return;
+                } catch (err) {
+                    return;
                 }
+                const newTheme = e.matches ? 'dark' : 'light';
+                applyTheme(newTheme, true);
             });
-
-            console.log('✅ [Theme] Theme system initialized');
         }
 
         /**
          * Apply theme to document
          */
+        function updateThemeColorMeta(theme) {
+            const meta = document.getElementById('meta-theme-color');
+            if (!meta) return;
+            meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#0a0f1a');
+        }
+
         function applyTheme(theme, animate = true) {
-            console.log('🎨 [Theme] Applying theme:', theme);
 
             currentTheme = theme;
 
             // Update document attribute
             document.documentElement.setAttribute('data-theme', theme);
 
-            // Save to localStorage
-            localStorage.setItem('theme', theme);
+            try {
+                if (LMS_ALLOWED_THEMES.has(theme)) {
+                    localStorage.setItem(LMS_THEME_STORAGE_KEY, theme);
+                }
+            } catch (e) { /* private mode / quota */ }
 
             // Update all toggle buttons
             updateThemeToggles(theme);
 
-            // Log success
-            console.log('✅ [Theme] Theme applied:', theme);
+            updateThemeColorMeta(theme);
+            document.dispatchEvent(new CustomEvent('lms-theme-changed', { detail: { theme } }));
         }
 
         /**
@@ -6752,7 +7054,6 @@
          */
         function toggleTheme() {
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            console.log('🎨 [Theme] Toggling theme from', currentTheme, 'to', newTheme);
             applyTheme(newTheme, true);
         }
 
@@ -6764,14 +7065,12 @@
             const authToggle = document.getElementById('auth-theme-toggle-btn');
             if (authToggle) {
                 authToggle.addEventListener('click', toggleTheme);
-                console.log('✅ [Theme] Auth theme toggle button initialized');
             }
 
             // Dashboard theme toggle
             const dashboardToggle = document.getElementById('theme-toggle-btn');
             if (dashboardToggle) {
                 dashboardToggle.addEventListener('click', toggleTheme);
-                console.log('✅ [Theme] Dashboard theme toggle button initialized');
             }
         }
 
@@ -6817,7 +7116,6 @@
          */
 
         function setupEnhancedTabSwitching() {
-            console.log('🎬 [Tabs] Setting up enhanced tab animations...');
 
             const tabButtons = document.querySelectorAll('.tab-btn');
             const tabContents = document.querySelectorAll('.tab-content');
@@ -6826,7 +7124,6 @@
                 button.addEventListener('click', function () {
                     const tabName = this.dataset.tab;
 
-                    console.log('🎬 [Tabs] Switching to tab:', tabName);
 
                     // Remove active class from all buttons
                     tabButtons.forEach(btn => {
@@ -6856,13 +7153,11 @@
                             });
                             document.dispatchEvent(event);
 
-                            console.log('✅ [Tabs] Tab switched to:', tabName);
                         }, 50);
                     }
                 });
             });
 
-            console.log('✅ [Tabs] Enhanced tab animations initialized');
         }
 
         // Initialize tab animations when DOM is ready
@@ -6888,7 +7183,6 @@
                 return;
             }
             window._pdfReportSetupDone = true;
-            console.log('📄 [PDF] Setting up PDF report generation (once)...');
 
             const gradesBtn = document.getElementById('download-grades-pdf-btn');
             const attendanceBtn = document.getElementById('download-attendance-pdf-btn');
@@ -6896,26 +7190,22 @@
 
             if (gradesBtn) {
                 gradesBtn.addEventListener('click', () => {
-                    console.log('🖱️ [PDF] Grades Report button clicked');
                     generateGradesReport();
                 });
             }
 
             if (attendanceBtn) {
                 attendanceBtn.addEventListener('click', () => {
-                    console.log('🖱️ [PDF] Attendance Report button clicked');
                     generateAttendanceReport();
                 });
             }
 
             if (transcriptBtn) {
                 transcriptBtn.addEventListener('click', () => {
-                    console.log('🖱️ [PDF] Official Transcript button clicked');
                     generateOfficialTranscript();
                 });
             }
 
-            console.log('✅ [PDF] PDF report buttons initialized');
         }
 
         /**
@@ -6924,7 +7214,7 @@
         async function generateGradesReport() {
             if (typeof window.jspdf === 'undefined') {
                 alert('PDF library not loaded. Please refresh the page and try again.');
-                console.error('❌ [PDF] jsPDF library not available');
+                console.error('[PDF] jsPDF library not available');
                 return;
             }
 
@@ -6937,7 +7227,6 @@
                 return;
             }
 
-            console.log('📄 [PDF] Generating Grades Report for:', selectedStudentId);
 
             try {
                 // Get student data from the UI
@@ -6948,7 +7237,6 @@
                 const gradesTableBody = document.getElementById('grades-table-body');
                 const gradeRows = gradesTableBody ? gradesTableBody.querySelectorAll('tr') : [];
 
-                console.log(`📊 [PDF] Found ${gradeRows.length} grade rows`);
 
                 const grades = [];
                 gradeRows.forEach((row, index) => {
@@ -6978,7 +7266,6 @@
                     }
                 });
 
-                console.log(`📊 [PDF] Processed ${grades.length} grades:`, grades);
 
                 const student = {
                     name: studentName || 'Student',
@@ -7026,7 +7313,6 @@
                     ? (numericGrades.reduce((sum, g) => sum + parseFloat(g.gradeValue), 0) / numericGrades.length).toFixed(2)
                     : 'N/A';
 
-                console.log(`📊 [PDF] Calculated GPA: ${gpa} from ${numericGrades.length} valid grades`);
 
                 doc.setFont(undefined, 'bold');
                 doc.text(`Overall GPA: ${gpa}`, 14, 93);
@@ -7083,12 +7369,11 @@
                 // Save PDF
                 const fileName = `Grades_Report_${(student.name || student.id).replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
                 doc.save(fileName);
-                console.log('✅ [PDF] Grades report generated and downloaded:', fileName);
                 alert('Grades Report PDF downloaded successfully!');
 
             } catch (error) {
-                console.error('❌ [PDF] Error generating grades report:', error);
-                console.error('❌ [PDF] Error details:', error.stack);
+                console.error('[PDF] Error generating grades report:', error);
+                console.error('[PDF] Error details:', error.stack);
                 alert('Error generating grades report: ' + (error.message || 'Unknown error') + '\n\nCheck browser console for details.');
             }
         }
@@ -7099,7 +7384,7 @@
         async function generateAttendanceReport() {
             if (typeof window.jspdf === 'undefined') {
                 alert('PDF library not loaded. Please refresh the page and try again.');
-                console.error('❌ [PDF] jsPDF library not available');
+                console.error('[PDF] jsPDF library not available');
                 return;
             }
 
@@ -7112,7 +7397,6 @@
                 return;
             }
 
-            console.log('📄 [PDF] Generating Attendance Report for:', selectedStudentId);
 
             try {
                 // Get student data from the UI
@@ -7123,7 +7407,6 @@
                 const attendanceTableBody = document.getElementById('attendance-history-body');
                 const attendanceRows = attendanceTableBody ? attendanceTableBody.querySelectorAll('tr') : [];
 
-                console.log(`📊 [PDF] Found ${attendanceRows.length} attendance rows`);
 
                 const attendance = [];
                 attendanceRows.forEach(row => {
@@ -7156,7 +7439,6 @@
                     }
                 });
 
-                console.log(`📊 [PDF] Processed ${attendance.length} attendance records:`, attendance);
 
                 const student = {
                     name: studentName || 'Student',
@@ -7287,12 +7569,11 @@
                 // Save PDF
                 const fileName = `Attendance_Report_${(student.name || student.id).replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
                 doc.save(fileName);
-                console.log('✅ [PDF] Attendance report generated and downloaded:', fileName);
                 alert('Attendance Report PDF downloaded successfully!');
 
             } catch (error) {
-                console.error('❌ [PDF] Error generating attendance report:', error);
-                console.error('❌ [PDF] Error details:', error.stack);
+                console.error('[PDF] Error generating attendance report:', error);
+                console.error('[PDF] Error details:', error.stack);
                 alert('Error generating attendance report: ' + (error.message || 'Unknown error') + '\n\nCheck browser console for details.');
             }
         }
@@ -7303,7 +7584,7 @@
         async function generateFullReportCard() {
             if (typeof window.jspdf === 'undefined') {
                 alert('PDF library not loaded. Please refresh the page and try again.');
-                console.error('❌ [PDF] jsPDF library not available');
+                console.error('[PDF] jsPDF library not available');
                 return;
             }
 
@@ -7316,7 +7597,6 @@
                 return;
             }
 
-            console.log('📄 [PDF] Generating Full Report Card for:', selectedStudentId);
 
             try {
                 // Get student data from the UI
@@ -7590,12 +7870,11 @@
                 // Save PDF
                 const fileName = `Report_Card_${(student.name || student.id).replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
                 doc.save(fileName);
-                console.log('✅ [PDF] Full report card generated and downloaded:', fileName);
                 alert('Full Report Card PDF downloaded successfully!');
 
             } catch (error) {
-                console.error('❌ [PDF] Error generating report card:', error);
-                console.error('❌ [PDF] Error details:', error.stack);
+                console.error('[PDF] Error generating report card:', error);
+                console.error('[PDF] Error details:', error.stack);
                 alert('Error generating report card: ' + (error.message || 'Unknown error') + '\n\nCheck browser console for details.');
             }
         }
@@ -7607,7 +7886,7 @@
         async function generateOfficialTranscript() {
             if (typeof window.jspdf === 'undefined') {
                 alert('PDF library not loaded. Please refresh the page and try again.');
-                console.error('❌ [PDF] jsPDF library not available');
+                console.error('[PDF] jsPDF library not available');
                 return;
             }
 
@@ -7626,7 +7905,6 @@
                 transcriptBtn.textContent = '⏳ Generating...';
             }
 
-            console.log('📜 [PDF] Generating Official K-12 Transcript for:', selectedStudentId);
 
             try {
                 // Get student data
@@ -8061,11 +8339,10 @@
                 // Save PDF
                 const fileName = `Official_Transcript_${(studentName || selectedStudentId).replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
                 doc.save(fileName);
-                console.log('✅ [PDF] Official transcript generated:', fileName);
                 alert('📜 Official Grade Transcript downloaded successfully!');
 
             } catch (error) {
-                console.error('❌ [PDF] Error generating official transcript:', error);
+                console.error('[PDF] Error generating official transcript:', error);
                 alert('Error generating transcript: ' + (error.message || 'Unknown error'));
             } finally {
                 if (transcriptBtn) {
@@ -8194,7 +8471,6 @@
         window.generateOfficialTranscript = generateOfficialTranscript;
         window.setupPDFReportGeneration = setupPDFReportGeneration;
 
-        console.log('📄 [PDF] PDF functions loaded and ready');
 
         // Initialize immediately
         if (document.readyState === 'loading') {
@@ -8270,7 +8546,6 @@
             const tabEvent = new CustomEvent('tab-switched', { detail: { tab: tabName } });
             document.dispatchEvent(tabEvent);
 
-            console.log(`📍 [Navigation] Switched to tab: ${tabName}`);
         }
 
         // Make switchToTab globally accessible
@@ -8293,7 +8568,6 @@
 
         // Initialize sidebar navigation
         function initSidebarNavigation() {
-            console.log('🧭 [Sidebar] Initializing sidebar navigation...');
 
             // Sidebar toggle button
             const toggleBtn = document.getElementById('lms-sidebar-toggle');
@@ -8358,7 +8632,6 @@
                 });
             }
 
-            console.log('✅ [Sidebar] Sidebar navigation initialized');
         }
 
         // Update sidebar user info
@@ -8396,17 +8669,21 @@
             return window.innerWidth < 640;
         }
 
-        // Handle window resize
         function handleResize() {
             const sidebar = document.getElementById('lms-sidebar');
             const overlay = document.getElementById('lms-sidebar-overlay');
 
-            // Close sidebar on desktop
             if (!isMobile() && sidebar) {
                 sidebar.classList.remove('open');
                 if (overlay) overlay.classList.remove('open');
                 document.body.style.overflow = '';
             }
+        }
+
+        let lmsResizeDebounceTimer = null;
+        function debouncedHandleResize() {
+            if (lmsResizeDebounceTimer) clearTimeout(lmsResizeDebounceTimer);
+            lmsResizeDebounceTimer = setTimeout(handleResize, 200);
         }
 
         // Prevent body scroll when sidebar is open
@@ -8446,21 +8723,14 @@
 
         // Handle orientation change
         function handleOrientationChange() {
-            // Small delay to let the browser update dimensions
             setTimeout(() => {
                 handleResize();
-
-                // Update AI chat height
-                const aiChat = document.querySelector('#ai-agent-content .glass-effect');
-                if (aiChat) {
-                    aiChat.style.height = '';
-                }
             }, 100);
         }
 
         // Initialize mobile handlers
         function initMobileHandlers() {
-            window.addEventListener('resize', handleResize);
+            window.addEventListener('resize', debouncedHandleResize);
             window.addEventListener('orientationchange', handleOrientationChange);
 
             // Handle escape key to close sidebar
@@ -8491,7 +8761,6 @@
                 }, { passive: true });
             }
 
-            console.log('📱 [Mobile] Mobile handlers initialized');
         }
 
         // Initialize mobile handlers on load
@@ -8506,22 +8775,20 @@
         // Quick suggestion handler
         function askAISuggestion(query) {
             const input = document.getElementById('ai-agent-input');
+            const mirror = document.getElementById('ai-agent-input-mirror');
             const sendBtn = document.getElementById('ai-agent-send-btn');
             const suggestions = document.getElementById('ai-quick-suggestions');
 
             if (input && query) {
-                // Set the query in input
                 input.value = query;
+                if (mirror) {
+                    mirror.textContent = query + (query.endsWith('\n') ? '\n ' : '');
+                }
 
-                // Update character count
                 const charCount = document.getElementById('ai-char-count');
                 if (charCount) {
                     charCount.textContent = query.length + ' / 500';
                 }
-
-                // Trigger input resize
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 150) + 'px';
 
                 // Hide suggestions with fade out
                 if (suggestions) {
@@ -8565,7 +8832,6 @@
         // Make copyAIResponse globally accessible
         window.copyAIResponse = copyAIResponse;
 
-        console.log('✨ [AI] AI Assistant enhancements loaded');
     </script>
 
     <!-- Login Page Premium Animations -->
@@ -8659,7 +8925,6 @@
                 });
             });
 
-            console.log('✨ [Login] Premium animations initialized');
         })();
     </script>
 

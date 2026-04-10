@@ -1,10 +1,30 @@
 /**
- * Shared UI: sanitizeHTML (DOMPurify), auth/app containers, tab switching, loading, modal, role-based visibility.
+ * Shared shell UI: DOMPurify sanitization, auth/app visibility, tabs, loading overlay, and AI modal host.
  */
 import { User, UserRole } from '../core/types';
 import DOMPurify from 'dompurify';
 
+let domPurifyHooksInstalled = false;
+
+function installDomPurifyLinkHooks(): void {
+  if (domPurifyHooksInstalled) return;
+  domPurifyHooksInstalled = true;
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.nodeName !== 'A') return;
+    const el = node as HTMLAnchorElement;
+    const href = el.getAttribute('href') || '';
+    if (/^\s*javascript:/i.test(href) || /^\s*data:/i.test(href)) {
+      el.removeAttribute('href');
+      return;
+    }
+    el.setAttribute('rel', 'noopener noreferrer');
+    if (/^https?:\/\//i.test(href)) el.setAttribute('target', '_blank');
+  });
+}
+
+/** Sanitizes untrusted HTML for safe insertion via `innerHTML` (AI modal, chat bubbles). */
 export function sanitizeHTML(html: string): string {
+  installDomPurifyLinkHooks();
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       'p', 'span', 'strong', 'b', 'i', 'em', 'u', 'br', 'hr',
@@ -15,7 +35,7 @@ export function sanitizeHTML(html: string): string {
       'a', 'aside', 'nav', 'header', 'footer'
     ],
     ALLOWED_ATTR: [
-      'class', 'id', 'style',
+      'class', 'id',
       'href', 'target', 'rel',
       'colspan', 'rowspan'
     ],
@@ -25,20 +45,20 @@ export function sanitizeHTML(html: string): string {
   });
 }
 
-const authContainer = document.getElementById('auth-container')!;
-const appContainer = document.getElementById('app-container')!;
-const loginFormContainer = document.getElementById('login-form-container')!;
-const signupFormContainer = document.getElementById('signup-form-container')!;
+const authContainer = document.getElementById('auth-container');
+const appContainer = document.getElementById('app-container');
+const loginFormContainer = document.getElementById('login-form-container');
+const signupFormContainer = document.getElementById('signup-form-container');
 const loginTabBtn = document.getElementById('login-tab-btn');
 const signupTabBtn = document.getElementById('signup-tab-btn');
-const loginForm = document.getElementById('login-form') as HTMLFormElement;
-const signupForm = document.getElementById('signup-form') as HTMLFormElement;
-const loginError = document.getElementById('login-error')!;
-const signupError = document.getElementById('signup-error')!;
-const logoutBtn = document.getElementById('logout-btn')!;
-const userEmail = document.getElementById('user-email')!;
-const userRoleBadge = document.getElementById('user-role-badge')!;
-const loadingOverlay = document.getElementById('loading-overlay')!;
+const loginForm = document.getElementById('login-form') as HTMLFormElement | null;
+const signupForm = document.getElementById('signup-form') as HTMLFormElement | null;
+const loginError = document.getElementById('login-error');
+const signupError = document.getElementById('signup-error');
+const logoutBtn = document.getElementById('logout-btn');
+const userEmail = document.getElementById('user-email');
+const userRoleBadge = document.getElementById('user-role-badge');
+const loadingOverlay = document.getElementById('loading-overlay');
 const aiModal = document.getElementById('ai-modal');
 const aiModalTitle = document.getElementById('ai-modal-title');
 const aiModalContent = document.getElementById('ai-modal-content');
@@ -46,6 +66,7 @@ const aiModalClose = document.getElementById('ai-modal-close');
 
 let currentUserRole: UserRole | null = null;
 
+/** Binds auth tab buttons, main tab buttons, and AI modal dismiss controls. */
 export function initUI(): void {
   loginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
   signupTabBtn?.addEventListener('click', () => switchAuthTab('signup'));
@@ -63,6 +84,7 @@ export function initUI(): void {
 }
 
 function switchAuthTab(tab: 'login' | 'signup'): void {
+  if (!loginFormContainer || !signupFormContainer) return;
   if (tab === 'login') {
     loginFormContainer.classList.remove('hide');
     signupFormContainer.classList.add('hide');
@@ -70,7 +92,7 @@ function switchAuthTab(tab: 'login' | 'signup'): void {
     signupTabBtn?.classList.remove('tab-active');
     signupTabBtn?.classList.add('text-dark-300');
     loginTabBtn?.classList.remove('text-dark-300');
-    clearError(loginError);
+    if (loginError) clearError(loginError);
   } else {
     signupFormContainer.classList.remove('hide');
     loginFormContainer.classList.add('hide');
@@ -78,25 +100,30 @@ function switchAuthTab(tab: 'login' | 'signup'): void {
     loginTabBtn?.classList.remove('tab-active');
     loginTabBtn?.classList.add('text-dark-300');
     signupTabBtn?.classList.remove('text-dark-300');
-    clearError(signupError);
+    if (signupError) clearError(signupError);
   }
 }
 
 export function showAuthContainer(): void {
-  authContainer.classList.remove('hide');
-  appContainer.classList.add('hide');
+  authContainer?.classList.remove('hide');
+  appContainer?.classList.add('hide');
   clearForms();
 }
 
 export function showAppContainer(): void {
-  authContainer.classList.add('hide');
-  appContainer.classList.remove('hide');
+  authContainer?.classList.add('hide');
+  appContainer?.classList.remove('hide');
 }
 
+/**
+ * Shows or hides `.admin-only`, `.teacher-only`, and `.student-only` regions based on `user.role`.
+ */
 export function configureUIForRole(user: User): void {
   currentUserRole = user.role;
-  userEmail.textContent = user.email;
-  userRoleBadge.textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+  if (userEmail) userEmail.textContent = user.email;
+  if (userRoleBadge) {
+    userRoleBadge.textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+  }
   document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach(el => {
     (el as HTMLElement).classList.add('hide');
   });
@@ -115,7 +142,16 @@ export function configureUIForRole(user: User): void {
   }
 }
 
+const VALID_MAIN_TABS = new Set([
+  'dashboard', 'grades', 'attendance', 'assessments', 'classes', 'registration',
+  'teacher-registration', 'users', 'ai-agent', 'student-profile',
+]);
+
+/**
+ * Activates a main LMS tab from the top tab bar: updates `.tab-btn` / `.tab-content` and emits `tab-switched`.
+ */
 function switchTab(tabName: string): void {
+  if (!VALID_MAIN_TABS.has(tabName)) return;
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.remove('tab-active');
     btn.classList.add('text-dark-300');
@@ -130,36 +166,70 @@ function switchTab(tabName: string): void {
   });
   const activeContent = document.getElementById(`${tabName}-content`);
   if (activeContent) activeContent.classList.remove('hide');
-  if (tabName === 'attendance' || tabName === 'dashboard') {
-    document.dispatchEvent(new CustomEvent('tab-switched', { detail: { tab: tabName } }));
-  }
+  document.dispatchEvent(new CustomEvent('tab-switched', { detail: { tab: tabName } }));
 }
 
 export function showLoading(): void {
-  loadingOverlay.classList.remove('hide');
+  loadingOverlay?.classList.remove('hide');
 }
 
 export function hideLoading(): void {
-  loadingOverlay.classList.add('hide');
+  loadingOverlay?.classList.add('hide');
 }
 
-export function showError(element: HTMLElement, message: string): void {
+export function showError(element: HTMLElement | null, message: string): void {
+  if (!element) return;
   element.textContent = message;
   element.classList.remove('hide');
 }
 
-export function clearError(element: HTMLElement): void {
+export function clearError(element: HTMLElement | null): void {
+  if (!element) return;
   element.textContent = '';
   element.classList.add('hide');
 }
 
+const FIREBASE_CONFIG_BANNER_ID = 'firebase-config-error-banner';
+
+/** Shows a persistent, accessible banner when Firebase cannot start (missing .env, etc.). */
+export function showFirebaseConfigurationError(message: string): void {
+  const root = document.getElementById('auth-container') ?? document.body;
+  if (document.getElementById(FIREBASE_CONFIG_BANNER_ID)) return;
+  const banner = document.createElement('div');
+  banner.id = FIREBASE_CONFIG_BANNER_ID;
+  banner.setAttribute('role', 'alert');
+  banner.className =
+    'mx-auto max-w-lg rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-3 text-sm text-red-100 shadow-lg m-4';
+  banner.textContent = message;
+  root.insertBefore(banner, root.firstChild);
+}
+
+const INIT_ERROR_BANNER_ID = 'app-init-error-banner';
+
+/** User-visible message when initialization throws after the shell is shown. */
+export function showBootstrapError(message: string): void {
+  const root =
+    document.getElementById('app-container') ??
+    document.getElementById('auth-container') ??
+    document.body;
+  if (document.getElementById(INIT_ERROR_BANNER_ID)) return;
+  const banner = document.createElement('div');
+  banner.id = INIT_ERROR_BANNER_ID;
+  banner.setAttribute('role', 'alert');
+  banner.className =
+    'mx-auto max-w-lg rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-3 text-sm text-amber-100 shadow-lg m-4';
+  banner.textContent = message;
+  root.insertBefore(banner, root.firstChild);
+}
+
 function clearForms(): void {
-  loginForm.reset();
-  signupForm.reset();
+  loginForm?.reset();
+  signupForm?.reset();
   clearError(loginError);
   clearError(signupError);
 }
 
+/** Opens the AI results modal with a sanitized HTML body. */
 export function showModal(title: string, content: string): void {
   if (aiModalTitle) aiModalTitle.textContent = title ?? '';
   if (aiModalContent) aiModalContent.innerHTML = sanitizeHTML(typeof content === 'string' ? content : '');

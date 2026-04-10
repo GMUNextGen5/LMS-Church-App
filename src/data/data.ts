@@ -16,6 +16,10 @@ import {
 import { Student, Grade, Attendance, Course, User } from '../core/types';
 import { getCurrentUser } from '../core/auth';
 
+/**
+ * Loads students visible to the current user: all for admins, course-roster union for teachers,
+ * or the single profile linked to the student’s Firebase uid.
+ */
 export async function fetchStudents(): Promise<Student[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
@@ -42,7 +46,9 @@ export async function fetchStudents(): Promise<Student[]> {
         if (studentDoc.exists()) {
           students.push({ id: studentDoc.id, ...studentDoc.data() } as Student);
         }
-      } catch {}
+      } catch {
+        /* skip missing student doc */
+      }
     }
   } else if (user.role === 'student') {
     const q = query(studentsRef, where('studentUid', '==', user.uid));
@@ -54,12 +60,17 @@ export async function fetchStudents(): Promise<Student[]> {
   return students;
 }
 
-/** Fetch all student profiles (for class roster assignment). Allowed for admin and teacher. */
+/** Fetch student profiles for class rosters. Teachers only see students linked via course teacherIds. */
 export async function fetchAllStudentProfiles(): Promise<Student[]> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
-    throw new Error('Only administrators and teachers can list all student profiles');
-  const snapshot = await getDocs(collection(db, 'students'));
+    throw new Error('Only administrators and teachers can list student profiles');
+  if (user.role === 'admin') {
+    const snapshot = await getDocs(collection(db, 'students'));
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
+  }
+  const q = query(collection(db, 'students'), where('teacherIds', 'array-contains', user.uid));
+  const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
 }
 
@@ -84,10 +95,16 @@ export async function createStudent(studentData: {
     contactEmail: studentData.contactEmail,
     parentUid: studentData.parentUid,
     studentUid: studentData.studentUid,
+    teacherIds: user.role === 'teacher' ? [user.uid] : [],
     notes: studentData.notes || '',
     createdAt: new Date().toISOString(),
     createdBy: user.uid
   });
+  await setDoc(
+    doc(db, 'users', studentData.studentUid),
+    { studentProfileId: docRef.id },
+    { merge: true }
+  );
   return docRef.id;
 }
 
@@ -193,7 +210,12 @@ export async function createCourse(course: Omit<Course, 'id'>): Promise<string> 
 export async function fetchAllUsers(): Promise<User[]> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can list users');
-  const snapshot = await getDocs(collection(db, 'users'));
+  const usersRef = collection(db, 'users');
+  const q =
+    user.role === 'admin'
+      ? query(usersRef)
+      : query(usersRef, where('role', '==', 'student'));
+  const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
 }
 
@@ -253,7 +275,8 @@ export function exportGradesToCSV(grades: Grade[], studentName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${studentName}_grades_${new Date().toISOString().split('T')[0]}.csv`;
+  const safeFileStem = String(studentName).replace(/[^a-zA-Z0-9-_]+/g, '_').slice(0, 80) || 'grades';
+  link.download = `${safeFileStem}_grades_${new Date().toISOString().split('T')[0]}.csv`;
   link.style.display = 'none';
   document.body.appendChild(link);
   link.click();

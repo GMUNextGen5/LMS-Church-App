@@ -1,6 +1,6 @@
 /**
- * Assessment data layer. Firestore: courses/{classId}/assessments, questions, submissions. CRUD, auto-grading, grade sync to students/grades.
- * TESTING COMMENT!!!
+ * Assessment data layer. Firestore: courses/{classId}/assessments, questions, submissions. CRUD, auto-grading.
+ * Syncing assessment scores into students/{id}/grades is performed by the Cloud Function syncAssessmentGradeFromSubmission.
  */
 import { db } from '../core/firebase';
 import {
@@ -32,41 +32,6 @@ function requireTeacherOrAdmin() {
 }
 
 const iso = () => new Date().toISOString();
-
-// ────────────────────────────────────────────────────────────────────────────
-//  GRADE SYNC – writes assessment results to students/{id}/grades subcollection
-// ────────────────────────────────────────────────────────────────────────────
-
-/**
- * Sync an assessment score into the student's grades subcollection
- * so it appears in the Grades & Reports tab.
- * Uses a deterministic doc ID (assessmentId) so re-grading overwrites instead of duplicating.
- */
-async function syncGradeToStudent(
-  studentProfileId: string,
-  assessmentTitle: string,
-  score: number,
-  totalPoints: number,
-  gradedByUid: string,
-): Promise<void> {
-  try {
-    // Use a deterministic ID based on the assessment title to avoid duplicates
-    const cleanTitle = assessmentTitle.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
-    const gradeDocRef = doc(db, 'students', studentProfileId, 'grades', `assessment_${cleanTitle}`);
-    await setDoc(gradeDocRef, {
-      studentId: studentProfileId,
-      assignmentName: assessmentTitle,
-      category: 'Exam',
-      score,
-      totalPoints,
-      date: iso(),
-      teacherId: gradedByUid,
-      source: 'assessment',   // Mark as auto-synced from assessment system
-    });
-  } catch {
-    // Grade sync failure does not break assessment flow
-  }
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 //  ASSESSMENTS – CRUD
@@ -386,18 +351,6 @@ export async function submitAssessment(
 
   await setDoc(ref, submissionData);
 
-  // If fully auto-graded and auto-released, sync to student's grades subcollection immediately
-  if (!needsGrading && submissionData.released) {
-    const user = getCurrentUser();
-    await syncGradeToStudent(
-      studentProfileId,
-      assessment.title,
-      finalScore,
-      totalPoints,
-      assessment.createdBy || user?.uid || '',
-    );
-  }
-
   return { id: studentProfileId, ...submissionData };
 }
 
@@ -478,18 +431,6 @@ export async function finalizeGrading(
     gradedBy: user.uid,
     gradedAt: iso(),
   });
-
-  // Sync the finalized grade to the student's grades subcollection
-  const assessment = await fetchAssessment(classId, assessmentId);
-  if (assessment) {
-    await syncGradeToStudent(
-      studentProfileId,
-      assessment.title,
-      finalScore,
-      sub.totalPoints,
-      user.uid,
-    );
-  }
 }
 
 /** Release grades for one or more submissions (makes them visible to students). */
@@ -498,34 +439,13 @@ export async function releaseGrades(
   assessmentId: string,
   submissionIds: string[]
 ): Promise<void> {
-  const user = requireTeacherOrAdmin();
+  requireTeacherOrAdmin();
   const batch = writeBatch(db);
   for (const sid of submissionIds) {
     const ref = doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', sid);
     batch.update(ref, { released: true });
   }
   await batch.commit();
-
-  // Sync released grades to each student's grades subcollection
-  const assessment = await fetchAssessment(classId, assessmentId);
-  if (assessment) {
-    await Promise.all(submissionIds.map(async (sid) => {
-      try {
-        const subSnap = await getDoc(doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', sid));
-        if (subSnap.exists()) {
-          const sub = subSnap.data() as Submission;
-          await syncGradeToStudent(
-            sid,
-            assessment.title,
-            sub.finalScore,
-            sub.totalPoints,
-            user.uid,
-          );
-        }
-      } catch (err) {
-      }
-    }));
-  }
 }
 
 /** Reopen a submitted assessment so the student can edit and resubmit. */

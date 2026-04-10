@@ -19,6 +19,8 @@ export interface Student {
   contactEmail?: string;
   parentUid: string;
   studentUid: string;
+  /** UIDs of teachers linked via course roster; drives Firestore read access for teachers. */
+  teacherIds?: string[];
   notes?: string;
   createdAt: string;
   createdBy?: string;

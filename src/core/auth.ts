@@ -20,6 +20,10 @@ export function getCurrentUser(): User | null {
   return currentUser;
 }
 
+/**
+ * Subscribes to Firebase auth state, loads `users/{uid}` for role and email, and notifies the app.
+ * Signs out if the user document is missing.
+ */
 export function initAuth(onUserChanged: (user: User | null) => void): void {
   onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
     if (firebaseUser) {
@@ -55,6 +59,10 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
   });
 }
 
+/**
+ * Creates a Firebase Auth account, writes `users/{uid}` with role `student`, and returns `uid`.
+ * Deletes the auth user if the Firestore write fails so no orphan accounts remain.
+ */
 export async function signUp(email: string, password: string): Promise<string> {
   let userCredential: { user: import('firebase/auth').User } | null = null;
 
@@ -95,6 +103,7 @@ export async function signUp(email: string, password: string): Promise<string> {
   }
 }
 
+/** Signs in with email/password; throws a user-facing message derived from Firebase error codes. */
 export async function signIn(email: string, password: string): Promise<void> {
   try {
     showLoading();

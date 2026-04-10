@@ -586,8 +586,7 @@ async function loadTeacherRoster(courseId: string): Promise<void> {
           </select>
         </div>
       </div>`;
-  } catch (err) {
-    console.error('[Classes] Failed to load roster:', err);
+  } catch {
     el.innerHTML = '<p class="text-red-400 text-sm">Failed to load roster.</p>';
   }
 }

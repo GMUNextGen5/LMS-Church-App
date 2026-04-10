@@ -1,5 +1,6 @@
 /**
  * Classes (courses) data layer. Firestore CRUD and roster; uses existing `courses` collection. Student IDs = profile doc IDs.
+ * Keeps `students/{id}.teacherIds` in sync with course rosters for security rules.
  */
 import {
   db,
@@ -20,6 +21,35 @@ import type { Course, Student } from '../core/types';
 
 const COURSES = 'courses';
 const STUDENTS = 'students';
+
+/** Keep student.teacherIds aligned when course roster or teacher assignment changes. */
+async function reconcileRosterTeacherIds(
+  oldTeacherId: string,
+  oldStudentIds: string[],
+  newTeacherId: string,
+  newStudentIds: string[]
+): Promise<void> {
+  const olds = new Set(oldStudentIds);
+  const news = new Set(newStudentIds);
+  for (const sid of olds) {
+    if (!news.has(sid) && oldTeacherId) {
+      await updateDoc(doc(db, STUDENTS, sid), { teacherIds: arrayRemove(oldTeacherId) });
+    }
+  }
+  for (const sid of news) {
+    if (!olds.has(sid) && newTeacherId) {
+      await updateDoc(doc(db, STUDENTS, sid), { teacherIds: arrayUnion(newTeacherId) });
+    }
+  }
+  if (oldTeacherId && newTeacherId && oldTeacherId !== newTeacherId) {
+    for (const sid of news) {
+      if (olds.has(sid)) {
+        await updateDoc(doc(db, STUDENTS, sid), { teacherIds: arrayRemove(oldTeacherId) });
+        await updateDoc(doc(db, STUDENTS, sid), { teacherIds: arrayUnion(newTeacherId) });
+      }
+    }
+  }
+}
 
 export async function fetchStudentClasses(studentProfileIds: string[]): Promise<Course[]> {
   if (studentProfileIds.length === 0) return [];
@@ -89,6 +119,11 @@ export async function createClass(data: Omit<Course, 'id'>): Promise<string> {
   const payload = { ...data, createdAt: data.createdAt || new Date().toISOString() } as Course;
   if (user.role === 'teacher') payload.teacherId = user.uid;
   const docRef = await addDoc(collection(db, COURSES), payload);
+  const tid = payload.teacherId || '';
+  const sids = payload.studentIds ?? [];
+  if (tid && sids.length > 0) {
+    await reconcileRosterTeacherIds('', [], tid, sids);
+  }
   return docRef.id;
 }
 
@@ -96,54 +131,94 @@ export async function updateClass(courseId: string, data: Partial<Omit<Course, '
   const user = getCurrentUser();
   if (!user) throw new Error('Not authenticated');
   if (user.role !== 'admin' && user.role !== 'teacher') throw new Error('Insufficient permissions');
+  const courseRef = doc(db, COURSES, courseId);
+  const courseSnap = await getDoc(courseRef);
+  if (!courseSnap.exists()) throw new Error('Course not found');
   if (user.role === 'teacher') {
-    const courseSnap = await getDoc(doc(db, COURSES, courseId));
-    if (!courseSnap.exists() || (courseSnap.data()?.teacherId as string) !== user.uid)
+    if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only edit your assigned classes');
   }
-  await updateDoc(doc(db, COURSES, courseId), data as Record<string, unknown>);
+  const before = courseSnap.data() as Course;
+  const oldT = (before.teacherId ?? '') as string;
+  const oldS = (before.studentIds ?? []) as string[];
+  await updateDoc(courseRef, data as Record<string, unknown>);
+  if (!('studentIds' in data) && !('teacherId' in data)) return;
+  const newT = (data.teacherId !== undefined ? data.teacherId : oldT) as string;
+  const newS = (data.studentIds !== undefined ? data.studentIds : oldS) as string[];
+  await reconcileRosterTeacherIds(oldT, oldS, newT, newS);
 }
 
 export async function deleteClass(courseId: string): Promise<void> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
     throw new Error('Only administrators or the assigned teacher can delete classes');
+  const courseRef = doc(db, COURSES, courseId);
+  const courseSnap = await getDoc(courseRef);
+  if (!courseSnap.exists()) return;
   if (user.role === 'teacher') {
-    const courseSnap = await getDoc(doc(db, COURSES, courseId));
-    if (!courseSnap.exists() || (courseSnap.data()?.teacherId as string) !== user.uid)
+    if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only delete your assigned classes');
   }
-  await deleteDoc(doc(db, COURSES, courseId));
+  const T = (courseSnap.data()?.teacherId ?? '') as string;
+  const S = (courseSnap.data()?.studentIds ?? []) as string[];
+  await deleteDoc(courseRef);
+  if (T) {
+    await Promise.all(
+      S.map((sid) => updateDoc(doc(db, STUDENTS, sid), { teacherIds: arrayRemove(T) }))
+    );
+  }
 }
 
 export async function addStudentsToClass(courseId: string, studentIds: string[]): Promise<void> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Insufficient permissions');
+  const courseRef = doc(db, COURSES, courseId);
+  const courseSnap = await getDoc(courseRef);
+  if (!courseSnap.exists()) throw new Error('Course not found');
   if (user.role === 'teacher') {
-    const courseSnap = await getDoc(doc(db, COURSES, courseId));
-    if (!courseSnap.exists() || (courseSnap.data()?.teacherId as string) !== user.uid)
+    if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only modify roster for your assigned classes');
   }
   if (studentIds.length === 0) return;
-  await updateDoc(doc(db, COURSES, courseId), { studentIds: arrayUnion(...studentIds) });
+  const before = courseSnap.data() as Course;
+  const oldT = (before.teacherId ?? '') as string;
+  const oldS = [...(before.studentIds ?? [])];
+  await updateDoc(courseRef, { studentIds: arrayUnion(...studentIds) });
+  const newS = [...new Set([...oldS, ...studentIds])];
+  await reconcileRosterTeacherIds(oldT, oldS, oldT, newS);
 }
 
 export async function removeStudentsFromClass(courseId: string, studentIds: string[]): Promise<void> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Insufficient permissions');
+  const courseRef = doc(db, COURSES, courseId);
+  const courseSnap = await getDoc(courseRef);
+  if (!courseSnap.exists()) throw new Error('Course not found');
   if (user.role === 'teacher') {
-    const courseSnap = await getDoc(doc(db, COURSES, courseId));
-    if (!courseSnap.exists() || (courseSnap.data()?.teacherId as string) !== user.uid)
+    if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only modify roster for your assigned classes');
   }
   if (studentIds.length === 0) return;
-  await updateDoc(doc(db, COURSES, courseId), { studentIds: arrayRemove(...studentIds) });
+  const before = courseSnap.data() as Course;
+  const oldT = (before.teacherId ?? '') as string;
+  const oldS = [...(before.studentIds ?? [])];
+  await updateDoc(courseRef, { studentIds: arrayRemove(...studentIds) });
+  const removeSet = new Set(studentIds);
+  const newS = oldS.filter((id) => !removeSet.has(id));
+  await reconcileRosterTeacherIds(oldT, oldS, oldT, newS);
 }
 
 export async function assignTeacherToClass(courseId: string, teacherUid: string): Promise<void> {
   const user = getCurrentUser();
   if (!user || user.role !== 'admin') throw new Error('Only administrators can assign teachers');
-  await updateDoc(doc(db, COURSES, courseId), { teacherId: teacherUid });
+  const courseRef = doc(db, COURSES, courseId);
+  const courseSnap = await getDoc(courseRef);
+  if (!courseSnap.exists()) throw new Error('Course not found');
+  const before = courseSnap.data() as Course;
+  const oldT = (before.teacherId ?? '') as string;
+  const S = [...(before.studentIds ?? [])];
+  await updateDoc(courseRef, { teacherId: teacherUid });
+  await reconcileRosterTeacherIds(oldT, S, teacherUid, S);
 }
 
 export async function getUserDisplayName(uid: string): Promise<string> {

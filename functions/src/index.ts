@@ -161,7 +161,7 @@
  * - Real-time: firebase functions:log
  * - Console: Firebase Console → Functions → Logs tab
  * - Filter by function name
- * - Look for console.log, console.error output
+ * - Look for Cloud Functions log output (errors and warnings)
  * 
  * COMMON ISSUES:
  * 
@@ -284,8 +284,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldPath } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Import AI configuration and prompts
@@ -493,7 +494,6 @@ export const getPerformanceSummary = onCall(
     });
     
     // Build prompts using templates from ai-config.ts
-    // TODO: When migrating prompts to database, fetch them here instead
     const systemPrompt = PERFORMANCE_SUMMARY_SYSTEM_PROMPT;
     const userPrompt = buildPerformanceSummaryPrompt(
       studentData?.name ?? 'Student',
@@ -519,7 +519,7 @@ export const getPerformanceSummary = onCall(
       throw new Error('AI returned an empty response. Please try again.');
     }
     
-    // STEP 9: Return the AI-generated summary
+    // STEP 9: Return the model summary payload
     return { 
       summaryHtml: text,
       studentName: studentData?.name ?? 'Student',
@@ -658,7 +658,6 @@ export const getStudyTips = onCall(
     });
     
     // Build prompts using templates from ai-config.ts
-    // TODO: When migrating prompts to database, fetch them here instead
     const systemPrompt = STUDY_TIPS_SYSTEM_PROMPT;
     const userPrompt = buildStudyTipsPrompt(
       studentData?.name ?? 'Student',
@@ -684,7 +683,7 @@ export const getStudyTips = onCall(
       throw new Error('AI returned an empty response. Please try again.');
     }
     
-    // STEP 8: Return the AI-generated study tips
+    // STEP 8: Return the study tips payload
     return { 
       tipsHtml: text,
       studentName: studentData?.name ?? 'Student',
@@ -791,11 +790,26 @@ export const aiAgentChat = onCall(
         .slice(-10)
         .map((h: any) => ({ user: String(h.user), assistant: String(h.assistant) }))
     : [];
-  const studentsSnapshot = await db.collection('students').get();
-  const students = studentsSnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Array<{ id: string; name?: string; memberId?: string; yearOfBirth?: number; contactEmail?: string; [key: string]: any }>;
+
+  let students: Array<{ id: string; name?: string; memberId?: string; yearOfBirth?: number; contactEmail?: string; [key: string]: any }> = [];
+  if (role === 'admin') {
+    const studentsSnapshot = await db.collection('students').get();
+    students = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as typeof students;
+  } else if (role === 'teacher') {
+    const coursesSnap = await db.collection('courses').where('teacherId', '==', request.auth.uid).get();
+    const allowedIds = new Set<string>();
+    coursesSnap.forEach((c) => {
+      const ids = c.data().studentIds as string[] | undefined;
+      if (Array.isArray(ids)) ids.forEach((id) => allowedIds.add(id));
+    });
+    const idList = Array.from(allowedIds);
+    for (let i = 0; i < idList.length; i += 30) {
+      const chunk = idList.slice(i, i + 30);
+      if (chunk.length === 0) continue;
+      const snaps = await db.collection('students').where(FieldPath.documentId(), 'in', chunk).get();
+      snaps.forEach((doc) => students.push({ id: doc.id, ...doc.data() } as (typeof students)[0]));
+    }
+  }
   
   // STEP 3: Load grades and attendance for all students
   const allGrades: any[] = [];
@@ -1088,4 +1102,49 @@ export const getAllUsers = onCall(async (request) => {
 // Note: User documents are now auto-created on the client side during signup
 // This is allowed by Firestore security rules for new users with 'student' role
 
+/**
+ * Writes students/{profileId}/grades/assessment_* when a submission is released or fully graded.
+ * Replaces client-side grade sync (students cannot write grade docs; rules allow only staff + Admin SDK).
+ */
+export const syncAssessmentGradeFromSubmission = onDocumentWritten(
+  {
+    document: 'courses/{classId}/assessments/{assessmentId}/submissions/{studentProfileId}',
+    region: 'us-central1',
+  },
+  async (event) => {
+    const after = event.data?.after;
+    if (!after?.exists) return;
+    const d = after.data();
+    if (!d || d.needsGrading === true) return;
+    if (typeof d.finalScore !== 'number' || typeof d.totalPoints !== 'number') return;
+    if (d.released !== true && d.status !== 'graded') return;
 
+    const classId = event.params.classId as string;
+    const assessmentId = event.params.assessmentId as string;
+    const studentProfileId = event.params.studentProfileId as string;
+
+    const assessmentSnap = await db.doc(`courses/${classId}/assessments/${assessmentId}`).get();
+    if (!assessmentSnap.exists) return;
+    const title = (assessmentSnap.data()?.title as string) || 'Assessment';
+    const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
+    const gradeId = `assessment_${cleanTitle}`;
+    const gradedBy =
+      typeof d.gradedBy === 'string' && d.gradedBy
+        ? d.gradedBy
+        : String(assessmentSnap.data()?.createdBy || '');
+
+    await db.doc(`students/${studentProfileId}/grades/${gradeId}`).set(
+      {
+        studentId: studentProfileId,
+        assignmentName: title,
+        category: 'Exam',
+        score: d.finalScore,
+        totalPoints: d.totalPoints,
+        date: new Date().toISOString(),
+        teacherId: gradedBy,
+        source: 'assessment',
+      },
+      { merge: true }
+    );
+  }
+);

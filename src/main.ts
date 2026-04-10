@@ -1,12 +1,19 @@
 /**
  * Main application entry. Orchestrates auth, UI, data loading, and tab behavior.
- * State: currentStudents, currentGrades, currentAttendance, selectedStudentId.
- * Real-time: grades use listenToGrades; unsubscribe on student change to avoid leaks.
+ * Holds LMS shell state (students, grades, attendance, selection) and wires Firebase listeners.
  */
 
-import './core/firebase';
-import { auth } from './core/firebase';
-import { functions, httpsCallable } from './core/firebase';
+import {
+  auth,
+  functions,
+  httpsCallable,
+  ensureFirebaseClient,
+} from './core/firebase';
+import {
+  getAppTheme,
+  installThemeChangeBridge,
+  registerThemeRefreshHandler,
+} from './core/theme-events';
 import { initAuth, signUp, signIn, logout } from './core/auth';
 import { ParticleSystem } from './ui/particles';
 import {
@@ -25,7 +32,9 @@ import {
   loginError,
   signupError,
   getCurrentUserRole,
-  sanitizeHTML
+  sanitizeHTML,
+  showFirebaseConfigurationError,
+  showBootstrapError,
 } from './ui/ui';
 import {
   fetchStudents,
@@ -51,6 +60,7 @@ let currentGrades: Grade[] = [];
 let currentAttendance: Attendance[] = [];
 let selectedStudentId: string | null = null;
 let gradesUnsubscribe: (() => void) | null = null;
+let particleSystem: ParticleSystem | null = null;
 
 // Reused for HTML escaping to avoid XSS when rendering user/AI content
 const escapeEl = document.createElement('div');
@@ -59,6 +69,9 @@ function escapeHtml(s: string): string {
   return escapeEl.innerHTML;
 }
 
+/**
+ * Returns a debounced wrapper that invokes `fn` after `ms` milliseconds of inactivity.
+ */
 function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   let timer: number;
   return ((...args: any[]) => {
@@ -67,14 +80,65 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   }) as unknown as T;
 }
 
-// --- Auth & init ---
+/** Delegated clicks for dashboard tables (avoids inline onclick / quoted-ID XSS issues). */
+function setupLmsDelegatedActions(): void {
+  const app = document.getElementById('app-container');
+  if (!app || (app as HTMLElement & { __lmsDel?: boolean }).__lmsDel) return;
+  (app as HTMLElement & { __lmsDel?: boolean }).__lmsDel = true;
+  app.addEventListener('click', async (e) => {
+    if ((e.target as HTMLElement).closest('#assessments-content')) return;
+    const el = (e.target as HTMLElement).closest('[data-lms-action]') as HTMLElement | null;
+    if (!el) return;
+    const action = el.dataset.lmsAction;
+    if (action === 'edit-student') {
+      const id = el.dataset.studentId;
+      if (id) (window as any).handleEditStudent(id);
+      return;
+    }
+    if (action === 'delete-student') {
+      const id = el.dataset.studentId;
+      if (id) await (window as any).handleDeleteStudent(id);
+      return;
+    }
+    if (action === 'delete-teacher') {
+      const id = el.dataset.userId;
+      if (id) await (window as any).handleDeleteTeacher(id);
+      return;
+    }
+    if (action === 'change-role') {
+      const id = el.dataset.userId;
+      const role = el.dataset.userRole ?? '';
+      if (id) await (window as any).handleChangeRole(id, role);
+      return;
+    }
+    if (action === 'delete-grade') {
+      const sid = el.dataset.studentId;
+      const gid = el.dataset.gradeId;
+      if (sid && gid) await (window as any).handleDeleteGrade(sid, gid);
+    }
+  });
+}
+
+/** Bootstraps UI, auth, forms, feature modules, and the centralized theme refresh bridge. */
 async function init(): Promise<void> {
   initUI();
+  const firebaseErr = ensureFirebaseClient();
+  if (firebaseErr) {
+    showFirebaseConfigurationError(firebaseErr.message);
+    return;
+  }
   initAuth(handleAuthStateChange);
   setupAuthForms();
   setupAppForms();
+  setupLmsDelegatedActions();
   initAssessments();
   initClasses();
+
+  installThemeChangeBridge();
+  registerThemeRefreshHandler(() => {
+    if (currentGrades.length > 0) renderGradeCharts(currentGrades);
+    particleSystem?.refreshForTheme();
+  });
 
   document.addEventListener('tab-switched', async (e: any) => {
     const tab = e.detail?.tab;
@@ -88,10 +152,29 @@ async function init(): Promise<void> {
     }
   });
 
-  try { new ParticleSystem('background-canvas'); } catch { /* canvas not available */ }
+  startParticleSystemWhenReady();
+}
+
+/**
+ * Starts the login canvas after `load` so layout and dimensions are stable (avoids racing the DOM).
+ */
+function startParticleSystemWhenReady(): void {
+  const boot = (): void => {
+    if (particleSystem) return;
+    if (!document.getElementById('background-canvas')) return;
+    try {
+      particleSystem = new ParticleSystem('background-canvas');
+    } catch {
+      particleSystem = null;
+    }
+  };
+  if (document.readyState === 'complete') boot();
+  else window.addEventListener('load', boot, { once: true });
 }
 
 // --- Auth state & form handlers ---
+
+/** Routes Firebase auth changes into UI visibility, role configuration, and data loads. */
 async function handleAuthStateChange(user: User | null): Promise<void> {
   if (user) {
     showAppContainer();
@@ -129,13 +212,15 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 }
 
 function setupAuthForms(): void {
-  if (!loginForm || !signupForm) return;
+  const lf = loginForm;
+  const sf = signupForm;
+  if (!lf || !sf) return;
 
-  loginForm.addEventListener('submit', async (e) => {
+  lf.addEventListener('submit', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     clearError(loginError);
-    const formData = new FormData(loginForm);
+    const formData = new FormData(lf);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     if (!email || !password) {
@@ -144,17 +229,17 @@ function setupAuthForms(): void {
     }
     try {
       await signIn(email, password);
-      loginForm.reset();
+      lf.reset();
     } catch (error: any) {
       showError(loginError, error.message || 'Login failed. Please try again.');
     }
   });
 
-  signupForm.addEventListener('submit', async (e) => {
+  sf.addEventListener('submit', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     clearError(signupError);
-    const formData = new FormData(signupForm);
+    const formData = new FormData(sf);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
@@ -173,7 +258,7 @@ function setupAuthForms(): void {
     try {
       const uid = await signUp(email, password);
       showUidModal(uid, email);
-      signupForm.reset();
+      sf.reset();
     } catch (error: any) {
       showError(signupError, error.message || 'Signup failed. Please try again.');
     }
@@ -187,6 +272,7 @@ function setupAuthForms(): void {
 }
 
 // --- App form setup (student/teacher reg, grades, attendance, dashboard) ---
+/** Attaches listeners for dashboard, grades, attendance, AI tools, and admin flows after login. */
 function setupAppForms(): void {
   const studentRegForm = document.getElementById('student-registration-form') as HTMLFormElement;
   if (studentRegForm) {
@@ -313,8 +399,7 @@ function setupAppForms(): void {
 
   const usersSearch = document.getElementById('users-search') as HTMLInputElement;
   if (usersSearch) {
-    usersSearch.addEventListener('input', () => {
-      const q = (usersSearch.value || '').toLowerCase().trim();
+    const runUsersFilter = debounce((q: string) => {
       const tbody = document.getElementById('users-table-body');
       if (!tbody) return;
       tbody.querySelectorAll('.user-management-row').forEach((row) => {
@@ -324,13 +409,15 @@ function setupAppForms(): void {
         const show = !q || email.includes(q) || name.includes(q);
         el.style.display = show ? '' : 'none';
       });
+    }, 200);
+    usersSearch.addEventListener('input', () => {
+      runUsersFilter((usersSearch.value || '').toLowerCase().trim());
     });
   }
 
   const registeredStudentsSearch = document.getElementById('registered-students-search') as HTMLInputElement;
   if (registeredStudentsSearch) {
-    registeredStudentsSearch.addEventListener('input', () => {
-      const q = (registeredStudentsSearch.value || '').toLowerCase().trim();
+    const runRegStudentsFilter = debounce((q: string) => {
       const tbody = document.getElementById('registered-students-table-body');
       if (!tbody) return;
       tbody.querySelectorAll('.registered-student-row').forEach((row) => {
@@ -341,12 +428,14 @@ function setupAppForms(): void {
         const show = !q || memberId.includes(q) || name.includes(q) || email.includes(q);
         el.style.display = show ? '' : 'none';
       });
+    }, 200);
+    registeredStudentsSearch.addEventListener('input', () => {
+      runRegStudentsFilter((registeredStudentsSearch.value || '').toLowerCase().trim());
     });
   }
   const registeredTeachersSearch = document.getElementById('registered-teachers-search') as HTMLInputElement;
   if (registeredTeachersSearch) {
-    registeredTeachersSearch.addEventListener('input', () => {
-      const q = (registeredTeachersSearch.value || '').toLowerCase().trim();
+    const runRegTeachersFilter = debounce((q: string) => {
       const tbody = document.getElementById('registered-teachers-table-body');
       if (!tbody) return;
       tbody.querySelectorAll('.registered-teacher-row').forEach((row) => {
@@ -357,6 +446,9 @@ function setupAppForms(): void {
         const show = !q || memberId.includes(q) || name.includes(q) || email.includes(q);
         el.style.display = show ? '' : 'none';
       });
+    }, 200);
+    registeredTeachersSearch.addEventListener('input', () => {
+      runRegTeachersFilter((registeredTeachersSearch.value || '').toLowerCase().trim());
     });
   }
 
@@ -683,9 +775,9 @@ async function loadRegisteredStudents(): Promise<void> {
           ${(student as any).contactPhone || ''}
         </td>
         <td class="py-3 px-4 text-center">
-          <button onclick="handleEditStudent('${student.id}')"
+          <button type="button" data-lms-action="edit-student" data-student-id="${student.id}"
             class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm mr-2">Edit</button>
-          <button onclick="handleDeleteStudent('${student.id}')"
+          <button type="button" data-lms-action="delete-student" data-student-id="${student.id}"
             class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
@@ -718,7 +810,7 @@ async function loadRegisteredTeachers(): Promise<void> {
           ${escapeHtml(t.email || 'N/A')}<br>${escapeHtml(t.phone || '')}
         </td>
         <td class="py-3 px-4 text-center">
-          <button onclick="handleDeleteTeacher('${t.uid}')"
+          <button type="button" data-lms-action="delete-teacher" data-user-id="${t.uid}"
             class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
@@ -759,7 +851,7 @@ async function loadAllUsers(): Promise<void> {
         </td>
         <td class="py-3 px-4 text-center text-dark-400 text-xs font-mono">${user.uid}</td>
         <td class="py-3 px-4 text-center">
-          <button onclick="handleChangeRole('${user.uid}', '${user.role}')"
+          <button type="button" data-lms-action="change-role" data-user-id="${user.uid}" data-user-role="${user.role}"
             class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm">Change Role</button>
         </td>
       </tr>
@@ -824,8 +916,11 @@ function setupAccountDropdown(containerId: string, hiddenInputId: string, popula
     }
   });
   if (searchInput) {
+    const runDropdownSearch = debounce((q: string) => {
+      filterAccountDropdownList(listElRef, q);
+    }, 200);
     searchInput.addEventListener('input', () => {
-      filterAccountDropdownList(listElRef, (searchInput.value || '').toLowerCase().trim());
+      runDropdownSearch((searchInput.value || '').toLowerCase().trim());
     });
     searchInput.addEventListener('keydown', (e: Event) => {
       if ((e as KeyboardEvent).key === 'Escape') close();
@@ -993,7 +1088,7 @@ function showGradesSkeletonLoading(): void {
   const gradesTableBody = document.getElementById('grades-table-body');
   const chartsSection = document.getElementById('grade-charts-section');
   if (gradesTableBody) {
-    const row = '<tr class="border-b border-dark-700"><td class="py-3 px-4"><div class="skeleton skeleton-text" style="width: 70%;"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short" style="margin: 0 auto;"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short" style="margin: 0 auto;"></div></td></tr>';
+    const row = '<tr class="border-b border-dark-700"><td class="py-3 px-4"><div class="skeleton skeleton-text !w-[70%]"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td></tr>';
     gradesTableBody.innerHTML = row.repeat(5);
   }
   chartsSection?.classList.add('hide');
@@ -1037,7 +1132,7 @@ function displayGrades(grades: Grade[]): void {
         <td class="py-3 px-4 text-dark-300">${escapeHtml(grade.category)}</td>
         <td class="py-3 px-4 text-center text-white">${grade.score} / ${grade.totalPoints}</td>
         <td class="py-3 px-4 text-center font-semibold ${percentageClass}">${percentage}%</td>
-        ${showActions ? `<td class="py-3 px-4 text-center"><button onclick="handleDeleteGrade('${selectedStudentId}', '${grade.id}')" class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button></td>` : ''}
+        ${showActions && selectedStudentId ? `<td class="py-3 px-4 text-center"><button type="button" data-lms-action="delete-grade" data-student-id="${selectedStudentId}" data-grade-id="${grade.id}" class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button></td>` : ''}
       </tr>`;
   }).join('');
 
@@ -1047,6 +1142,50 @@ function displayGrades(grades: Grade[]): void {
 let gradeTrendChart: any = null;
 let categoryChart: any = null;
 
+function isAppLightTheme(): boolean {
+  return getAppTheme() === 'light';
+}
+
+/** Builds Chart.js scale options for the current `data-theme` (light vs dark surfaces). */
+function getGradeChartOptions(): Record<string, unknown> {
+  const light = isAppLightTheme();
+  const scales = light
+    ? {
+        x: {
+          grid: { color: 'rgba(15, 23, 42, 0.08)' },
+          ticks: { color: '#475569', maxRotation: 45, minRotation: 0 },
+        },
+        y: {
+          beginAtZero: true,
+          max: 100,
+          grid: { color: 'rgba(15, 23, 42, 0.08)' },
+          ticks: { color: '#475569', callback: (v: number) => v + '%' },
+        },
+      }
+    : {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: 'rgba(255,255,255,0.6)', maxRotation: 45, minRotation: 0 },
+        },
+        y: {
+          beginAtZero: true,
+          max: 100,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: 'rgba(255,255,255,0.6)', callback: (v: number) => v + '%' },
+        },
+      };
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 300 },
+    plugins: { legend: { display: false } },
+    scales,
+  };
+}
+
+/**
+ * Renders or updates grade trend and category charts. Destroys existing Chart instances first to avoid leaks.
+ */
 function renderGradeCharts(grades: Grade[]): void {
   if (typeof (window as any).Chart === 'undefined') return;
   const Chart = (window as any).Chart;
@@ -1066,36 +1205,35 @@ function renderGradeCharts(grades: Grade[]): void {
   const categoryAverages = categoryLabels.map(cat => (categoryData[cat].total / categoryData[cat].count).toFixed(1));
   const categoryColors = ['#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#3b82f6'];
 
-  const darkThemeOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 300 },
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.6)', maxRotation: 45, minRotation: 0 } },
-      y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.6)', callback: (v: number) => v + '%' } },
-    },
-  };
+  const chartOptions = getGradeChartOptions() as any;
+  const light = isAppLightTheme();
+  const pointBorder = light ? '#0f172a' : '#ffffff';
 
   const trendCanvas = document.getElementById('grade-trend-chart') as HTMLCanvasElement;
   if (trendCanvas) {
-    if (gradeTrendChart) gradeTrendChart.destroy();
+    if (gradeTrendChart) {
+      gradeTrendChart.destroy();
+      gradeTrendChart = null;
+    }
     const ctx = trendCanvas.getContext('2d');
     if (ctx) {
       gradeTrendChart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: trendLabels,
-          datasets: [{ label: 'Grade %', data: trendData, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointBackgroundColor: '#06b6d4', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 }],
+          datasets: [{ label: 'Grade %', data: trendData, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointBackgroundColor: '#06b6d4', pointBorderColor: pointBorder, pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 }],
         },
-        options: darkThemeOptions,
+        options: chartOptions,
       });
     }
   }
 
   const categoryCanvas = document.getElementById('category-chart') as HTMLCanvasElement;
   if (categoryCanvas) {
-    if (categoryChart) categoryChart.destroy();
+    if (categoryChart) {
+      categoryChart.destroy();
+      categoryChart = null;
+    }
     const ctx = categoryCanvas.getContext('2d');
     if (ctx) {
       categoryChart = new Chart(ctx, {
@@ -1104,7 +1242,7 @@ function renderGradeCharts(grades: Grade[]): void {
           labels: categoryLabels,
           datasets: [{ label: 'Average %', data: categoryAverages, backgroundColor: categoryLabels.map((_, i) => categoryColors[i % categoryColors.length]), borderRadius: 8, barThickness: 40 }],
         },
-        options: { ...darkThemeOptions, plugins: { ...darkThemeOptions.plugins, tooltip: { callbacks: { label: (ctx: any) => `Average: ${ctx.raw}%` } } } },
+        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: (ctx: any) => `Average: ${ctx.raw}%` } } } },
       });
     }
   }
@@ -1221,7 +1359,10 @@ function updateDashboardStats(): void {
   } else {
     if (avgGradeEl) avgGradeEl.textContent = '--';
     if (gradeCountEl) gradeCountEl.textContent = '0 assignments';
-    if (letterGradeEl) { letterGradeEl.textContent = '--'; letterGradeEl.className = 'text-4xl font-bold text-white'; }
+    if (letterGradeEl) {
+      letterGradeEl.textContent = '--';
+      letterGradeEl.className = 'text-4xl font-bold stats-letter-placeholder';
+    }
   }
 }
 
@@ -1346,15 +1487,47 @@ async function generateStudyTips(studentId: string): Promise<void> {
   }
 }
 
+/**
+ * Wires the AI agent tab: chat send/clear, copy actions, mirror-based auto-grow input, and sanitized assistant HTML.
+ */
 function setupAIAgentChat(): void {
-  const chatInput = document.getElementById('ai-agent-input') as HTMLInputElement;
+  const chatInput = document.getElementById('ai-agent-input') as HTMLTextAreaElement | null;
+  const mirrorEl = document.getElementById('ai-agent-input-mirror');
   const sendBtn = document.getElementById('ai-agent-send-btn') as HTMLButtonElement;
   const messagesContainer = document.getElementById('ai-agent-messages');
   const clearChatBtn = document.getElementById('clear-chat-btn');
+  const charCountEl = document.getElementById('ai-char-count');
 
   let conversationHistory: Array<{ user: string; assistant: string }> = [];
 
   if (!chatInput || !sendBtn || !messagesContainer) return;
+
+  const syncAiInputMirror = (): void => {
+    const v = chatInput.value;
+    if (mirrorEl) mirrorEl.textContent = v + (v.endsWith('\n') ? '\n ' : '');
+    if (charCountEl) charCountEl.textContent = `${v.length} / 500`;
+  };
+  chatInput.addEventListener('input', syncAiInputMirror);
+  syncAiInputMirror();
+
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendBtn.click();
+    }
+  });
+
+  if (!(messagesContainer as HTMLElement & { __lmsCopy?: boolean }).__lmsCopy) {
+    (messagesContainer as HTMLElement & { __lmsCopy?: boolean }).__lmsCopy = true;
+    messagesContainer.addEventListener('click', (ev) => {
+      const btn = (ev.target as HTMLElement).closest('[data-lms-action="copy-ai-response"]');
+      if (!btn || !messagesContainer.contains(btn)) return;
+      const block = btn.closest('.ai-message-content')?.querySelector('.ai-response-content');
+      const text = block?.textContent?.trim() ?? '';
+      const copyFn = (window as unknown as { copyAIResponse?: (b: HTMLElement, t: string) => void }).copyAIResponse;
+      if (text && typeof copyFn === 'function') copyFn(btn as HTMLElement, text);
+    });
+  }
 
   const sendMessage = async (): Promise<void> => {
     const message = chatInput.value.trim();
@@ -1363,6 +1536,7 @@ function setupAIAgentChat(): void {
     sendBtn.disabled = true;
     addMessageToChat('user', message);
     chatInput.value = '';
+    syncAiInputMirror();
     const typingId = addTypingIndicator();
     try {
       const aiAgentChat = httpsCallable(functions, 'aiAgentChat');
@@ -1376,7 +1550,10 @@ function setupAIAgentChat(): void {
       if (conversationHistory.length > 10) conversationHistory = conversationHistory.slice(-10);
     } catch (error: any) {
       removeTypingIndicator(typingId);
-      addMessageToChat('assistant', `Sorry, I encountered an error: ${error.message || 'Unknown error'}. Please try again.`);
+      addMessageToChat(
+        'assistant',
+        `Sorry, I encountered an error: ${escapeHtml(error.message || 'Unknown error')}. Please try again.`
+      );
     } finally {
       chatInput.disabled = false;
       sendBtn.disabled = false;
@@ -1392,7 +1569,7 @@ function setupAIAgentChat(): void {
 
     if (role === 'user') {
       messageDiv.innerHTML = `
-        <div class="flex-1 flex justify-end"><div class="max-w-[85%]"><div class="rounded-2xl rounded-tr-sm p-4 bg-gradient-to-br from-primary-500/20 to-accent-500/10 border border-primary-500/30 shadow-lg shadow-primary-500/10 hover:shadow-primary-500/20 transition-shadow"><p class="text-white whitespace-pre-wrap leading-relaxed">${escapeHtml(content)}</p></div><p class="text-dark-500 text-xs mt-1.5 mr-2 text-right">${timestamp}</p></div></div>
+        <div class="flex-1 flex justify-end"><div class="max-w-[85%]"><div class="rounded-2xl rounded-tr-sm p-4 bg-gradient-to-br from-primary-500/20 to-accent-500/10 border border-primary-500/30 shadow-lg shadow-primary-500/10 hover:shadow-primary-500/20 transition-shadow"><p class="ai-chat-user-text whitespace-pre-wrap leading-relaxed">${escapeHtml(content)}</p></div><p class="text-dark-500 text-xs mt-1.5 mr-2 text-right">${timestamp}</p></div></div>
         <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/25"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>`;
     } else {
       const msgId = `ai-msg-${Date.now()}`;
@@ -1402,7 +1579,7 @@ function setupAIAgentChat(): void {
         <div class="flex-1 max-w-3xl">
           <div class="ai-message-content glass-effect rounded-2xl rounded-tl-sm p-5 border border-primary-500/20 hover:border-primary-500/30 transition-all group relative">
             <div class="ai-response-content" id="${msgId}"></div>
-            <button onclick="window.copyAIResponse(this, document.getElementById('${msgId}').innerText)" class="ai-copy-btn absolute top-3 right-3 p-2 rounded-lg bg-dark-800/80 hover:bg-dark-700 text-dark-400 hover:text-white transition-all" title="Copy response"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>
+            <button type="button" data-lms-action="copy-ai-response" class="ai-copy-btn absolute top-3 right-3 p-2 rounded-lg bg-dark-800/80 hover:bg-dark-700 text-dark-400 hover:text-white transition-all" title="Copy response"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>
           </div>
           <div class="flex items-center gap-3 mt-2 ml-2">
             <p class="text-dark-500 text-xs">${timestamp}</p>
@@ -1411,7 +1588,7 @@ function setupAIAgentChat(): void {
           </div>
         </div>`;
       const contentDiv = messageDiv.querySelector(`#${msgId}`);
-      if (contentDiv) contentDiv.innerHTML = sanitizeHTML(formattedContent);
+      if (contentDiv) contentDiv.innerHTML = formattedContent;
     }
 
     messagesContainer.appendChild(messageDiv);
@@ -1436,6 +1613,9 @@ function setupAIAgentChat(): void {
     document.getElementById(typingId)?.remove();
   }
 
+  /**
+   * Converts assistant plain text / light HTML into styled markup, then runs DOMPurify (XSS-safe for `innerHTML`).
+   */
   function formatMarkdown(text: string): string {
     let html = text.trim();
     const hasHtmlTags = /<\/?(?:ul|ol|li|p|div|h[1-6]|strong|em|b|i|code|pre|blockquote|br|hr|span|a)[>\s]/i.test(html);
@@ -1445,16 +1625,16 @@ function setupAIAgentChat(): void {
       html = html.replace(/<ol([^>]*)>/gi, '<ol class="space-y-2 my-4 list-decimal list-inside"$1>');
       html = html.replace(/<li([^>]*)>/gi, '<li class="flex items-start gap-3 text-dark-200 mb-2"$1><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span>');
       html = html.replace(/<\/li>/gi, '</span></li>');
-      html = html.replace(/<strong([^>]*)>/gi, '<strong class="text-white font-semibold"$1>');
-      html = html.replace(/<b([^>]*)>/gi, '<strong class="text-white font-semibold"$1>');
+      html = html.replace(/<strong([^>]*)>/gi, '<strong class="font-semibold"$1>');
+      html = html.replace(/<b([^>]*)>/gi, '<strong class="font-semibold"$1>');
       html = html.replace(/<\/b>/gi, '</strong>');
       html = html.replace(/<em([^>]*)>/gi, '<em class="text-primary-300"$1>');
       html = html.replace(/<i([^>]*)>/gi, '<em class="text-primary-300"$1>');
       html = html.replace(/<\/i>/gi, '</em>');
-      html = html.replace(/<h1([^>]*)>/gi, '<h1 class="text-2xl font-bold text-white mt-4 mb-3"$1>');
-      html = html.replace(/<h2([^>]*)>/gi, '<h2 class="text-xl font-bold text-white mt-4 mb-2"$1>');
-      html = html.replace(/<h3([^>]*)>/gi, '<h3 class="text-lg font-bold text-white mt-3 mb-2"$1>');
-      html = html.replace(/<h4([^>]*)>/gi, '<h4 class="text-base font-bold text-white mt-3 mb-2"$1>');
+      html = html.replace(/<h1([^>]*)>/gi, '<h1 class="text-2xl font-bold mt-4 mb-3"$1>');
+      html = html.replace(/<h2([^>]*)>/gi, '<h2 class="text-xl font-bold mt-4 mb-2"$1>');
+      html = html.replace(/<h3([^>]*)>/gi, '<h3 class="text-lg font-bold mt-3 mb-2"$1>');
+      html = html.replace(/<h4([^>]*)>/gi, '<h4 class="text-base font-bold mt-3 mb-2"$1>');
       html = html.replace(/<p([^>]*)>/gi, '<p class="mb-3 text-dark-200 leading-relaxed"$1>');
       html = html.replace(/<code([^>]*)>/gi, '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono"$1>');
       html = html.replace(/<pre([^>]*)>/gi, '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"$1>');
@@ -1465,14 +1645,14 @@ function setupAIAgentChat(): void {
         styled = styled.replace(/(\d+\/\d+)/g, '<span class="text-primary-400 font-medium">$1</span>');
         return `>${styled}<`;
       });
-      return html;
+      return sanitizeHTML(html);
     }
 
-    html = html.replace(/^### (.+)$/gm, '<h4 class="text-lg font-bold text-white mt-4 mb-2 flex items-center gap-2"><span class="w-1.5 h-1.5 bg-accent-400 rounded-full"></span>$1</h4>');
-    html = html.replace(/^## (.+)$/gm, '<h3 class="text-xl font-bold text-white mt-5 mb-3 pb-2 border-b border-primary-500/20">$1</h3>');
+    html = html.replace(/^### (.+)$/gm, '<h4 class="text-lg font-bold mt-4 mb-2 flex items-center gap-2"><span class="w-1.5 h-1.5 bg-accent-400 rounded-full"></span>$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 class="text-xl font-bold mt-5 mb-3 pb-2 border-b border-primary-500/20">$1</h3>');
     html = html.replace(/^# (.+)$/gm, '<h2 class="text-2xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mt-4 mb-3">$1</h2>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
-    html = html.replace(/__(.+?)__/g, '<strong class="text-white font-semibold">$1</strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+    html = html.replace(/__(.+?)__/g, '<strong class="font-semibold">$1</strong>');
     html = html.replace(/(?<![*_])([*_])(?![*_])(.+?)(?<![*_])\1(?![*_])/g, '<em class="text-primary-300 italic">$2</em>');
     html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"><code class="text-accent-300 text-sm font-mono">$2</code></pre>');
     html = html.replace(/`([^`]+)`/g, '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono">$1</code>');
@@ -1492,13 +1672,10 @@ function setupAIAgentChat(): void {
     html = html.replace(/<p class="[^"]*"><\/p>/g, '');
     html = html.replace(/<p class="[^"]*"><br><\/p>/g, '');
     html = html.replace(/<br><br>/g, '</p><p class="mb-3 text-dark-200 leading-relaxed">');
-    return html;
+    return sanitizeHTML(html);
   }
 
   sendBtn.addEventListener('click', sendMessage);
-  chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  });
 
   if (clearChatBtn) {
     clearChatBtn.addEventListener('click', () => {
@@ -1724,8 +1901,14 @@ function showUidModal(uid: string, email: string): void {
   }, 100);
 }
 
+function runInit(): void {
+  void init().catch(() => {
+    showBootstrapError('The app failed to finish loading. Please refresh the page or try again later.');
+  });
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  window.addEventListener('DOMContentLoaded', runInit);
 } else {
-  init();
+  runInit();
 }

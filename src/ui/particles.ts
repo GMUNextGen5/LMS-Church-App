@@ -1,6 +1,8 @@
 /**
  * Login background particle canvas. Cached colors, debounced resize, requestAnimationFrame loop. Call destroy() on teardown.
  */
+import { getAppTheme } from '../core/theme-events';
+
 interface ParticleConfig {
   colors: string[];
   particleDensity: number;
@@ -20,6 +22,8 @@ const DEFAULT_CONFIG: ParticleConfig = {
   particleMaxSize: 4,
   speedMultiplier: 0.8,
 };
+
+const LIGHT_THEME_COLORS = ['#94a3b8', '#cbd5e1', '#64748b', '#0369a1', '#0d9488', '#8B2942'];
 
 const TWO_PI = Math.PI * 2;
 
@@ -58,11 +62,14 @@ export class ParticleSystem {
   private maxDistSq: number;
 
   constructor(canvasId: string, config: Partial<ParticleConfig> = {}) {
-    const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
     if (!canvas) throw new Error('Canvas not found');
 
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: true })!;
+    this.ctx = ctx;
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.maxDistSq = this.config.maxConnectionDistance * this.config.maxConnectionDistance;
@@ -86,7 +93,7 @@ export class ParticleSystem {
     this.resizeTimer = window.setTimeout(() => {
       this.resize();
       this.initParticles();
-    }, 150);
+    }, 200);
   };
 
   private handleMouseMove = (e: MouseEvent): void => {
@@ -129,7 +136,8 @@ export class ParticleSystem {
     const w = this.width;
     const h = this.height;
 
-    ctx.fillStyle = 'rgba(10, 10, 15, 0.15)';
+    ctx.fillStyle =
+      getAppTheme() === 'light' ? 'rgba(248, 250, 252, 0.35)' : 'rgba(10, 10, 15, 0.15)';
     ctx.fillRect(0, 0, w, h);
 
     const particles = this.particles;
@@ -170,6 +178,15 @@ export class ParticleSystem {
 
     this.animationFrameId = requestAnimationFrame(this.animate);
   };
+
+  /**
+   * Re-picks particle palette and respawns particles when the app theme changes (login canvas).
+   */
+  public refreshForTheme(): void {
+    const light = getAppTheme() === 'light';
+    this.config.colors = light ? [...LIGHT_THEME_COLORS] : [...DEFAULT_CONFIG.colors];
+    this.initParticles();
+  }
 
   public destroy(): void {
     cancelAnimationFrame(this.animationFrameId);
