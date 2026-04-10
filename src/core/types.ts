@@ -8,6 +8,8 @@ export interface User {
   email: string;
   role: UserRole;
   createdAt: string;
+  /** Display name from Firestore profile and/or Firebase Auth; prefer for UI over raw email. */
+  displayName?: string;
 }
 
 export interface Student {

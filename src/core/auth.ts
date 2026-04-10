@@ -34,11 +34,19 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          const fromDoc =
+            (typeof userData.displayName === 'string' && userData.displayName.trim()) ||
+            (typeof userData.fullName === 'string' && userData.fullName.trim()) ||
+            (typeof userData.name === 'string' && userData.name.trim()) ||
+            '';
+          const fromAuth = (firebaseUser.displayName && firebaseUser.displayName.trim()) || '';
+          const displayName = fromDoc || fromAuth || undefined;
           currentUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
             role: userData.role as UserRole,
-            createdAt: userData.createdAt
+            createdAt: userData.createdAt,
+            displayName,
           };
           onUserChanged(currentUser);
         } else {

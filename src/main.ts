@@ -24,6 +24,7 @@ import {
   showError,
   clearError,
   showModal,
+  closeModal,
   showLoading,
   hideLoading,
   loginForm,
@@ -54,6 +55,7 @@ import {
 import { User, Student, Grade, Attendance } from './core/types';
 import { initAssessments, loadAssessments } from './ui/assessment-ui';
 import { initClasses, loadClasses } from './ui/classes-ui';
+import { initLegalModals } from './ui/legal';
 
 let currentStudents: Student[] = [];
 let currentGrades: Grade[] = [];
@@ -135,6 +137,8 @@ async function init(): Promise<void> {
   initClasses();
 
   installThemeChangeBridge();
+  initLegalModals();
+  initAccountIdUi();
   registerThemeRefreshHandler(() => {
     if (currentGrades.length > 0) renderGradeCharts(currentGrades);
     particleSystem?.refreshForTheme();
@@ -182,7 +186,8 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 
     const userRole = getCurrentUserRole();
     if (typeof (window as any).updateSidebarUserInfo === 'function') {
-      (window as any).updateSidebarUserInfo(user.email, userRole);
+      const sidebarLabel = (user.displayName && user.displayName.trim()) || user.email || '';
+      (window as any).updateSidebarUserInfo(sidebarLabel, userRole);
     }
 
     await loadDashboardData();
@@ -253,6 +258,23 @@ function setupAuthForms(): void {
     }
     if (password.length < 6) {
       showError(signupError, 'Password must be at least 6 characters');
+      return;
+    }
+    const acceptLegal = sf.querySelector('#signup-accept-legal') as HTMLInputElement | null;
+    const legalField = document.getElementById('signup-legal-field');
+    if (!acceptLegal?.checked) {
+      showError(
+        signupError,
+        'Please agree to the Terms of Service and Privacy Policy before creating an account.'
+      );
+      if (legalField) {
+        legalField.classList.remove('signup-legal-shake');
+        void legalField.offsetWidth;
+        legalField.classList.add('signup-legal-shake');
+        const removeShake = (): void => legalField.classList.remove('signup-legal-shake');
+        legalField.addEventListener('animationend', removeShake, { once: true });
+      }
+      acceptLegal?.focus();
       return;
     }
     try {
@@ -740,7 +762,7 @@ async function loadDashboardData(): Promise<void> {
     currentStudents = await fetchStudents();
     updateStudentSelect();
     updateDashboardStats();
-    displayStudentUid();
+    syncNavbarUidField();
     await Promise.all([
       loadRecentActivity(),
       loadRegisteredStudents(),
@@ -1153,31 +1175,34 @@ function getGradeChartOptions(): Record<string, unknown> {
     ? {
         x: {
           grid: { color: 'rgba(15, 23, 42, 0.08)' },
-          ticks: { color: '#475569', maxRotation: 45, minRotation: 0 },
+          ticks: { color: '#475569', maxRotation: 45, minRotation: 0, padding: 6 },
         },
         y: {
           beginAtZero: true,
           max: 100,
           grid: { color: 'rgba(15, 23, 42, 0.08)' },
-          ticks: { color: '#475569', callback: (v: number) => v + '%' },
+          ticks: { color: '#475569', padding: 10, callback: (v: number) => v + '%' },
         },
       }
     : {
         x: {
           grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: 'rgba(255,255,255,0.6)', maxRotation: 45, minRotation: 0 },
+          ticks: { color: 'rgba(255,255,255,0.6)', maxRotation: 45, minRotation: 0, padding: 6 },
         },
         y: {
           beginAtZero: true,
           max: 100,
           grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: 'rgba(255,255,255,0.6)', callback: (v: number) => v + '%' },
+          ticks: { color: 'rgba(255,255,255,0.6)', padding: 10, callback: (v: number) => v + '%' },
         },
       };
   return {
     responsive: true,
     maintainAspectRatio: false,
     animation: { duration: 300 },
+    layout: {
+      padding: light ? { left: 6, right: 14, top: 12, bottom: 10 } : { left: 4, right: 12, top: 10, bottom: 8 },
+    },
     plugins: { legend: { display: false } },
     scales,
   };
@@ -1807,41 +1832,75 @@ function loadStudentProfile(): void {
   }
 }
 
-let uidListenersInitialized = false;
+/** Keeps legacy hidden `#navbar-uid-display` in sync (e.g. mobile menu delegates to `#show-uid-btn`). */
+function syncNavbarUidField(): void {
+  const uidDisplay = document.getElementById('navbar-uid-display') as HTMLInputElement | null;
+  const user = auth.currentUser;
+  if (uidDisplay && user) uidDisplay.value = user.uid;
+}
 
-function displayStudentUid(): void {
-  const uidDisplay = document.getElementById('navbar-uid-display') as HTMLInputElement;
-  const copyBtn = document.getElementById('navbar-copy-uid-btn');
-  const showUidBtn = document.getElementById('show-uid-btn');
-  const uidDropdown = document.getElementById('uid-dropdown');
-  if (!uidDisplay || !copyBtn || !showUidBtn || !uidDropdown) return;
+/**
+ * Wires `#show-uid-btn` and `window.openAccountIdModal` (sidebar) to a real modal — the old `#uid-dropdown`
+ * was never populated, so toggling it did nothing after the shell redesign.
+ */
+function initAccountIdUi(): void {
+  const w = window as unknown as { __lmsAccountIdUi?: boolean; openAccountIdModal?: () => void };
+  if (w.__lmsAccountIdUi) return;
+  w.__lmsAccountIdUi = true;
+  w.openAccountIdModal = openAccountIdModal;
 
+  document.getElementById('show-uid-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAccountIdModal();
+  });
+}
+
+function openAccountIdModal(): void {
   const user = auth.currentUser;
   if (!user) return;
-  uidDisplay.value = user.uid;
+  const uid = user.uid;
+  const safeUid = escapeHtml(uid);
+  const modalHtml = `
+    <div class="space-y-4">
+      <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <p class="text-blue-400 font-semibold mb-2">Your Account ID (UID)</p>
+        <p class="text-dark-300 text-sm mb-3">Share this ID with your teacher or administrator so they can link your enrollment.</p>
+        <div class="relative">
+          <input type="text" id="account-id-modal-uid-input" value="${safeUid}" readonly class="w-full px-4 py-3 pr-24 rounded-lg bg-dark-800 border border-dark-600 text-white font-mono text-sm focus:outline-none focus:border-primary-500">
+          <button type="button" id="account-id-modal-copy-btn" class="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded text-sm font-semibold transition-all">Copy</button>
+        </div>
+        <p class="text-xs text-dark-400 mt-2">Use Copy, then paste into a message or email to your teacher.</p>
+      </div>
+      <div class="text-center">
+        <button type="button" id="account-id-modal-close-btn" class="px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">Close</button>
+      </div>
+    </div>`;
 
-  if (!uidListenersInitialized) {
-    showUidBtn.addEventListener('click', (e) => { e.stopPropagation(); uidDropdown.classList.toggle('hide'); });
-    document.addEventListener('click', (e) => {
-      const target = e.target as Node;
-      if (!uidDropdown.contains(target) && !showUidBtn.contains(target)) uidDropdown.classList.add('hide');
+  showModal('My Account ID', modalHtml);
+
+  window.setTimeout(() => {
+    const cpBtn = document.getElementById('account-id-modal-copy-btn');
+    const uidInput = document.getElementById('account-id-modal-uid-input') as HTMLInputElement | null;
+    const closeBtn = document.getElementById('account-id-modal-close-btn');
+    if (cpBtn && uidInput) {
+      cpBtn.addEventListener('click', () => {
+        uidInput.select();
+        void navigator.clipboard.writeText(uid).then(
+          () => {
+            const orig = cpBtn.textContent;
+            cpBtn.textContent = '✓ Copied!';
+            window.setTimeout(() => {
+              cpBtn.textContent = orig || 'Copy';
+            }, 2000);
+          },
+          () => alert('Failed to copy. Please select and copy manually.')
+        );
+      });
+    }
+    closeBtn?.addEventListener('click', () => {
+      closeModal();
     });
-    copyBtn.addEventListener('click', () => {
-      uidDisplay.select();
-      navigator.clipboard.writeText(uidDisplay.value).then(() => {
-        const originalText = copyBtn.textContent;
-        copyBtn.textContent = '✓ Copied!';
-        copyBtn.classList.add('bg-green-500', 'hover:bg-green-600');
-        copyBtn.classList.remove('bg-primary-500', 'hover:bg-primary-600');
-        setTimeout(() => {
-          copyBtn.textContent = originalText;
-          copyBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
-          copyBtn.classList.add('bg-primary-500', 'hover:bg-primary-600');
-        }, 2000);
-      }).catch(() => alert('Failed to copy. Please select and copy manually.'));
-    });
-    uidListenersInitialized = true;
-  }
+  }, 0);
 }
 
 function showUidModal(uid: string, email: string): void {
@@ -1896,7 +1955,9 @@ function showUidModal(uid: string, email: string): void {
       });
     }
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => { document.getElementById('modal')?.classList.add('hide'); });
+      closeBtn.addEventListener('click', () => {
+        closeModal();
+      });
     }
   }, 100);
 }

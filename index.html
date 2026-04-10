@@ -260,6 +260,28 @@
             }
         }
 
+        @keyframes signupLegalShake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20%,
+            60% {
+                transform: translateX(-6px);
+            }
+
+            40%,
+            80% {
+                transform: translateX(6px);
+            }
+        }
+
+        .signup-legal-shake {
+            animation: signupLegalShake 0.45s ease-in-out;
+        }
+
         /* ==================== LOGO ANIMATION ==================== */
         .ng5-logo-container {
             position: relative;
@@ -2649,6 +2671,42 @@
             color: #0369a1 !important;
         }
 
+        /* Legal modal — panel/backdrop/title track data-app-theme (set from TS on lms-theme-changed) */
+        #legal-modal-backdrop[data-app-theme="light"] {
+            background-color: rgba(15, 23, 42, 0.45) !important;
+        }
+
+        #legal-modal-backdrop[data-app-theme="dark"] {
+            background-color: rgba(2, 6, 23, 0.82) !important;
+        }
+
+        #legal-modal-panel[data-app-theme="light"] {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+        }
+
+        #legal-modal-panel[data-app-theme="dark"] {
+            background-color: #0f172a !important;
+            border-color: #334155 !important;
+        }
+
+        #legal-modal-title[data-app-theme="light"] {
+            color: #0f172a !important;
+        }
+
+        #legal-modal-title[data-app-theme="dark"] {
+            color: #f1f5f9 !important;
+        }
+
+        /* Legal modal body: default text color per theme (avoids inheriting low-contrast parent styles) */
+        #legal-modal-panel[data-app-theme="light"] #legal-modal-body {
+            color: #334155 !important;
+        }
+
+        #legal-modal-panel[data-app-theme="dark"] #legal-modal-body {
+            color: #cbd5e1 !important;
+        }
+
         /* Button styles in light mode - ADA compliant */
         [data-theme="light"] button.bg-primary-500,
         [data-theme="light"] button.bg-primary-600 {
@@ -4767,13 +4825,12 @@
             border-radius: 50%;
         }
 
+        /* Fixed height + maintainAspectRatio:false in Chart.js avoids squashed plots and tick overlap */
         .chart-canvas-wrapper {
             position: relative;
             width: 100%;
-            min-height: 220px;
-            height: 0;
-            padding-bottom: 56.25%;
-            /* 16:9 reserved space reduces CLS before Chart.js paints */
+            min-height: 240px;
+            height: 280px;
         }
 
         .chart-canvas-wrapper>canvas {
@@ -4796,8 +4853,8 @@
             }
 
             .chart-canvas-wrapper {
-                min-height: 200px;
-                padding-bottom: 62.5%;
+                min-height: 220px;
+                height: 260px;
             }
         }
 
@@ -5040,6 +5097,23 @@
                             </svg>
                         </div>
                     </div>
+                    <div id="signup-legal-field" class="mt-2 mb-2 w-full min-w-0">
+                        <label class="flex items-start gap-3 cursor-pointer text-left">
+                            <input type="checkbox" id="signup-accept-legal" name="acceptTermsPrivacy"
+                                class="signup-legal-checkbox mt-1 h-4 w-4 shrink-0 rounded border-slate-400 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0 focus:ring-offset-transparent bg-white dark:bg-slate-900 dark:border-slate-500"
+                                aria-required="true">
+                            <span class="text-sm leading-relaxed text-slate-700 dark:text-slate-300 flex-1 min-w-0">
+                                I agree to the
+                                <button type="button"
+                                    class="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                    data-open-legal="terms">Terms of Service</button>
+                                and
+                                <button type="button"
+                                    class="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                    data-open-legal="privacy">Privacy Policy</button>.
+                            </span>
+                        </label>
+                    </div>
                     <div id="signup-error" class="error-message hide"></div>
                     <button type="submit" class="btn-primary">
                         <span>Create account</span>
@@ -5065,8 +5139,8 @@
         <div class="auth-footer">
             <div class="auth-footer-links">
                 <span>© 2026 DSKM LMS</span>
-                <a href="/privacy" class="link">Privacy</a>
-                <a href="/terms" class="link">Terms</a>
+                <a href="#" class="link" data-legal-modal="privacy" role="button">Privacy</a>
+                <a href="#" class="link" data-legal-modal="terms" role="button">Terms</a>
             </div>
         </div>
     </div>
@@ -6458,7 +6532,7 @@
                             class="glass-effect rounded-2xl overflow-hidden h-[calc(100vh-200px)] flex flex-col shadow-2xl shadow-primary-500/10">
                             <!-- Header -->
                             <div
-                                class="p-5 border-b border-primary-500/20 bg-gradient-to-r from-primary-500/10 via-transparent to-accent-500/10 backdrop-blur-xl">
+                                class="ai-header p-5 border-b border-slate-200 dark:border-primary-500/20 bg-white dark:bg-slate-800 backdrop-blur-xl">
                                 <div class="flex justify-between items-center">
                                     <div class="flex items-center gap-4">
                                         <div class="relative">
@@ -6473,20 +6547,19 @@
                                                 </svg>
                                             </div>
                                             <div
-                                                class="absolute -bottom-1 -right-1 w-5 h-5 bg-accent-500 rounded-full border-2 border-dark-900 flex items-center justify-center">
+                                                class="absolute -bottom-1 -right-1 w-5 h-5 bg-accent-500 rounded-full border-2 border-white dark:border-dark-900 flex items-center justify-center">
                                                 <div class="w-2 h-2 bg-white rounded-full animate-ping">
                                                 </div>
                                             </div>
                                         </div>
                                         <div>
-                                            <h3
-                                                class="text-2xl font-bold bg-gradient-to-r from-white to-dark-200 bg-clip-text text-transparent">
+                                            <h3 class="text-2xl font-bold text-slate-900 dark:text-white">
                                                 NG5 AI Assistant</h3>
-                                            <p class="text-dark-300 text-sm mt-1 flex items-center gap-2">
+                                            <p class="text-slate-600 dark:text-dark-300 text-sm mt-1 flex items-center gap-2">
                                                 <span
-                                                    class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-400 text-xs font-medium">
+                                                    class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent-500/15 dark:bg-accent-500/20 text-accent-600 dark:text-accent-400 text-xs font-medium">
                                                     <span
-                                                        class="w-1.5 h-1.5 bg-accent-400 rounded-full animate-pulse"></span>
+                                                        class="w-1.5 h-1.5 bg-accent-500 dark:bg-accent-400 rounded-full animate-pulse"></span>
                                                     Online
                                                 </span>
                                             </p>
@@ -6494,7 +6567,7 @@
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <button id="ai-settings-btn"
-                                            class="p-2.5 rounded-xl bg-dark-800/50 hover:bg-dark-700 text-dark-400 hover:text-white transition-all"
+                                            class="p-2.5 rounded-xl bg-slate-100 dark:bg-dark-800/50 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white transition-all"
                                             title="AI Settings">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -6506,7 +6579,7 @@
                                             </svg>
                                         </button>
                                         <button id="clear-chat-btn"
-                                            class="p-2.5 rounded-xl bg-dark-800/50 hover:bg-red-500/20 text-dark-400 hover:text-red-400 transition-all"
+                                            class="p-2.5 rounded-xl bg-slate-100 dark:bg-dark-800/50 hover:bg-red-500/15 dark:hover:bg-red-500/20 text-slate-600 dark:text-dark-400 hover:text-red-600 dark:hover:text-red-400 transition-all"
                                             title="Clear Chat">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -6533,12 +6606,12 @@
                                     </div>
                                     <div class="flex-1 max-w-3xl">
                                         <div
-                                            class="glass-effect rounded-2xl rounded-tl-sm p-5 border border-primary-500/20 hover:border-primary-500/40 transition-all">
-                                            <p class="text-white font-semibold text-lg mb-2 flex items-center gap-2">
+                                            class="glass-effect rounded-2xl rounded-tl-sm p-5 border border-slate-200 dark:border-primary-500/20 hover:border-primary-400/40 dark:hover:border-primary-500/40 transition-all">
+                                            <p class="text-slate-900 dark:text-white font-semibold text-lg mb-2 flex items-center gap-2">
                                                 <span>👋</span> Welcome! I'm your AI
                                                 Educational Advisor
                                             </p>
-                                            <p class="text-dark-300 mb-4 leading-relaxed">
+                                            <p class="text-slate-600 dark:text-dark-300 mb-4 leading-relaxed">
                                                 I have access to your complete Firebase
                                                 database including student
                                                 records, grades, and attendance data. I can
@@ -6549,10 +6622,10 @@
                                             <!-- Capabilities Grid -->
                                             <div class="grid grid-cols-2 gap-3 mb-4">
                                                 <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-primary-500/10 to-transparent border border-primary-500/20 hover:border-primary-500/40 transition-all cursor-default">
+                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-primary-500/10 dark:to-transparent border border-slate-200 dark:border-primary-500/20 hover:border-primary-400/50 dark:hover:border-primary-500/40 transition-all cursor-default">
                                                     <div
-                                                        class="w-9 h-9 rounded-lg bg-primary-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <svg class="w-5 h-5 text-primary-400" fill="none"
+                                                        class="w-9 h-9 rounded-lg bg-primary-500/15 dark:bg-primary-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                                 stroke-width="2"
@@ -6561,17 +6634,17 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
                                                             Student Profiles</p>
-                                                        <p class="text-dark-400 text-xs">
+                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
                                                             View & analyze records</p>
                                                     </div>
                                                 </div>
                                                 <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-accent-500/10 to-transparent border border-accent-500/20 hover:border-accent-500/40 transition-all cursor-default">
+                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-accent-500/10 dark:to-transparent border border-slate-200 dark:border-accent-500/20 hover:border-accent-400/50 dark:hover:border-accent-500/40 transition-all cursor-default">
                                                     <div
-                                                        class="w-9 h-9 rounded-lg bg-accent-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <svg class="w-5 h-5 text-accent-400" fill="none"
+                                                        class="w-9 h-9 rounded-lg bg-accent-500/15 dark:bg-accent-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <svg class="w-5 h-5 text-accent-600 dark:text-accent-400" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                                 stroke-width="2"
@@ -6580,17 +6653,17 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
                                                             Grade Analytics</p>
-                                                        <p class="text-dark-400 text-xs">
+                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
                                                             Performance insights</p>
                                                     </div>
                                                 </div>
                                                 <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-yellow-500/10 to-transparent border border-yellow-500/20 hover:border-yellow-500/40 transition-all cursor-default">
+                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-yellow-500/10 dark:to-transparent border border-slate-200 dark:border-yellow-500/20 hover:border-yellow-500/50 dark:hover:border-yellow-500/40 transition-all cursor-default">
                                                     <div
                                                         class="w-9 h-9 rounded-lg bg-yellow-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <svg class="w-5 h-5 text-yellow-400" fill="none"
+                                                        <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                                 stroke-width="2"
@@ -6599,17 +6672,17 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
                                                             Attendance</p>
-                                                        <p class="text-dark-400 text-xs">
+                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
                                                             Track patterns</p>
                                                     </div>
                                                 </div>
                                                 <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-transparent border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-default">
+                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-purple-500/10 dark:to-transparent border border-slate-200 dark:border-purple-500/20 hover:border-purple-400/50 dark:hover:border-purple-500/40 transition-all cursor-default">
                                                     <div
-                                                        class="w-9 h-9 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <svg class="w-5 h-5 text-purple-400" fill="none"
+                                                        class="w-9 h-9 rounded-lg bg-purple-500/15 dark:bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                                 stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6">
@@ -6617,15 +6690,15 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
                                                             Trends</p>
-                                                        <p class="text-dark-400 text-xs">
+                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
                                                             Predictive analysis</p>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <p class="text-dark-500 text-xs mt-2 ml-2">Just now
+                                        <p class="text-slate-500 dark:text-dark-500 text-xs mt-2 ml-2">Just now
                                         </p>
                                     </div>
                                 </div>
@@ -6633,7 +6706,7 @@
                                 <!-- Quick Suggestions -->
                                 <div id="ai-quick-suggestions"
                                     class="flex flex-wrap gap-2 px-2 animate-fade-in-up [animation-delay:200ms]">
-                                    <p class="w-full text-dark-400 text-sm mb-1 flex items-center gap-2">
+                                    <p class="w-full text-slate-600 dark:text-dark-400 text-sm mb-1 flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M13 10V3L4 14h7v7l9-11h-7z">
@@ -6642,7 +6715,7 @@
                                         Quick questions to get started:
                                     </p>
                                     <button
-                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-dark-800/60 hover:bg-primary-500/20 border border-dark-700 hover:border-primary-500/50 text-dark-300 hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-primary-500/15 dark:bg-dark-800/60 dark:hover:bg-primary-500/20 border border-slate-200 hover:border-primary-500/40 dark:border-dark-700 dark:hover:border-primary-500/50 text-slate-800 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
                                         onclick="window.askAISuggestion(this.dataset.query)"
                                         data-query="Who are the top performing students?">
                                         <span class="flex items-center gap-2">
@@ -6651,7 +6724,7 @@
                                         </span>
                                     </button>
                                     <button
-                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-dark-800/60 hover:bg-yellow-500/20 border border-dark-700 hover:border-yellow-500/50 text-dark-300 hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-yellow-500/15 dark:bg-dark-800/60 dark:hover:bg-yellow-500/20 border border-slate-200 hover:border-yellow-500/40 dark:border-dark-700 dark:hover:border-yellow-500/50 text-slate-800 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
                                         onclick="window.askAISuggestion(this.dataset.query)"
                                         data-query="Which students have attendance below 80%?">
                                         <span class="flex items-center gap-2">
@@ -6660,7 +6733,7 @@
                                         </span>
                                     </button>
                                     <button
-                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-dark-800/60 hover:bg-accent-500/20 border border-dark-700 hover:border-accent-500/50 text-dark-300 hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-accent-500/15 dark:bg-dark-800/60 dark:hover:bg-accent-500/20 border border-slate-200 hover:border-accent-500/40 dark:border-dark-700 dark:hover:border-accent-500/50 text-slate-800 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
                                         onclick="window.askAISuggestion(this.dataset.query)"
                                         data-query="Give me an overview of all student performance">
                                         <span class="flex items-center gap-2">
@@ -6669,7 +6742,7 @@
                                         </span>
                                     </button>
                                     <button
-                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-dark-800/60 hover:bg-purple-500/20 border border-dark-700 hover:border-purple-500/50 text-dark-300 hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        class="ai-suggestion-chip group px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-purple-500/15 dark:bg-dark-800/60 dark:hover:bg-purple-500/20 border border-slate-200 hover:border-purple-500/40 dark:border-dark-700 dark:hover:border-purple-500/50 text-slate-800 hover:text-slate-900 dark:text-dark-300 dark:hover:text-white text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
                                         onclick="window.askAISuggestion(this.dataset.query)"
                                         data-query="Which students need academic support?">
                                         <span class="flex items-center gap-2">
@@ -6682,11 +6755,11 @@
 
                             <!-- Chat Input Area -->
                             <div
-                                class="p-4 border-t border-primary-500/20 bg-gradient-to-r from-dark-900/80 to-dark-800/80 backdrop-blur-xl">
+                                class="p-4 border-t border-slate-200 dark:border-primary-500/20 bg-slate-50 dark:bg-gradient-to-r dark:from-dark-900/80 dark:to-dark-800/80 backdrop-blur-xl">
                                 <!-- Character count and tips -->
                                 <div class="flex justify-between items-center mb-3 px-1">
                                     <div class="flex items-center gap-4">
-                                        <span class="text-dark-500 text-xs flex items-center gap-1.5">
+                                        <span class="text-slate-500 dark:text-dark-500 text-xs flex items-center gap-1.5">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
                                                 viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -6696,21 +6769,21 @@
                                             Be specific for better results
                                         </span>
                                     </div>
-                                    <span id="ai-char-count" class="text-dark-500 text-xs">0
+                                    <span id="ai-char-count" class="text-slate-500 dark:text-dark-500 text-xs">0
                                         / 500</span>
                                 </div>
 
                                 <div class="flex gap-3 items-end">
                                     <div class="relative flex min-w-0 flex-1 group">
                                         <div
-                                            class="ai-input-autogrow-scroll w-full rounded-2xl border-2 border-dark-700 bg-dark-800/80 text-white transition-all focus-within:border-primary-500 focus-within:ring-4 focus-within:ring-primary-500/10">
+                                            class="ai-input-autogrow-scroll w-full rounded-2xl border-2 border-slate-300 dark:border-dark-700 bg-white dark:bg-dark-800/80 text-slate-900 dark:text-white transition-all focus-within:border-primary-500 focus-within:ring-4 focus-within:ring-primary-500/10">
                                             <div class="ai-input-autogrow-grid">
                                                 <span id="ai-agent-input-mirror" class="ai-autogrow-mirror"
                                                     aria-hidden="true"></span>
                                                 <textarea id="ai-agent-input" rows="1" maxlength="500"
                                                     autocomplete="off"
                                                     placeholder="Ask me anything about your students..."
-                                                    class="ai-autogrow-textarea placeholder-dark-500"></textarea>
+                                                    class="ai-autogrow-textarea placeholder-slate-500 dark:placeholder-dark-500"></textarea>
                                             </div>
                                         </div>
                                         <div class="pointer-events-none absolute bottom-4 right-4 flex items-center gap-2">
@@ -6829,6 +6902,37 @@
                 </button>
             </div>
             <div id="ai-modal-content" class="text-dark-200 prose max-w-none dark:prose-invert">
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy & Terms (auth footer; opened via src/ui/legal.ts) -->
+    <div id="legal-modal"
+        class="fixed inset-0 z-[60] p-4 hide flex items-center justify-center backdrop-blur-sm relative"
+        aria-hidden="true">
+        <div id="legal-modal-backdrop" class="absolute inset-0 z-0" data-app-theme="dark" aria-hidden="true"></div>
+        <div id="legal-modal-panel"
+            class="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-2xl"
+            role="dialog" aria-modal="true" aria-labelledby="legal-modal-title" data-app-theme="dark">
+            <div class="flex justify-between items-start gap-4 mb-4 flex-shrink-0">
+                <h3 id="legal-modal-title" class="text-xl font-bold text-slate-900 dark:text-slate-100" data-app-theme="dark">
+                    Privacy Policy
+                </h3>
+                <button type="button" id="legal-modal-close-x"
+                    class="p-2 rounded-lg transition-colors text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800"
+                    aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="legal-modal-body" class="overflow-y-auto flex-1 text-sm leading-relaxed pr-1 min-h-0"></div>
+            <div class="mt-6 flex justify-end flex-shrink-0 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <button type="button" id="legal-modal-close"
+                    class="px-6 py-2.5 rounded-lg font-semibold bg-primary-500 hover:bg-primary-600 text-white transition-colors shadow-lg shadow-primary-500/20">
+                    Close
+                </button>
             </div>
         </div>
     </div>
@@ -8621,26 +8725,26 @@
                 });
             }
 
-            // Sidebar show UID button
+            // Sidebar show UID — open modal via main bundle (legacy #uid-dropdown is empty)
             const sidebarUid = document.getElementById('sidebar-show-uid-btn');
             if (sidebarUid) {
                 sidebarUid.addEventListener('click', () => {
-                    const mainUid = document.getElementById('show-uid-btn');
-                    if (mainUid) {
-                        mainUid.click();
+                    closeSidebar();
+                    if (typeof window.openAccountIdModal === 'function') {
+                        window.openAccountIdModal();
                     }
                 });
             }
 
         }
 
-        // Update sidebar user info
-        function updateSidebarUserInfo(email, role) {
+        // Update sidebar user info (primary line: display name when available, else email)
+        function updateSidebarUserInfo(displayNameOrEmail, role) {
             const sidebarEmail = document.getElementById('sidebar-user-email');
             const sidebarRole = document.getElementById('sidebar-user-role');
 
             if (sidebarEmail) {
-                sidebarEmail.textContent = email || '';
+                sidebarEmail.textContent = displayNameOrEmail || '';
             }
             if (sidebarRole) {
                 sidebarRole.textContent = role ? role.charAt(0).toUpperCase() + role.slice(1) : '';
