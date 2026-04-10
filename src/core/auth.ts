@@ -9,6 +9,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  serverTimestamp,
   FirebaseUser
 } from './firebase';
 import { User, UserRole } from './types';
@@ -19,6 +20,13 @@ let currentUser: User | null = null;
 export function getCurrentUser(): User | null {
   return currentUser;
 }
+
+export type LegalAcceptanceRecord = {
+  termsVersion: string;
+  privacyVersion: string;
+  acceptedAt: unknown; // serverTimestamp()
+  userAgent: string;
+};
 
 /**
  * Subscribes to Firebase auth state, loads `users/{uid}` for role and email, and notifies the app.
@@ -71,7 +79,11 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
  * Creates a Firebase Auth account, writes `users/{uid}` with role `student`, and returns `uid`.
  * Deletes the auth user if the Firestore write fails so no orphan accounts remain.
  */
-export async function signUp(email: string, password: string): Promise<string> {
+export async function signUp(
+  email: string,
+  password: string,
+  legalAcceptance: Omit<LegalAcceptanceRecord, 'acceptedAt'>
+): Promise<string> {
   let userCredential: { user: import('firebase/auth').User } | null = null;
 
   try {
@@ -83,7 +95,13 @@ export async function signUp(email: string, password: string): Promise<string> {
     await setDoc(userDocRef, {
       email: String(email).trim(),
       role: 'student',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      legalAcceptance: {
+        termsVersion: String(legalAcceptance.termsVersion || '').trim(),
+        privacyVersion: String(legalAcceptance.privacyVersion || '').trim(),
+        userAgent: String(legalAcceptance.userAgent || '').slice(0, 300),
+        acceptedAt: serverTimestamp(),
+      },
     });
 
     return uid;

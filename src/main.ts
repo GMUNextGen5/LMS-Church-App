@@ -64,6 +64,9 @@ let selectedStudentId: string | null = null;
 let gradesUnsubscribe: (() => void) | null = null;
 let particleSystem: ParticleSystem | null = null;
 
+const LEGAL_TERMS_VERSION = '2026-04-10';
+const LEGAL_PRIVACY_VERSION = '2026-04-10';
+
 // Reused for HTML escaping to avoid XSS when rendering user/AI content
 const escapeEl = document.createElement('div');
 function escapeHtml(s: string): string {
@@ -123,25 +126,35 @@ function setupLmsDelegatedActions(): void {
 
 /** Bootstraps UI, auth, forms, feature modules, and the centralized theme refresh bridge. */
 async function init(): Promise<void> {
-  initUI();
+  try {
+    initUI();
+  } catch {
+    // UI boot should not block Firebase init; fall through to banner-based error handling if needed.
+  }
+
   const firebaseErr = ensureFirebaseClient();
   if (firebaseErr) {
     showFirebaseConfigurationError(firebaseErr.message);
     return;
   }
-  initAuth(handleAuthStateChange);
-  setupAuthForms();
-  setupAppForms();
-  setupLmsDelegatedActions();
-  initAssessments();
-  initClasses();
 
-  installThemeChangeBridge();
-  initLegalModals();
-  initAccountIdUi();
+  try { initAuth(handleAuthStateChange); } catch { /* auth listener init */ }
+  try { setupAuthForms(); } catch { /* auth form wiring */ }
+  try { setupAppForms(); } catch { /* app wiring */ }
+  try { setupLmsDelegatedActions(); } catch { /* delegated actions */ }
+  try { initAssessments(); } catch { /* assessments init */ }
+  try { initClasses(); } catch { /* classes init */ }
+
+  try { installThemeChangeBridge(); } catch { /* theme bridge */ }
+  try { initLegalModals(); } catch { /* legal modals */ }
+  try { initAccountIdUi(); } catch { /* account id UI */ }
   registerThemeRefreshHandler(() => {
-    if (currentGrades.length > 0) renderGradeCharts(currentGrades);
-    particleSystem?.refreshForTheme();
+    try {
+      if (currentGrades.length > 0) renderGradeCharts(currentGrades);
+      particleSystem?.refreshForTheme();
+    } catch {
+      /* theme refresh */
+    }
   });
 
   document.addEventListener('tab-switched', async (e: any) => {
@@ -278,7 +291,11 @@ function setupAuthForms(): void {
       return;
     }
     try {
-      const uid = await signUp(email, password);
+      const uid = await signUp(email, password, {
+        termsVersion: LEGAL_TERMS_VERSION,
+        privacyVersion: LEGAL_PRIVACY_VERSION,
+        userAgent: navigator.userAgent || '',
+      });
       showUidModal(uid, email);
       sf.reset();
     } catch (error: any) {
@@ -1585,6 +1602,47 @@ function setupAIAgentChat(): void {
       chatInput.focus();
     }
   };
+
+  const runQuickPrompt = (query: string): void => {
+    const q = (query || '').trim();
+    if (!q) return;
+    chatInput.value = q;
+    syncAiInputMirror();
+
+    // Hide quick suggestions once used (keeps UI focused on the conversation)
+    const suggestions = document.getElementById('ai-quick-suggestions');
+    if (suggestions && suggestions.style.display !== 'none') {
+      suggestions.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      suggestions.style.opacity = '0';
+      suggestions.style.transform = 'translateY(-10px)';
+      window.setTimeout(() => {
+        suggestions.style.display = 'none';
+      }, 300);
+    }
+
+    void sendMessage();
+  };
+
+  // Make quick prompts and chips work without inline handlers
+  (window as any).askAISuggestion = (query: string) => runQuickPrompt(query);
+
+  const quickPrompts = document.getElementById('ai-quick-prompts');
+  if (quickPrompts && !(quickPrompts as HTMLElement & { __aiPrompts?: boolean }).__aiPrompts) {
+    (quickPrompts as HTMLElement & { __aiPrompts?: boolean }).__aiPrompts = true;
+    quickPrompts.addEventListener('click', (ev) => {
+      const el = (ev.target as HTMLElement).closest('[data-ai-query]') as HTMLElement | null;
+      if (!el || !quickPrompts.contains(el)) return;
+      runQuickPrompt(el.getAttribute('data-ai-query') || '');
+    });
+    quickPrompts.addEventListener('keydown', (ev) => {
+      const ke = ev as KeyboardEvent;
+      if (ke.key !== 'Enter' && ke.key !== ' ') return;
+      const el = (ev.target as HTMLElement).closest('[data-ai-query]') as HTMLElement | null;
+      if (!el || !quickPrompts.contains(el)) return;
+      ke.preventDefault();
+      runQuickPrompt(el.getAttribute('data-ai-query') || '');
+    });
+  }
 
   function addMessageToChat(role: 'user' | 'assistant', content: string): void {
     if (!messagesContainer) return;

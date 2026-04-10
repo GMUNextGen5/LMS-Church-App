@@ -345,9 +345,6 @@ export const AI_MODEL_CONFIG = {
  */
 export function getApiKey(): string {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.warn('⚠️ GEMINI_API_KEY not set. AI features will not work.');
-  }
   return apiKey || '';
 }
 

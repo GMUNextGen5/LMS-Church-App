@@ -309,6 +309,34 @@ const db = getFirestore();
 // Initialize Gemini AI; key is read from GEMINI_API_KEY (set in functions/.env or Firebase config)
 const apiKey = getApiKey();
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const isDev = process.env.NODE_ENV !== 'production';
+
+function aiNotConfiguredMessage(): string {
+  return [
+    'AI service is not configured.',
+    '',
+    'Admin setup:',
+    '- Set GEMINI_API_KEY in Firebase Functions (Secret Manager / env) or in functions/.env for local emulator.',
+    '- Redeploy functions.',
+    '',
+    'Docs:',
+    '- See DEPLOYMENT.md and functions/.env.example in this repo.',
+  ].join('\n');
+}
+
+function aiNotConfiguredHtml(): string {
+  const msg = aiNotConfiguredMessage();
+  const esc = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return `
+    <div class="ai-card">
+      <h3 class="ai-title">AI not configured</h3>
+      <div class="ai-body">
+        <p>${esc(msg).replace(/\n/g, '<br>')}</p>
+      </div>
+    </div>
+  `.trim();
+}
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -418,7 +446,6 @@ export const getPerformanceSummary = onCall(
   async (request) => {
   // STEP 1: Verify user is authenticated
   if (!request.auth) {
-    console.error('❌ [getPerformanceSummary] Unauthenticated request');
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
   
@@ -426,7 +453,6 @@ export const getPerformanceSummary = onCall(
   
   // STEP 2: Validate input
   if (!studentId) {
-    console.error('❌ [getPerformanceSummary] Missing studentId');
     throw new HttpsError('invalid-argument', 'studentId is required');
   }
   
@@ -437,10 +463,6 @@ export const getPerformanceSummary = onCall(
   );
   
   if (!hasAccess) {
-    console.error('❌ [getPerformanceSummary] Access denied', {
-      userId: request.auth.uid,
-      studentId
-    });
     throw new HttpsError(
       'permission-denied',
       'You do not have access to this student'
@@ -457,7 +479,6 @@ export const getPerformanceSummary = onCall(
   const grades = gradesSnapshot.docs.map(doc => doc.data());
   
   if (grades.length === 0) {
-    console.warn('⚠️ [getPerformanceSummary] No grades found');
     throw new HttpsError(
       'failed-precondition',
       'No grades available for this student'
@@ -479,10 +500,9 @@ export const getPerformanceSummary = onCall(
   
   // STEP 7: Check if AI is configured
   if (!genAI) {
-    console.error('❌ [getPerformanceSummary] Gemini AI not initialized - missing API key');
     throw new HttpsError(
       'failed-precondition',
-      'AI service is not configured. Please contact administrator.'
+      aiNotConfiguredMessage()
     );
   }
   
@@ -532,15 +552,6 @@ export const getPerformanceSummary = onCall(
     };
     
   } catch (error: any) {
-    // Enhanced error logging for debugging
-    console.error('❌ [getPerformanceSummary] Gemini API error:', {
-      error: error.message,
-      code: error.code,
-      stack: error.stack,
-      studentId,
-      studentName: studentData?.name
-    });
-    
     // Provide user-friendly error message
     const errorMessage = error.message || 'Unknown error occurred';
     throw new HttpsError(
@@ -585,7 +596,6 @@ export const getStudyTips = onCall(
   async (request) => {
   // STEP 1: Verify user is authenticated
   if (!request.auth) {
-    console.error('❌ [getStudyTips] Unauthenticated request');
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
   
@@ -593,7 +603,6 @@ export const getStudyTips = onCall(
   
   // STEP 2: Validate input
   if (!studentId) {
-    console.error('❌ [getStudyTips] Missing studentId');
     throw new HttpsError('invalid-argument', 'studentId is required');
   }
   
@@ -604,10 +613,6 @@ export const getStudyTips = onCall(
   );
   
   if (!hasAccess) {
-    console.error('❌ [getStudyTips] Access denied', {
-      userId: request.auth.uid,
-      studentId
-    });
     throw new HttpsError(
       'permission-denied',
       'You do not have access to this student'
@@ -624,7 +629,6 @@ export const getStudyTips = onCall(
   const grades = gradesSnapshot.docs.map(doc => doc.data());
   
   if (grades.length === 0) {
-    console.warn('⚠️ [getStudyTips] No grades found');
     throw new HttpsError(
       'failed-precondition',
       'No grades available for this student'
@@ -643,10 +647,9 @@ export const getStudyTips = onCall(
   
   // STEP 6: Check if AI is configured
   if (!genAI) {
-    console.error('❌ [getStudyTips] Gemini AI not initialized - missing API key');
     throw new HttpsError(
       'failed-precondition',
-      'AI service is not configured. Please contact administrator.'
+      aiNotConfiguredMessage()
     );
   }
   
@@ -696,15 +699,6 @@ export const getStudyTips = onCall(
     };
     
   } catch (error: any) {
-    // Enhanced error logging for debugging
-    console.error('❌ [getStudyTips] Gemini API error:', {
-      error: error.message,
-      code: error.code,
-      stack: error.stack,
-      studentId,
-      studentName: studentData?.name
-    });
-    
     // Provide user-friendly error message
     const errorMessage = error.message || 'Unknown error occurred';
     throw new HttpsError(
@@ -759,7 +753,6 @@ export const aiAgentChat = onCall(
   async (request) => {
   // STEP 1: Verify user is authenticated and is admin
   if (!request.auth) {
-    console.error('❌ [aiAgentChat] Unauthenticated request');
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
   
@@ -767,10 +760,6 @@ export const aiAgentChat = onCall(
   const userDoc = await db.doc(`users/${request.auth.uid}`).get();
   const role = userDoc.data()?.role;
   if (!userDoc.exists || (role !== 'admin' && role !== 'teacher')) {
-    console.error('❌ [aiAgentChat] Access attempt without admin/teacher role', {
-      userId: request.auth.uid,
-      role: userDoc.data()?.role
-    });
     throw new HttpsError(
       'permission-denied',
       'Only administrators and teachers can use the AI Agent'
@@ -847,7 +836,7 @@ export const aiAgentChat = onCall(
         });
       });
     } catch (error) {
-      console.warn(`⚠️ [aiAgentChat] Error loading data for student ${student.id}:`, error);
+      // Ignore a single student's data load failure; continue with the rest.
     }
   }
   
@@ -887,11 +876,10 @@ export const aiAgentChat = onCall(
   
   // STEP 5: Check if AI is configured
   if (!genAI) {
-    console.error('❌ [aiAgentChat] Gemini AI not initialized - missing API key');
-    throw new HttpsError(
-      'failed-precondition',
-      'AI service is not configured. Please contact administrator.'
-    );
+    if (isDev) {
+      return { response: aiNotConfiguredHtml(), metadata: { devFallback: true } };
+    }
+    throw new HttpsError('failed-precondition', aiNotConfiguredMessage());
   }
   
   // STEP 6: Build conversation with context
@@ -1007,12 +995,6 @@ Instructions: Answer this question using ONLY the data provided above. If the us
     };
     
   } catch (error: any) {
-    console.error('❌ [aiAgentChat] Gemini API error:', {
-      error: error.message,
-      code: error.code,
-      stack: error.stack
-    });
-    
     const errorMessage = error.message || 'Unknown error occurred';
     throw new HttpsError(
       'internal',

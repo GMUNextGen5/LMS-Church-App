@@ -16,6 +16,16 @@ import {
 import { Student, Grade, Attendance, Course, User } from '../core/types';
 import { getCurrentUser } from '../core/auth';
 
+function cleanText(value: unknown, maxLen: number): string {
+  if (value == null) return '';
+  const s = String(value).replace(/[\x00-\x1f\x7f]/g, '').trim();
+  return s.length > maxLen ? s.slice(0, maxLen) : s;
+}
+
+function cleanEmail(value: unknown): string {
+  return cleanText(value, 254).toLowerCase();
+}
+
 /**
  * Loads students visible to the current user: all for admins, course-roster union for teachers,
  * or the single profile linked to the student’s Firebase uid.
@@ -88,15 +98,15 @@ export async function createStudent(studentData: {
   if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can create student records');
   const studentsRef = collection(db, 'students');
   const docRef = await addDoc(studentsRef, {
-    name: studentData.name,
-    memberId: studentData.memberId || '',
+    name: cleanText(studentData.name, 120),
+    memberId: cleanText(studentData.memberId || '', 40),
     yearOfBirth: studentData.yearOfBirth,
-    contactPhone: studentData.contactPhone,
-    contactEmail: studentData.contactEmail,
-    parentUid: studentData.parentUid,
-    studentUid: studentData.studentUid,
+    contactPhone: cleanText(studentData.contactPhone, 40),
+    contactEmail: cleanEmail(studentData.contactEmail),
+    parentUid: cleanText(studentData.parentUid, 128),
+    studentUid: cleanText(studentData.studentUid, 128),
     teacherIds: user.role === 'teacher' ? [user.uid] : [],
-    notes: studentData.notes || '',
+    notes: cleanText(studentData.notes || '', 2000),
     createdAt: new Date().toISOString(),
     createdBy: user.uid
   });
@@ -126,12 +136,12 @@ export async function updateStudent(studentId: string, data: Partial<{
   if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can update student records');
   const ref = doc(db, 'students', studentId);
   const updates: Record<string, unknown> = {};
-  if (data.name !== undefined) updates.name = data.name;
-  if (data.memberId !== undefined) updates.memberId = data.memberId;
+  if (data.name !== undefined) updates.name = cleanText(data.name, 120);
+  if (data.memberId !== undefined) updates.memberId = cleanText(data.memberId, 40);
   if (data.yearOfBirth !== undefined) updates.yearOfBirth = data.yearOfBirth;
-  if (data.contactPhone !== undefined) updates.contactPhone = data.contactPhone;
-  if (data.contactEmail !== undefined) updates.contactEmail = data.contactEmail;
-  if (data.notes !== undefined) updates.notes = data.notes;
+  if (data.contactPhone !== undefined) updates.contactPhone = cleanText(data.contactPhone, 40);
+  if (data.contactEmail !== undefined) updates.contactEmail = cleanEmail(data.contactEmail);
+  if (data.notes !== undefined) updates.notes = cleanText(data.notes, 2000);
   if (Object.keys(updates).length === 0) return;
   await updateDoc(ref, updates);
 }
@@ -239,13 +249,13 @@ export async function createTeacher(data: {
   const ref = doc(db, 'users', data.teacherUid);
   const updates: Record<string, unknown> = {
     role: 'teacher',
-    name: data.name ?? '',
-    phone: data.phone ?? '',
-    memberId: data.memberId ?? '',
+    name: cleanText(data.name ?? '', 120),
+    phone: cleanText(data.phone ?? '', 40),
+    memberId: cleanText(data.memberId ?? '', 40),
     updatedAt: new Date().toISOString(),
   };
-  if (data.email !== undefined && data.email !== '') updates.email = data.email;
-  if (data.notes !== undefined && data.notes !== '') updates.notes = data.notes;
+  if (data.email !== undefined && data.email !== '') updates.email = cleanEmail(data.email);
+  if (data.notes !== undefined && data.notes !== '') updates.notes = cleanText(data.notes, 2000);
   if (data.yearOfBirth !== undefined && data.yearOfBirth !== null) updates.yearOfBirth = data.yearOfBirth;
   await setDoc(ref, updates, { merge: true });
 }

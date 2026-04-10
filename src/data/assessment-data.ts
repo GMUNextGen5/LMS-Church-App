@@ -13,6 +13,12 @@ import type {
   QuestionGradeDetail, Course, Student
 } from '../core/types';
 
+function cleanText(value: unknown, maxLen: number): string {
+  if (value == null) return '';
+  const s = String(value).replace(/[\x00-\x1f\x7f]/g, '').trim();
+  return s.length > maxLen ? s.slice(0, maxLen) : s;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 //  HELPERS
 // ────────────────────────────────────────────────────────────────────────────
@@ -51,6 +57,9 @@ export async function createAssessment(
     createdBy: user.uid,
     createdAt: now,
     updatedAt: now,
+    title: cleanText((data as any).title, 160),
+    description: cleanText((data as any).description, 4000),
+    latePolicy: cleanText((data as any).latePolicy, 200),
   });
   return docRef.id;
 }
@@ -65,7 +74,11 @@ export async function updateAssessment(
   const ref = doc(db, 'courses', classId, 'assessments', assessmentId);
   // Strip `id` to avoid writing it as a field
   const { id: _id, ...rest } = data as any;
-  await updateDoc(ref, { ...rest, updatedAt: iso() });
+  const sanitized: Record<string, unknown> = { ...rest, updatedAt: iso() };
+  if ('title' in rest) sanitized.title = cleanText((rest as any).title, 160);
+  if ('description' in rest) sanitized.description = cleanText((rest as any).description, 4000);
+  if ('latePolicy' in rest) sanitized.latePolicy = cleanText((rest as any).latePolicy, 200);
+  await updateDoc(ref, sanitized);
 }
 
 /** Publish an assessment. */
@@ -194,7 +207,13 @@ export async function addQuestion(
   data: Omit<AssessmentQuestion, 'id'>
 ): Promise<string> {
   requireTeacherOrAdmin();
-  const ref = await addDoc(questionsCol(classId, assessmentId), data);
+  const clean: Omit<AssessmentQuestion, 'id'> = {
+    ...data,
+    prompt: cleanText(data.prompt, 2000),
+    options: Array.isArray(data.options) ? data.options.map((o) => cleanText(o, 500)) : [],
+    correctAnswers: Array.isArray(data.correctAnswers) ? data.correctAnswers.map((a) => cleanText(a, 200)) : [],
+  };
+  const ref = await addDoc(questionsCol(classId, assessmentId), clean);
   // Update assessment totalPoints and questionCount
   await recalcAssessmentTotals(classId, assessmentId);
   return ref.id;
@@ -209,7 +228,17 @@ export async function updateQuestion(
 ): Promise<void> {
   requireTeacherOrAdmin();
   const { id: _id, ...rest } = data as any;
-  await updateDoc(doc(db, 'courses', classId, 'assessments', assessmentId, 'questions', questionId), rest);
+  const sanitized: Record<string, unknown> = { ...rest };
+  if ('prompt' in rest) sanitized.prompt = cleanText((rest as any).prompt, 2000);
+  if ('options' in rest) {
+    const opts = (rest as any).options;
+    sanitized.options = Array.isArray(opts) ? opts.map((o: any) => cleanText(o, 500)) : [];
+  }
+  if ('correctAnswers' in rest) {
+    const ca = (rest as any).correctAnswers;
+    sanitized.correctAnswers = Array.isArray(ca) ? ca.map((a: any) => cleanText(a, 200)) : [];
+  }
+  await updateDoc(doc(db, 'courses', classId, 'assessments', assessmentId, 'questions', questionId), sanitized);
   await recalcAssessmentTotals(classId, assessmentId);
 }
 
@@ -570,101 +599,3 @@ export async function fetchStudentsInCourse(courseId: string): Promise<Student[]
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-//  DEMO SEED DATA
-// ────────────────────────────────────────────────────────────────────────────
-
-/**
- * Creates demo data for testing the assessment system.
- * Call from browser console: `window.__seedAssessmentData()`
- *
- * Prerequisites: at least one course and one student must exist.
- */
-export async function seedAssessmentDemoData(): Promise<void> {
-  const user = requireAuth();
-  if (user.role !== 'admin') throw new Error('Only admins can seed data');
-
-  // Get first available course
-  const coursesSnap = await getDocs(collection(db, 'courses'));
-  if (coursesSnap.empty) {
-    return;
-  }
-  const course = { id: coursesSnap.docs[0].id, ...coursesSnap.docs[0].data() } as Course;
-
-  const classId = course.id;
-  const now = new Date();
-  const dueFuture = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const duePast = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
-
-  // --- Assessment 1: Published, auto-release, mixed questions ---
-  const a1Id = await createAssessment(classId, {
-    title: 'Chapter 1 Review Quiz',
-    description: 'A review quiz covering Chapter 1 material with various question types.',
-    status: 'published',
-    dueDateTime: dueFuture,
-    allowLate: true,
-    latePolicy: '-10% per day',
-    timeLimit: 30,
-    releasePolicy: 'auto',
-    assignedMode: 'class',
-    assignedStudentIds: [],
-    totalPoints: 0,
-    questionCount: 0,
-  });
-
-  await addQuestion(classId, a1Id, {
-    type: 'multiple_choice', prompt: 'What is the capital of France?',
-    required: true, points: 10, options: ['London', 'Paris', 'Berlin', 'Madrid'],
-    correctAnswers: ['1'], order: 1, shuffleOptions: true,
-  });
-  await addQuestion(classId, a1Id, {
-    type: 'checkbox', prompt: 'Select all prime numbers:',
-    required: true, points: 10, options: ['2', '4', '7', '9', '11'],
-    correctAnswers: ['0', '2', '4'], order: 2, shuffleOptions: false,
-  });
-  await addQuestion(classId, a1Id, {
-    type: 'numeric', prompt: 'What is 15 × 8?',
-    required: true, points: 10, correctAnswers: ['120'], order: 3,
-  });
-  await addQuestion(classId, a1Id, {
-    type: 'short_answer', prompt: 'What is H₂O commonly called?',
-    required: true, points: 5, correctAnswers: ['water'], order: 4,
-  });
-  await addQuestion(classId, a1Id, {
-    type: 'paragraph', prompt: 'Explain the importance of the water cycle in your own words.',
-    required: true, points: 15, order: 5,
-  });
-
-  // --- Assessment 2: Draft ---
-  await createAssessment(classId, {
-    title: 'Midterm Exam (Draft)',
-    description: 'Comprehensive midterm covering chapters 1-5.',
-    status: 'draft',
-    dueDateTime: dueFuture,
-    allowLate: false,
-    releasePolicy: 'manual',
-    assignedMode: 'class',
-    assignedStudentIds: [],
-    totalPoints: 0,
-    questionCount: 0,
-  });
-
-  // --- Assessment 3: Published, past due ---
-  const a3Id = await createAssessment(classId, {
-    title: 'Pop Quiz – Week 2',
-    description: 'Short quiz on last week\'s readings.',
-    status: 'published',
-    dueDateTime: duePast,
-    allowLate: false,
-    releasePolicy: 'auto',
-    assignedMode: 'class',
-    assignedStudentIds: [],
-    totalPoints: 0,
-    questionCount: 0,
-  });
-  await addQuestion(classId, a3Id, {
-    type: 'multiple_choice', prompt: 'Which planet is closest to the Sun?',
-    required: true, points: 10, options: ['Venus', 'Mercury', 'Earth', 'Mars'],
-    correctAnswers: ['1'], order: 1,
-  });
-
-}

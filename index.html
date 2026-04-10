@@ -11,6 +11,20 @@
     <title>DSKM LMS</title>
     <link rel="icon" href="data:,">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script>
+        // Prevent theme "white flash" by applying stored theme ASAP (before paint).
+        (function () {
+            try {
+                const t = localStorage.getItem('theme');
+                const theme = t === 'light' || t === 'dark' ? t : null;
+                if (theme) {
+                    document.documentElement.setAttribute('data-theme', theme);
+                    const meta = document.getElementById('meta-theme-color');
+                    if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#0a0f1a');
+                }
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
@@ -2772,8 +2786,8 @@
         /* Sidebar Navigation */
         .lms-sidebar {
             width: 260px;
-            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-            border-right: 1px solid rgba(6, 182, 212, 0.15);
+            background: #0f172a;
+            border-right: 1px solid #1f2937; /* slate-800 */
             position: fixed;
             top: 0;
             left: 0;
@@ -2786,13 +2800,13 @@
         }
 
         [data-theme="light"] .lms-sidebar {
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border-right: 1px solid #cbd5e1;
+            background: #ffffff;
+            border-right: 1px solid #e2e8f0; /* slate-200 */
         }
 
         .lms-sidebar-header {
-            padding: 1.25rem;
-            border-bottom: 1px solid rgba(6, 182, 212, 0.1);
+            padding: 1.5rem 1.25rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.12);
         }
 
         [data-theme="light"] .lms-sidebar-header {
@@ -2803,6 +2817,42 @@
             flex: 1;
             padding: 1rem 0;
             overflow-y: auto;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+        }
+
+        /* Sidebar scrollbar (thin, rounded, theme-aware) */
+        .lms-sidebar-nav::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .lms-sidebar-nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .lms-sidebar-nav::-webkit-scrollbar-thumb {
+            background: #334155; /* slate-700 */
+            border-radius: 20px;
+        }
+
+        .lms-sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: #475569; /* slate-600 */
+        }
+
+        [data-theme="light"] .lms-sidebar-nav::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* slate-300 */
+        }
+
+        [data-theme="light"] .lms-sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* slate-400 */
+        }
+
+        [data-theme="dark"] .lms-sidebar-nav {
+            scrollbar-color: #334155 transparent; /* thumb track (Firefox) */
+        }
+
+        [data-theme="light"] .lms-sidebar-nav {
+            scrollbar-color: #cbd5e1 transparent;
         }
 
         .lms-nav-section {
@@ -2812,10 +2862,10 @@
 
         .lms-nav-section-title {
             font-size: 0.65rem;
-            font-weight: 700;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            color: #64748b;
+            color: #64748b; /* slate-500 */
             padding: 0.5rem 0.75rem;
             margin-bottom: 0.25rem;
         }
@@ -2838,15 +2888,16 @@
         }
 
         .lms-nav-item:hover {
-            background: rgba(6, 182, 212, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: #ffffff;
         }
 
         .lms-nav-item.active {
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(16, 185, 129, 0.15) 100%);
-            color: #22d3ee;
-            border-left: 3px solid #06b6d4;
+            background: rgba(255, 255, 255, 0.10);
+            color: #ffffff;
+            border-left: 3px solid #06b6d4; /* cyan accent */
             margin-left: -3px;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
         }
 
         [data-theme="light"] .lms-nav-item {
@@ -2855,13 +2906,13 @@
 
         [data-theme="light"] .lms-nav-item:hover {
             background: #f1f5f9;
-            color: #0369a1;
+            color: #0f172a;
         }
 
         [data-theme="light"] .lms-nav-item.active {
-            background: linear-gradient(135deg, rgba(3, 105, 161, 0.1) 0%, rgba(4, 120, 87, 0.08) 100%);
-            color: #0369a1;
-            border-left-color: #0369a1;
+            background: rgba(2, 132, 199, 0.08); /* sky-600/ish */
+            color: #0f172a;
+            border-left-color: #0891b2;
         }
 
         .lms-nav-item svg {
@@ -6620,11 +6671,11 @@
                                             </p>
 
                                             <!-- Capabilities Grid -->
-                                            <div class="grid grid-cols-2 gap-3 mb-4">
-                                                <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-primary-500/10 dark:to-transparent border border-slate-200 dark:border-primary-500/20 hover:border-primary-400/50 dark:hover:border-primary-500/40 transition-all cursor-default">
+                                            <div id="ai-quick-prompts" class="grid grid-cols-2 gap-3 mb-4">
+                                                <button type="button" data-ai-query="Show student profiles and summarize any missing contact info or patterns you notice."
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary-400/50 dark:hover:border-primary-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
                                                     <div
-                                                        class="w-9 h-9 rounded-lg bg-primary-500/15 dark:bg-primary-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                         <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -6634,17 +6685,17 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-slate-100 text-sm font-medium">
                                                             Student Profiles</p>
-                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
+                                                        <p class="text-slate-600 dark:text-slate-300 text-xs">
                                                             View & analyze records</p>
                                                     </div>
-                                                </div>
-                                                <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-accent-500/10 dark:to-transparent border border-slate-200 dark:border-accent-500/20 hover:border-accent-400/50 dark:hover:border-accent-500/40 transition-all cursor-default">
+                                                </button>
+                                                <button type="button" data-ai-query="Give me grade analytics: top performers, students below 70%, and any trends by category."
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-accent-400/50 dark:hover:border-accent-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
                                                     <div
-                                                        class="w-9 h-9 rounded-lg bg-accent-500/15 dark:bg-accent-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <svg class="w-5 h-5 text-accent-600 dark:text-accent-400" fill="none"
+                                                        class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <svg class="w-5 h-5 text-accent-600 dark:text-accent-400 opacity-90 dark:opacity-100" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                                 stroke-width="2"
@@ -6653,17 +6704,17 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-slate-100 text-sm font-medium">
                                                             Grade Analytics</p>
-                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
+                                                        <p class="text-slate-600 dark:text-slate-300 text-xs">
                                                             Performance insights</p>
                                                     </div>
-                                                </div>
-                                                <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-yellow-500/10 dark:to-transparent border border-slate-200 dark:border-yellow-500/20 hover:border-yellow-500/50 dark:hover:border-yellow-500/40 transition-all cursor-default">
+                                                </button>
+                                                <button type="button" data-ai-query="Analyze attendance: who is below 80%, any late/absent patterns, and recommended follow-ups."
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-yellow-500/50 dark:hover:border-yellow-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
                                                     <div
-                                                        class="w-9 h-9 rounded-lg bg-yellow-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none"
+                                                        class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 opacity-90 dark:opacity-100" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                                 stroke-width="2"
@@ -6672,17 +6723,17 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-slate-100 text-sm font-medium">
                                                             Attendance</p>
-                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
+                                                        <p class="text-slate-600 dark:text-slate-300 text-xs">
                                                             Track patterns</p>
                                                     </div>
-                                                </div>
-                                                <div
-                                                    class="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gradient-to-r dark:from-purple-500/10 dark:to-transparent border border-slate-200 dark:border-purple-500/20 hover:border-purple-400/50 dark:hover:border-purple-500/40 transition-all cursor-default">
+                                                </button>
+                                                <button type="button" data-ai-query="Identify trends: improvement/decline patterns and any categories that correlate with low performance or attendance."
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-purple-400/50 dark:hover:border-purple-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
                                                     <div
-                                                        class="w-9 h-9 rounded-lg bg-purple-500/15 dark:bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none"
+                                                        class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 opacity-90 dark:opacity-100" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                                 stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6">
@@ -6690,12 +6741,12 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-slate-900 dark:text-white text-sm font-medium">
+                                                        <p class="text-slate-900 dark:text-slate-100 text-sm font-medium">
                                                             Trends</p>
-                                                        <p class="text-slate-500 dark:text-dark-400 text-xs">
+                                                        <p class="text-slate-600 dark:text-slate-300 text-xs">
                                                             Predictive analysis</p>
                                                     </div>
-                                                </div>
+                                                </button>
                                             </div>
                                         </div>
                                         <p class="text-slate-500 dark:text-dark-500 text-xs mt-2 ml-2">Just now
@@ -7071,8 +7122,16 @@
                 }
             }
 
-            // Sync user info periodically
-            setInterval(syncUserInfo, 1000);
+            // Sync user info when the source changes (avoid a 1s polling loop).
+            try {
+                const sourceRoot = document.getElementById('app-container');
+                if (sourceRoot) {
+                    const obs = new MutationObserver(() => syncUserInfo());
+                    obs.observe(sourceRoot, { subtree: true, characterData: true, childList: true });
+                }
+            } catch (e) {
+                // fallback: one-time sync is fine
+            }
         });
     </script>
 
