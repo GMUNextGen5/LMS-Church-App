@@ -198,8 +198,13 @@ export function showFirebaseConfigurationError(message: string): void {
   const banner = document.createElement('div');
   banner.id = FIREBASE_CONFIG_BANNER_ID;
   banner.setAttribute('role', 'alert');
-  banner.className =
-    'mx-auto max-w-lg rounded-lg border border-red-500/40 bg-red-950/90 px-4 py-3 text-sm text-red-100 shadow-lg m-4';
+  banner.className = [
+    'mx-auto max-w-lg rounded-lg border px-4 py-3 text-sm shadow-lg m-4',
+    // Light theme
+    'bg-red-50 text-red-900 border-red-300',
+    // Dark theme
+    'dark:bg-red-950/90 dark:text-red-100 dark:border-red-500/40',
+  ].join(' ');
   banner.textContent = message;
   root.insertBefore(banner, root.firstChild);
 }
@@ -216,8 +221,13 @@ export function showBootstrapError(message: string): void {
   const banner = document.createElement('div');
   banner.id = INIT_ERROR_BANNER_ID;
   banner.setAttribute('role', 'alert');
-  banner.className =
-    'mx-auto max-w-lg rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-3 text-sm text-amber-100 shadow-lg m-4';
+  banner.className = [
+    'mx-auto max-w-lg rounded-lg border px-4 py-3 text-sm shadow-lg m-4',
+    // Light theme
+    'bg-amber-50 text-amber-900 border-amber-300',
+    // Dark theme
+    'dark:bg-amber-950/90 dark:text-amber-100 dark:border-amber-500/40',
+  ].join(' ');
   banner.textContent = message;
   root.insertBefore(banner, root.firstChild);
 }

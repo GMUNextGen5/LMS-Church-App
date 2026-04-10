@@ -126,6 +126,16 @@ function setupLmsDelegatedActions(): void {
 
 /** Bootstraps UI, auth, forms, feature modules, and the centralized theme refresh bridge. */
 async function init(): Promise<void> {
+  /**
+   * Critical-path resilience:
+   * - Show a boot overlay immediately to avoid a blank/half-rendered shell.
+   * - Guarantee the overlay is cleared even if auth never resolves (watchdog) or a handler throws (finally).
+   *
+   * Rationale: if Firebase fails to initialize cleanly or network/auth stalls, `onAuthStateChanged` can
+   * appear to "never fire" from the user's perspective, leaving the app stuck on "Loading..." forever.
+   */
+  try { showLoading(); } catch { /* overlay not mounted yet */ }
+
   try {
     initUI();
   } catch {
@@ -135,10 +145,39 @@ async function init(): Promise<void> {
   const firebaseErr = ensureFirebaseClient();
   if (firebaseErr) {
     showFirebaseConfigurationError(firebaseErr.message);
+    try { hideLoading(); } catch { /* ignore */ }
     return;
   }
 
-  try { initAuth(handleAuthStateChange); } catch { /* auth listener init */ }
+  /**
+   * Watchdog: if auth state hasn't been observed within 15s, clear the overlay and display a
+   * user-visible connection error banner instead of hanging indefinitely.
+   */
+  let authSettled = false;
+  const authWatchdog = window.setTimeout(() => {
+    if (authSettled) return;
+    authSettled = true;
+    try { hideLoading(); } catch { /* ignore */ }
+    showBootstrapError(
+      'Connection error: the app could not confirm your sign-in state. Please refresh. ' +
+        'If this keeps happening, verify your Firebase config and Firestore rules.'
+    );
+  }, 15_000);
+
+  const handleAuthStateChangeBootstrap = async (user: User | null): Promise<void> => {
+    if (!authSettled) {
+      authSettled = true;
+      window.clearTimeout(authWatchdog);
+    }
+    try {
+      await handleAuthStateChange(user);
+    } finally {
+      // Ensure the initial boot overlay always clears after the first auth resolution path.
+      try { hideLoading(); } catch { /* ignore */ }
+    }
+  };
+
+  try { initAuth(handleAuthStateChangeBootstrap); } catch { /* auth listener init */ }
   try { setupAuthForms(); } catch { /* auth form wiring */ }
   try { setupAppForms(); } catch { /* app wiring */ }
   try { setupLmsDelegatedActions(); } catch { /* delegated actions */ }
