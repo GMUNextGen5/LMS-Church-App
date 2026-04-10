@@ -13,7 +13,7 @@ import {
   FirebaseUser
 } from './firebase';
 import { User, UserRole } from './types';
-import { showLoading, hideLoading } from '../ui/ui';
+import { showLoading, hideLoading, showBootstrapError } from '../ui/ui';
 
 let currentUser: User | null = null;
 
@@ -30,7 +30,8 @@ export type LegalAcceptanceRecord = {
 
 /**
  * Subscribes to Firebase auth state, loads `users/{uid}` for role and email, and notifies the app.
- * Signs out if the user document is missing.
+ * If the profile is missing/invalid or reads are denied, the app shows a clear message and signs out
+ * instead of crashing during post-login UI boot.
  */
 export function initAuth(onUserChanged: (user: User | null) => void): void {
   onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
@@ -42,6 +43,15 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          const role = userData?.role;
+          const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+          const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+          if (!isValidRole) {
+            throw new Error(
+              'Your account profile is incomplete (missing role). ' +
+                'Please contact an administrator to finish account setup.'
+            );
+          }
           const fromDoc =
             (typeof userData.displayName === 'string' && userData.displayName.trim()) ||
             (typeof userData.fullName === 'string' && userData.fullName.trim()) ||
@@ -52,19 +62,34 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
           currentUser = {
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
-            role: userData.role as UserRole,
+            role: role as UserRole,
             createdAt: userData.createdAt,
             displayName,
           };
           onUserChanged(currentUser);
         } else {
+          showBootstrapError(
+            'Your account profile was not found. If you were just invited/registered, ' +
+              'please contact your administrator to complete your profile setup, then sign in again.'
+          );
           currentUser = null;
           onUserChanged(null);
-          await signOut(auth);
+          try { await signOut(auth); } catch {}
         }
-      } catch {
+      } catch (error: unknown) {
+        const code = (error as { code?: string })?.code ?? '';
+        if (code === 'permission-denied') {
+          showBootstrapError(
+            'Permission denied while loading your profile. This usually means Firestore rules are ' +
+              'blocking access to `users/{uid}`. Please contact support or try again shortly.'
+          );
+        } else {
+          const msg = error instanceof Error ? error.message : '';
+          showBootstrapError(msg || 'We could not load your account profile. Please try again.');
+        }
         currentUser = null;
         onUserChanged(null);
+        try { await signOut(auth); } catch {}
       } finally {
         hideLoading();
       }
