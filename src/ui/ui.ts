@@ -56,8 +56,6 @@ const signupForm = document.getElementById('signup-form') as HTMLFormElement | n
 const loginError = document.getElementById('login-error');
 const signupError = document.getElementById('signup-error');
 const logoutBtn = document.getElementById('logout-btn');
-const userEmail = document.getElementById('user-email');
-const userRoleBadge = document.getElementById('user-role-badge');
 const loadingOverlay = document.getElementById('loading-overlay');
 const aiModal = document.getElementById('ai-modal');
 const aiModalTitle = document.getElementById('ai-modal-title');
@@ -119,19 +117,36 @@ export function showAppContainer(): void {
  * Shows or hides `.admin-only`, `.teacher-only`, and `.student-only` regions based on `user.role`.
  */
 export function configureUIForRole(user: User): void {
-  currentUserRole = user.role;
-  if (userEmail) userEmail.textContent = user.email;
-  if (userRoleBadge) {
-    userRoleBadge.textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+  const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+  const role = user?.role;
+  const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+  if (!isValidRole) {
+    currentUserRole = null;
+    // Hide role-based regions until we have a valid profile.
+    document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach(el => {
+      (el as HTMLElement).classList.add('hide');
+    });
+    return;
+  }
+
+  currentUserRole = role as UserRole;
+
+  // Query DOM at call-time (module-level lookups can run before DOM is ready).
+  const emailEl = document.getElementById('user-email');
+  if (emailEl) emailEl.textContent = user.email;
+
+  const roleBadgeEl = document.getElementById('user-role-badge');
+  if (roleBadgeEl) {
+    roleBadgeEl.textContent = role.charAt(0).toUpperCase() + role.slice(1);
   }
   document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach(el => {
     (el as HTMLElement).classList.add('hide');
   });
-  if (user.role === 'admin') {
+  if (role === 'admin') {
     document.querySelectorAll('.admin-only, .teacher-only').forEach(el => {
       (el as HTMLElement).classList.remove('hide');
     });
-  } else if (user.role === 'teacher') {
+  } else if (role === 'teacher') {
     document.querySelectorAll('.teacher-only').forEach(el => {
       (el as HTMLElement).classList.remove('hide');
     });

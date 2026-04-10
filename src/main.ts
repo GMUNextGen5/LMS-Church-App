@@ -232,7 +232,16 @@ function startParticleSystemWhenReady(): void {
 
 /** Routes Firebase auth changes into UI visibility, role configuration, and data loads. */
 async function handleAuthStateChange(user: User | null): Promise<void> {
-  if (user) {
+  const isValidProfile =
+    !!user &&
+    typeof user.uid === 'string' &&
+    !!user.uid &&
+    typeof user.email === 'string' &&
+    typeof user.role === 'string' &&
+    (user.role === 'admin' || user.role === 'teacher' || user.role === 'student');
+
+  // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
+  if (isValidProfile) {
     showAppContainer();
     configureUIForRole(user);
 
