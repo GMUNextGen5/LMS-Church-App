@@ -17,7 +17,7 @@ import {
   arrayRemove,
 } from '../core/firebase';
 import { getCurrentUser } from '../core/auth';
-import type { Course, Student } from '../core/types';
+import type { Course, Student } from '../types';
 
 const COURSES = 'courses';
 const STUDENTS = 'students';

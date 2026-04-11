@@ -1,7 +1,7 @@
 /**
  * Shared shell UI: DOMPurify sanitization, auth/app visibility, tabs, loading overlay, and AI modal host.
  */
-import { User, UserRole } from '../core/types';
+import { User, UserRole } from '../types';
 import DOMPurify from 'dompurify';
 
 let domPurifyHooksInstalled = false;
@@ -32,16 +32,18 @@ export function sanitizeHTML(html: string): string {
       'ul', 'ol', 'li',
       'table', 'thead', 'tbody', 'tr', 'th', 'td',
       'div', 'section', 'article', 'blockquote', 'pre', 'code',
-      'a', 'aside', 'nav', 'header', 'footer'
+      'a', 'aside', 'nav', 'header', 'footer',
+      'button', 'input',
     ],
     ALLOWED_ATTR: [
       'class', 'id',
       'href', 'target', 'rel',
-      'colspan', 'rowspan'
+      'colspan', 'rowspan',
+      'type', 'value', 'readonly', 'aria-label',
     ],
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button']
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form']
   });
 }
 
@@ -60,7 +62,6 @@ const loadingOverlay = document.getElementById('loading-overlay');
 const aiModal = document.getElementById('ai-modal');
 const aiModalTitle = document.getElementById('ai-modal-title');
 const aiModalContent = document.getElementById('ai-modal-content');
-const aiModalClose = document.getElementById('ai-modal-close');
 
 let currentUserRole: UserRole | null = null;
 
@@ -70,6 +71,134 @@ let modalOnDismiss: (() => void | Promise<void>) | null = null;
 export type ShowModalOptions = {
   onDismiss?: () => void | Promise<void>;
 };
+
+function runDelegatedModalCopy(
+  copyRoot: Element,
+  inputSelector: string,
+  successStyleSwap?: { add: string[]; remove: string[] },
+  afterClipboardSuccess?: () => void
+): void {
+  try {
+    const input = aiModalContent?.querySelector(inputSelector) as HTMLInputElement | null;
+    if (!input) return;
+    input.focus();
+    input.select();
+  } catch {
+    /* selection blocked */
+  }
+  const inputRead = aiModalContent?.querySelector(inputSelector) as HTMLInputElement | null;
+  const text = inputRead?.value ?? '';
+  void (async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      try {
+        window.alert('Failed to copy. Please select and copy manually.');
+      } catch {
+        /* alert blocked */
+      }
+      return;
+    }
+    try {
+      afterClipboardSuccess?.();
+    } catch {
+      /* dismiss must not break copy */
+    }
+    const btn = copyRoot as HTMLButtonElement;
+    if (!successStyleSwap) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      window.setTimeout(() => {
+        try {
+          btn.textContent = orig || 'Copy';
+        } catch {
+          /* DOM gone */
+        }
+      }, 2000);
+      return;
+    }
+    const origText = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    for (const c of successStyleSwap.remove) {
+      try {
+        btn.classList.remove(c);
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const c of successStyleSwap.add) {
+      try {
+        btn.classList.add(c);
+      } catch {
+        /* ignore */
+      }
+    }
+    window.setTimeout(() => {
+      try {
+        btn.textContent = origText || 'Copy';
+        for (const c of successStyleSwap.add) btn.classList.remove(c);
+        for (const c of successStyleSwap.remove) btn.classList.add(c);
+      } catch {
+        /* DOM gone */
+      }
+    }, 2000);
+  })();
+}
+
+/** Single listener on `#ai-modal`: innerHTML swaps do not remove it (Account Created / My Account ID). */
+function installAiModalDelegatedClicks(): void {
+  const shell = aiModal;
+  if (!(shell instanceof HTMLElement)) return;
+  if ((shell as HTMLElement & { __lmsAiModalDel?: boolean }).__lmsAiModalDel) return;
+  (shell as HTMLElement & { __lmsAiModalDel?: boolean }).__lmsAiModalDel = true;
+
+  shell.addEventListener('click', (e: MouseEvent) => {
+    try {
+      const raw = e.target;
+      if (!(raw instanceof Element)) return;
+
+      if (raw.closest('#copy-uid-btn')) {
+        e.preventDefault();
+        const root = raw.closest('#copy-uid-btn');
+        if (root) {
+          runDelegatedModalCopy(
+            root,
+            '#uid-display',
+            {
+              add: ['bg-green-500', 'hover:bg-green-600'],
+              remove: ['bg-primary-500', 'hover:bg-primary-600'],
+            },
+            () => {
+              closeModal();
+            }
+          );
+        }
+        return;
+      }
+
+      if (raw.closest('#account-id-modal-copy-btn')) {
+        e.preventDefault();
+        const root = raw.closest('#account-id-modal-copy-btn');
+        if (root) {
+          runDelegatedModalCopy(root, '#account-id-modal-uid-input');
+        }
+        return;
+      }
+
+      if (raw.closest('.modal-close-trigger')) {
+        e.preventDefault();
+        closeModal();
+        return;
+      }
+
+      if (e.target === shell) {
+        closeModal();
+      }
+    } catch {
+      /* InPrivate / strict mode: never break the click path */
+    }
+  });
+}
 
 /** Binds auth tab buttons, main tab buttons, and AI modal dismiss controls. */
 export function initUI(): void {
@@ -82,10 +211,7 @@ export function initUI(): void {
       if (tabName) switchTab(tabName);
     });
   });
-  aiModalClose?.addEventListener('click', closeModal);
-  aiModal?.addEventListener('click', (e) => {
-    if (e.target === aiModal) closeModal();
-  });
+  installAiModalDelegatedClicks();
 }
 
 function switchAuthTab(tab: 'login' | 'signup'): void {
@@ -195,6 +321,7 @@ function resetLoadingOverlayImportantStyles(el: HTMLElement): void {
   el.style.removeProperty('display');
   el.style.removeProperty('visibility');
   el.style.removeProperty('pointer-events');
+  el.style.removeProperty('z-index');
 }
 
 export function showLoading(): void {
@@ -213,6 +340,7 @@ export function hideLoading(): void {
     el.style.setProperty('display', 'none', 'important');
     el.style.setProperty('visibility', 'hidden', 'important');
     el.style.setProperty('pointer-events', 'none', 'important');
+    el.style.setProperty('z-index', '-1', 'important');
   }
 }
 
@@ -301,7 +429,6 @@ export function showModal(title: string, content: string, options?: ShowModalOpt
 }
 
 function runModalDismissPipeline(): void {
-  // Hide immediately; never await auth or other async work before this (InPrivate can stall promises).
   aiModal?.classList.add('hide');
   const modalEl = aiModal;
   if (modalEl instanceof HTMLElement) {
@@ -311,7 +438,7 @@ function runModalDismissPipeline(): void {
   const cb = modalOnDismiss;
   modalOnDismiss = null;
   if (!cb) return;
-  queueMicrotask(() => {
+  const invokeDismiss = (): void => {
     try {
       const out = cb();
       if (out != null && typeof (out as Promise<unknown>).then === 'function') {
@@ -322,7 +449,16 @@ function runModalDismissPipeline(): void {
     } catch {
       /* dismiss callbacks must not trap the close path */
     }
-  });
+  };
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        queueMicrotask(invokeDismiss);
+      });
+    });
+  } else {
+    queueMicrotask(invokeDismiss);
+  }
 }
 
 export function closeModal(): void {

@@ -16,7 +16,7 @@ import {
   serverTimestamp,
   FirebaseUser
 } from './firebase';
-import { User, UserRole, Student } from './types';
+import { User, UserRole, Student } from '../types';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './legal-versions';
 import { showLoading, hideLoading, showBootstrapError, showAuthContainer } from '../ui/ui';
 
@@ -271,6 +271,19 @@ export type LegalAcceptanceRecord = {
   userAgent: string;
 };
 
+/** Max length for stored signup `legalAcceptance.userAgent` (matches Firestore trigger / functions). */
+export const LEGAL_USER_AGENT_MAX_LEN = 300;
+
+/**
+ * Strips ASCII control characters and whitespace-normalizes before truncation.
+ * Keeps client writes aligned with Cloud Functions / rules expectations (no `\x00`–`\x1f` / `\x7f` in UA).
+ */
+export function normalizeLegalUserAgent(raw: unknown): string {
+  const s = String(raw ?? '');
+  const stripped = s.replace(/[\x00-\x1f\x7f]/g, '').trim();
+  return stripped.slice(0, LEGAL_USER_AGENT_MAX_LEN);
+}
+
 /**
  * Subscribes to Firebase auth state, loads `users/{uid}` for role and email, and notifies the app.
  * If the profile is missing/invalid or reads are denied, the app shows a clear message and signs out
@@ -454,7 +467,7 @@ export async function signUp(
       legalAcceptance: {
         termsVersion: LEGAL_TERMS_VERSION,
         privacyVersion: LEGAL_PRIVACY_VERSION,
-        userAgent: String(legalAcceptance.userAgent || '').slice(0, 300),
+        userAgent: normalizeLegalUserAgent(legalAcceptance.userAgent),
         // Rules tie acceptedAt to request.time; a client Date causes permission-denied / hung signup.
         acceptedAt: serverTimestamp(),
       },

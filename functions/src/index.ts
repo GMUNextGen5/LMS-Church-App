@@ -284,7 +284,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onDocumentWritten, onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldPath } from 'firebase-admin/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -301,6 +301,8 @@ import {
   prepareAttendanceData,
   calculateCategoryAverages
 } from './ai-config';
+import { normalizeLegalUserAgent } from './forensic-legal';
+import { isUserRole, isPrivilegedAiRole } from './domain-types';
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -352,11 +354,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 /**
- * Check if the authenticated user has permission to access student data
- * 
- * PURPOSE: Enforces FERPA-compliant access control
- * 
- * DEBUG: Logs access checks for troubleshooting permission issues
+ * Check if the authenticated user has permission to access student data (FERPA-aligned access control).
  */
 async function checkStudentAccess(
   uid: string,
@@ -759,7 +757,7 @@ export const aiAgentChat = onCall(
   // Verify admin or teacher role
   const userDoc = await db.doc(`users/${request.auth.uid}`).get();
   const role = userDoc.data()?.role;
-  if (!userDoc.exists || (role !== 'admin' && role !== 'teacher')) {
+  if (!userDoc.exists || !isPrivilegedAiRole(role)) {
     throw new HttpsError(
       'permission-denied',
       'Only administrators and teachers can use the AI Agent'
@@ -1032,7 +1030,7 @@ export const updateUserRole = onCall(async (request) => {
     );
   }
   
-  if (!['admin', 'teacher', 'student'].includes(newRole)) {
+  if (!isUserRole(newRole)) {
     throw new HttpsError(
       'invalid-argument',
       'newRole must be admin, teacher, or student'
@@ -1083,6 +1081,29 @@ export const getAllUsers = onCall(async (request) => {
 
 // Note: User documents are now auto-created on the client side during signup
 // This is allowed by Firestore security rules for new users with 'student' role
+
+/**
+ * Canonicalizes `legalAcceptance.userAgent` on create (control-char strip + max length) so stored data
+ * matches `src/core/auth.ts` / signup writes. Does not touch `acceptedAt` (rules-bound to request.time).
+ */
+export const forensicNormalizeUserLegalAcceptance = onDocumentCreated(
+  { document: 'users/{uid}', region: 'us-central1' },
+  async (event) => {
+    const snap = event.data;
+    if (!snap?.exists) return;
+    const data = snap.data() as Record<string, unknown>;
+    const la = data?.legalAcceptance;
+    if (!la || typeof la !== 'object') return;
+    const laObj = la as Record<string, unknown>;
+    const uaRaw = laObj.userAgent;
+    const normalized = normalizeLegalUserAgent(uaRaw);
+    if (typeof uaRaw === 'string' && uaRaw === normalized) return;
+
+    await snap.ref.update({
+      'legalAcceptance.userAgent': normalized,
+    });
+  }
+);
 
 /**
  * Writes students/{profileId}/grades/assessment_* when a submission is released or fully graded.

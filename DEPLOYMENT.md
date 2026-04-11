@@ -1,55 +1,57 @@
-# Deployment Checklist: Cloudflare Pages + Firebase Backend
+# Deployment guide — Cloudflare Pages + Firebase
 
-Use this checklist before and when deploying to production.
+This document is the operational contract for shipping the LMS: what to configure, where secrets live, and how to verify a release.
 
----
+## 1. Secrets and configuration
 
-## Pre-deployment
+### Frontend (build-time)
 
-- [ ] **Firebase project** created; Auth (Email/Password) and Firestore enabled
-- [ ] **Environment variables** (no secrets in code):
-  - Root: copy `.env.example` → `.env`, set all `VITE_FIREBASE_*` from Firebase Console → Project Settings → Your apps
-  - Functions: copy `functions/.env.example` → `functions/.env`, set `GEMINI_API_KEY`
-- [ ] **Local build** succeeds: `npm run build`
-- [ ] **Backend deployed** at least once: `npm run deploy:backend` (or `firebase deploy --only functions,firestore:rules,firestore:indexes`)
-- [ ] **First admin**: sign up in the app, then in Firestore set `users/<your-uid>.role` to `admin`
+- Variables are read as `import.meta.env.VITE_*` (see root `.env.example`).
+- **Cloudflare Pages:** Project → Settings → Environment variables — add each `VITE_FIREBASE_*` for Production (and Preview if you use branch builds).
+- A build without these variables still produces artifacts, but Firebase Auth and Firestore will not initialize.
 
----
+### Cloud Functions (runtime)
 
-## Deploy frontend to Cloudflare Pages
+- `GEMINI_API_KEY` must be available to the Functions runtime (`functions/.env` locally; [Firebase environment configuration](https://firebase.google.com/docs/functions/config-env) or Secret Manager in production).
+- Never embed API keys in `functions/src` or client source.
 
-1. **Connect repo** (or upload build):
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Root directory: (default)
+### Git hygiene
 
-2. **Set env vars in Cloudflare** (Pages → your project → Settings → Environment variables):
-   - Add each `VITE_FIREBASE_*` from your `.env` for **Production** (and Preview if you use branch previews).
-   - Without these, the app loads but Firebase (login, data) will not work.
+Root `.gitignore` excludes `dist/`, `.env*`, `functions/lib/`, and `.wrangler/`. Do not commit build output or local secrets.
 
-3. **Add Cloudflare domain to Firebase** (required for Auth):
-   - Firebase Console → **Authentication** → **Settings** → **Authorized domains**
-   - Add your Pages URL, e.g. `your-project.pages.dev` or your custom domain.
+## 2. Pre-flight checklist
 
-4. **Redeploy** after adding env vars so the build includes them.
+- [ ] Firebase project: Authentication (Email/Password) and Firestore enabled.
+- [ ] `firestore.rules` and `firestore.indexes.json` deployed at least once.
+- [ ] `npm run build` succeeds at repo root with production env vars (or CI with injected secrets).
+- [ ] `npm --prefix functions run build` succeeds.
+- [ ] `npm run deploy:backend` (or equivalent `firebase deploy`) has been run for this project ID.
+- [ ] First admin exists (`users/{uid}.role == 'admin'`).
 
----
+## 3. Cloudflare Pages (frontend)
 
-## Post-deployment
+1. **Build command:** `npm run build`  
+2. **Output directory:** `dist`  
+3. **Root directory:** repository root (default).
 
-- [ ] Open the live URL and sign in (or sign up).
-- [ ] Confirm Firestore data appears (e.g. dashboard, students).
-- [ ] Test one AI feature (e.g. Performance summary or Study tips) to confirm Functions + Gemini.
-- [ ] Optional: add custom domain in Cloudflare and add that domain to Firebase Authorized domains.
+`public/_redirects` and `public/_headers` are copied into `dist` by Vite for SPA routing and security headers.
 
----
+## 4. Firebase console (Auth)
 
-## Architecture summary
+Add your Pages hostname under **Authentication → Settings → Authorized domains** (e.g. `*.pages.dev` or your custom domain). Omitting this breaks sign-in on the deployed URL.
 
-| Layer        | Where it runs        | Notes                                      |
-|-------------|----------------------|--------------------------------------------|
-| Frontend    | Cloudflare Pages     | Static `dist/`; env vars at build time     |
-| Auth/DB     | Firebase             | Auth + Firestore; no Firebase Hosting      |
-| API / AI    | Firebase Functions   | Callable functions; CORS handled by Firebase |
+## 5. Post-deploy verification
 
-No API keys or secrets are in the frontend bundle; Firebase config is public by design; Gemini key stays in Functions only.
+- [ ] Sign-in and role-gated navigation (admin / teacher / student).
+- [ ] Firestore-backed screens load without permission errors.
+- [ ] One callable AI path (if Gemini is configured) completes within timeout.
+
+## 6. Stack summary
+
+| Concern | Where it runs | Config surface |
+|--------|----------------|----------------|
+| Static UI | Cloudflare Pages | `VITE_*` at build time |
+| Auth & database | Firebase | Firebase console + rules |
+| AI & admin callables | Cloud Functions | `GEMINI_API_KEY` / Firebase env |
+
+Tailwind is compiled via PostCSS at build time; there is no Tailwind CDN in production HTML.

@@ -13,7 +13,7 @@ import {
   orderBy,
   onSnapshot,
 } from '../core/firebase';
-import { Student, Grade, Attendance, Course, User } from '../core/types';
+import { Student, Grade, Attendance, Course, User } from '../types';
 import { getCurrentUser } from '../core/auth';
 
 function cleanText(value: unknown, maxLen: number): string {

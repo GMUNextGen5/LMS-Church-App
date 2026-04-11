@@ -28,7 +28,7 @@ import {
 import type {
   Assessment, AssessmentQuestion, Submission, QuestionAnswer,
   QuestionType, Course, Student, UserRole,
-} from '../core/types';
+} from '../types';
 
 type ViewState =
   | { view: 'list' }

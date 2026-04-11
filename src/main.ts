@@ -3,7 +3,9 @@
  * Holds LMS shell state (students, grades, attendance, selection) and wires Firebase listeners.
  */
 
-import './tailwind.css';
+import './assets/styles/tailwind.css';
+import './core/shims/chart-bridge';
+import './core/shims/jspdf-bridge';
 import {
   auth,
   functions,
@@ -27,7 +29,6 @@ import {
   showError,
   clearError,
   showModal,
-  closeModal,
   showLoading,
   hideLoading,
   loginForm,
@@ -55,7 +56,7 @@ import {
   updateUserRoleDirect,
   createTeacher,
 } from './data/data';
-import { User, Student, Grade, Attendance } from './core/types';
+import { User, Student, Grade, Attendance } from './types';
 import { initAssessments, loadAssessments } from './ui/assessment-ui';
 import { initClasses, loadClasses } from './ui/classes-ui';
 import { initLegalModals } from './ui/legal';
@@ -2106,35 +2107,11 @@ function openAccountIdModal(): void {
         <p class="text-xs text-dark-400 mt-2">Use Copy, then paste into a message or email to your teacher.</p>
       </div>
       <div class="text-center">
-        <button type="button" id="account-id-modal-close-btn" class="px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">Close</button>
+        <button type="button" id="account-id-modal-close-btn" class="modal-close-trigger px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">Close</button>
       </div>
     </div>`;
 
   showModal('My Account ID', modalHtml);
-
-  window.setTimeout(() => {
-    const cpBtn = document.getElementById('account-id-modal-copy-btn');
-    const uidInput = document.getElementById('account-id-modal-uid-input') as HTMLInputElement | null;
-    const closeBtn = document.getElementById('account-id-modal-close-btn');
-    if (cpBtn && uidInput) {
-      cpBtn.addEventListener('click', () => {
-        uidInput.select();
-        void navigator.clipboard.writeText(uid).then(
-          () => {
-            const orig = cpBtn.textContent;
-            cpBtn.textContent = '✓ Copied!';
-            window.setTimeout(() => {
-              cpBtn.textContent = orig || 'Copy';
-            }, 2000);
-          },
-          () => alert('Failed to copy. Please select and copy manually.')
-        );
-      });
-    }
-    closeBtn?.addEventListener('click', () => {
-      closeModal();
-    });
-  }, 0);
 }
 
 function showUidModal(uid: string, email: string): void {
@@ -2155,8 +2132,8 @@ function showUidModal(uid: string, email: string): void {
         <p class="text-blue-400 font-semibold mb-2">Your Account ID (UID)</p>
         <p class="text-dark-300 text-sm mb-3">You MUST share this ID with your teacher/admin so they can register you in the system.</p>
         <div class="relative">
-          <input type="text" id="uid-display" value="${uid}" readonly class="w-full px-4 py-3 pr-24 rounded-lg bg-dark-800 border border-dark-600 text-white font-mono text-sm focus:outline-none focus:border-primary-500">
-          <button id="copy-uid-btn" class="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded text-sm font-semibold transition-all">Copy</button>
+          <input type="text" id="uid-display" value="${escapeHtml(uid)}" readonly class="w-full px-4 py-3 pr-24 rounded-lg bg-dark-800 border border-dark-600 text-white font-mono text-sm focus:outline-none focus:border-primary-500">
+          <button type="button" id="copy-uid-btn" class="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded text-sm font-semibold transition-all">Copy</button>
         </div>
         <p class="text-xs text-dark-400 mt-2">Click "Copy" and send this ID to your teacher via email or message.</p>
       </div>
@@ -2170,48 +2147,27 @@ function showUidModal(uid: string, email: string): void {
         </ol>
       </div>
       <div class="text-center">
-        <button id="close-uid-modal-btn" class="px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">I've Copied My ID</button>
+        <button type="button" id="close-uid-modal-btn" class="modal-close-trigger px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">I've Copied My ID</button>
       </div>
     </div>`;
 
   showModal('Account Created!', modalHtml, {
     onDismiss: () => {
       showAuthContainer();
-      void signOut(auth).catch(() => {
-        /* best-effort; do not await — InPrivate can stall auth promises */
-      });
+      const signOutLast = (): void => {
+        void signOut(auth).catch(() => {
+          /* best-effort; do not await — InPrivate can stall auth promises */
+        });
+      };
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(signOutLast);
+        });
+      } else {
+        signOutLast();
+      }
     },
   });
-
-  setTimeout(() => {
-    const cpBtn = document.getElementById('copy-uid-btn');
-    const uidInput = document.getElementById('uid-display') as HTMLInputElement;
-    const closeBtn = document.getElementById('close-uid-modal-btn');
-    if (cpBtn && uidInput) {
-      cpBtn.addEventListener('click', () => {
-        uidInput.select();
-        navigator.clipboard.writeText(uid).then(() => {
-          cpBtn.textContent = '✓ Copied!';
-          cpBtn.classList.add('bg-green-500', 'hover:bg-green-600');
-          cpBtn.classList.remove('bg-primary-500', 'hover:bg-primary-600');
-          setTimeout(() => {
-            cpBtn.textContent = 'Copy';
-            cpBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
-            cpBtn.classList.add('bg-primary-500', 'hover:bg-primary-600');
-          }, 2000);
-        }).catch(() => alert('Failed to copy. Please select and copy manually.'));
-      });
-    }
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        try {
-          closeModal();
-        } catch {
-          /* InPrivate / blocked storage: still close the modal */
-        }
-      });
-    }
-  }, 100);
 }
 
 function runInit(): void {

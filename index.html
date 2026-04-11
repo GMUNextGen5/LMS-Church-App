@@ -73,12 +73,6 @@
             } catch (e) { /* ignore */ }
         })();
     </script>
-    <!-- jsPDF for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"
-        crossorigin="anonymous"></script>
-    <!-- Chart.js for grade visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         /* ==================== PREMIUM LOGIN PAGE STYLES ==================== */
 
@@ -6942,7 +6936,7 @@
             <div class="flex justify-between items-start mb-4">
                 <h3 id="ai-modal-title" class="text-2xl font-bold text-white">AI Results
                 </h3>
-                <button id="ai-modal-close" class="p-2 rounded-lg hover:bg-dark-700 transition-all">
+                <button type="button" id="ai-modal-close" class="modal-close-trigger p-2 rounded-lg hover:bg-dark-700 transition-all" aria-label="Close dialog">
                     <svg class="w-6 h-6 text-dark-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
                         </path>

@@ -18,7 +18,7 @@ import {
   assignTeacherToClass,
   getUserDisplayName,
 } from '../data/classes-data';
-import type { Course, Student, User } from '../core/types';
+import type { Course, Student, User } from '../types';
 
 let container: HTMLElement | null = null;
 

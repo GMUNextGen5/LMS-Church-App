@@ -1,192 +1,78 @@
-# NG5 LMS - Learning Management System
+# LMS Church App — DSKM / NG5 LMS
 
-A Learning Management System built with Firebase (backend only), TypeScript, and AI integration. The **frontend is hosted on Cloudflare Pages**; Firebase provides Authentication, Firestore, and Cloud Functions. Features role-based access control, real-time data, assessments with auto-grading, and AI-powered performance reports.
+Production-oriented learning management frontend backed by **Firebase** (Authentication, Firestore, Callable Cloud Functions) and deployed as static assets on **Cloudflare Pages**. This repository separates a **Vite + TypeScript** web client from an isolated **Firebase Functions** sub-project.
 
-## Features
+## Architecture
 
-- **Role-Based Access Control** - Admin, Teacher, and Student roles with granular permissions
-- **Student & Teacher Registration** - Admin panel for registering and managing users with UID linking
-- **Classes Management** - Create, edit, and manage classes with teacher/student assignment
-- **Assessments** - Create assessments with multiple question types, auto-grading, and grade release
-- **Grades & Reports** - Real-time grade tracking with AI-powered performance summaries
-- **Attendance Tracking** - Daily attendance with status options (present, absent, late, excused)
-- **AI Integration** - Gemini-powered performance summaries and personalized study tips
-- **Theme Toggle** - Sci-Fi and Classic visual themes
-- **CSV Export** - Export grades for offline analysis
-- **Real-time Updates** - Instant data sync using Firestore listeners
+| Layer | Technology | Responsibility |
+|--------|------------|----------------|
+| UI | Vite 7, TypeScript, Tailwind (PostCSS), DOM-first views | Shell, auth UX, assessments, classes, grades, attendance |
+| Client config | `import.meta.env` (`VITE_*`) | Firebase web SDK config only (public keys by design) |
+| Data | Firestore + callable HTTPS functions | Real-time reads/writes per `firestore.rules` |
+| AI & privileged APIs | Firebase Functions v2 (Node 20) | Gemini calls, admin user listing, role updates; secrets via `process.env` / Firebase secrets |
+| CDN / hosting | Cloudflare Pages | Serves `dist/`; `_redirects` / `_headers` in `public/` |
 
-## Tech Stack
+**Security model:** No Gemini or other privileged API keys ship in the browser. The client uses Firebase Auth; Cloud Functions re-verify the caller and role before accessing admin or AI paths. Dynamic HTML from AI flows through DOMPurify (`sanitizeHTML` in the UI layer).
 
-- **Frontend**: HTML, TypeScript, Tailwind CSS, Vite
-- **Backend**: Firebase (Authentication, Firestore, Cloud Functions v2) — backend only
-- **AI**: Google Gemini API (via Cloud Functions)
-- **Hosting**: Cloudflare Pages (frontend); Firebase is not used for hosting
-
-## Project Structure
+## Repository layout
 
 ```
-├── src/
-│   ├── main.ts              # Application entry point & orchestration
-│   ├── vite-env.d.ts        # Vite environment type declarations
-│   ├── core/                # Config, Firebase, auth, shared types
-│   │   ├── config.ts        # Env-based Firebase config
-│   │   ├── firebase.ts      # Firebase SDK init & exports
-│   │   ├── auth.ts          # Authentication logic
-│   │   └── types.ts         # TypeScript type definitions
-│   ├── data/                # Firestore & API layer
-│   │   ├── data.ts          # Students, grades, attendance, users
-│   │   ├── assessment-data.ts  # Assessments, questions, submissions
-│   │   └── classes-data.ts  # Classes/courses CRUD & roster
-│   └── ui/                  # UI components & views
-│       ├── ui.ts            # Loading, modals, auth forms
-│       ├── particles.ts     # Login background effects
-│       ├── assessment-ui.ts # Assessment tab & exam UI
-│       └── classes-ui.ts    # Classes tab (role-adaptive)
-├── functions/
-│   └── src/
-│       ├── index.ts         # Cloud Functions (AI, user management)
-│       └── ai-config.ts    # AI prompts & model config
-├── public/
-│   ├── _redirects           # Cloudflare Pages SPA fallback
-│   └── _headers             # Security headers
-├── index.html               # Main app (shell, styles, nav)
-├── privacy.html             # Privacy policy
-├── terms.html               # Terms of service
-├── firestore.rules          # Firestore security rules
-├── firestore.indexes.json   # Firestore indexes
-├── firebase.json            # Firebase config (no hosting)
-├── tsconfig.json            # TypeScript config
-├── vite.config.ts           # Vite build config
-└── package.json             # Dependencies & scripts
+src/
+  assets/           # Build-time styles (Tailwind entry), legal-page Vite entries
+  core/             # Firebase init, env config, auth, theme, shims (Chart.js / jsPDF globals)
+  data/             # Firestore and callable wrappers
+  types/            # Shared TypeScript models (mirrored in functions for role parity)
+  ui/               # Views, modals, tab modules
+functions/          # Standalone npm project: own package.json, tsconfig, compiled to lib/
+public/             # Production static assets copied into dist (_redirects, _headers, favicon.svg)
+index.html          # Main app shell (large inline critical CSS for first paint)
+privacy.html, terms.html   # Legal pages (Tailwind via Vite entry under src/assets/)
 ```
+
+## Prerequisites
+
+- Node.js **18+** (root) / **20** (Functions `engines` field)
+- Firebase CLI (`npm i -g firebase-tools`)
+- A Firebase project with Email/Password auth and Firestore enabled
+- Optional: Gemini API key for AI features (Functions only)
 
 ## Setup
 
-### Prerequisites
-
-- Node.js 18+
-- Firebase CLI: `npm install -g firebase-tools`
-- A Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-- A Gemini API key from [ai.google.dev](https://ai.google.dev)
-
-### 1. Install Dependencies
-
 ```bash
 npm install
-cd functions && npm install && cd ..
+npm --prefix functions install
 ```
 
-### 2. Environment variables (no API keys in code)
+### Environment variables
 
-All API keys and config are read from `.env` files. **Do not put secrets in source code.**
+| Location | Purpose |
+|----------|---------|
+| Root `.env` (from `.env.example`) | `VITE_FIREBASE_*` for the Vite client |
+| `functions/.env` (from `functions/.env.example`) | `GEMINI_API_KEY` for local Functions / emulator |
 
-**Frontend (Firebase):**
-- Copy `.env.example` to `.env` in the project root
-- Fill in the `VITE_FIREBASE_*` values from Firebase Console → Project Settings → General → Your apps
+Never commit `.env` files. On Cloudflare Pages, define the same `VITE_FIREBASE_*` names for production builds.
 
-**Cloud Functions (Gemini):**
-- Copy `functions/.env.example` to `functions/.env`
-- Set `GEMINI_API_KEY` in `functions/.env` (get a key at [ai.google.dev](https://ai.google.dev))
+### First administrator
 
-### 3. Configure Firebase project
+1. Sign up in the app (creates `users/{uid}` with role `student`).
+2. In Firestore, set `users/{uid}.role` to `admin`.
+3. Sign out and sign back in.
 
-1. Create a Firebase project and enable **Email/Password** authentication
-2. Enable **Firestore Database**
-3. Set your Firebase project: run `firebase use your-project-id` (use the same project ID as in `.env`)
+## Scripts
 
-### 4. Deploy Rules & Indexes
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Vite dev server (default port 3000) |
+| `npm run build` | `tsc` + production bundle to `dist/` |
+| `npm run preview` | Local preview of `dist/` |
+| `npm run deploy:backend` | Deploy Firestore rules/indexes + Cloud Functions |
 
-```bash
-firebase login
-firebase deploy --only firestore:rules,firestore:indexes
-```
+Functions package: `npm --prefix functions run build` / `test`.
 
-### 5. Configure & Deploy Cloud Functions
+## Deploying
 
-Ensure `functions/.env` exists with `GEMINI_API_KEY` (see step 2). Then:
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for Cloudflare Pages settings, authorized domains, and post-deploy checks.
 
-```bash
-firebase deploy --only functions
-```
+## License & credits
 
-### 6. Development
-
-```bash
-npm run dev            # Start dev server at http://localhost:3000
-npm run build          # Production build to dist/
-npm run preview        # Preview production build locally
-npm run deploy:backend # Deploy only Firebase (functions + Firestore rules/indexes)
-```
-
-### 7. Deploy frontend to Cloudflare Pages
-
-The site is hosted on **Cloudflare Pages**; Firebase is used only for backend (Auth, Firestore, Functions).
-
-1. **Build** (uses your `.env` for Firebase config):
-   ```bash
-   npm run build
-   ```
-   Output is in `dist/` (includes `_redirects` for SPA routing).
-
-2. **Connect to Cloudflare Pages** (e.g. [dash.cloudflare.com](https://dash.cloudflare.com) → Pages → Create project):
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-   - **Root directory:** (leave default)
-   - Deploy via Git or upload the `dist/` folder.
-
-3. **Add your Pages URL to Firebase (required for sign-in):**
-   - Firebase Console → **Authentication** → **Settings** → **Authorized domains**
-   - Add your Cloudflare Pages domain (e.g. `your-project.pages.dev` or your custom domain).
-
-Without a populated `.env` in the build, the app will load but sign-in will not work. On Cloudflare Pages you can set **Environment variables** in the dashboard (same `VITE_FIREBASE_*` names) for production builds.
-
-### 8. Create First Admin
-
-1. Sign up through the app (creates a user with `student` role)
-2. Go to Firebase Console > Firestore > `users` collection
-3. Find your user document and change `role` from `student` to `admin`
-4. Log out and log back in
-
-## User Roles
-
-### Admin
-- Full access to all data and management panels
-- Register students and teachers, manage user roles
-- Create and manage classes, view all grades and attendance
-- Access AI chat agent for data queries
-
-### Teacher
-- View and manage assigned students and classes
-- Create classes and assessments with auto-grading
-- Add grades, mark attendance, release assessment results
-- Access AI performance reports for their students
-
-### Student
-- View enrolled classes and take assessments
-- View own grades, attendance, and AI study tips
-- Export grades to CSV
-
-## Security
-
-Firestore security rules enforce role-based access:
-- Students can only read their own data
-- Teachers can read/write data for students in their courses
-- Admins have full access
-- AI API keys are never exposed to the client (Cloud Functions proxy)
-- Assessment-synced grades can be written by the student who submitted
-
-## AI Features
-
-- **Performance Summary** - Analyzes grades and attendance to provide insights and recommendations
-- **Study Tips** - Personalized study strategies based on performance patterns
-- **AI Chat** (Admin) - Conversational agent for querying student/class data
-
-All AI features run through Cloud Functions with 90-second Gemini API timeouts and 120-second client-side timeouts.
-
-## License
-
-This project is for educational purposes. Modify as needed for your use case.
-
-## Credits
-
-Adib, Erick, Saaeed, Lulya, Liya
+Educational use. Credits: Adib, Erick, Saaeed, Lulya, Liya.

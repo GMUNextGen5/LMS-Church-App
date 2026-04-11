@@ -5,6 +5,9 @@ functions/node_modules/
 # Build outputs
 dist/
 functions/lib/
+
+# Cloudflare Wrangler (local state; never commit)
+.wrangler/
 coverage/
 functions/coverage/
 

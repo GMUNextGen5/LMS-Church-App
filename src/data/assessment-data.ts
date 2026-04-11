@@ -11,7 +11,7 @@ import { getCurrentUser } from '../core/auth';
 import type {
   Assessment, AssessmentQuestion, Submission, QuestionAnswer,
   QuestionGradeDetail, Course, Student
-} from '../core/types';
+} from '../types';
 
 function cleanText(value: unknown, maxLen: number): string {
   if (value == null) return '';
