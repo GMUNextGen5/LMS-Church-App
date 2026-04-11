@@ -56,6 +56,7 @@ import { User, Student, Grade, Attendance } from './core/types';
 import { initAssessments, loadAssessments } from './ui/assessment-ui';
 import { initClasses, loadClasses } from './ui/classes-ui';
 import { initLegalModals } from './ui/legal';
+import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './core/legal-versions';
 
 let currentStudents: Student[] = [];
 let currentGrades: Grade[] = [];
@@ -63,9 +64,6 @@ let currentAttendance: Attendance[] = [];
 let selectedStudentId: string | null = null;
 let gradesUnsubscribe: (() => void) | null = null;
 let particleSystem: ParticleSystem | null = null;
-
-const LEGAL_TERMS_VERSION = '2026-04-10';
-const LEGAL_PRIVACY_VERSION = '2026-04-10';
 
 // Reused for HTML escaping to avoid XSS when rendering user/AI content
 const escapeEl = document.createElement('div');

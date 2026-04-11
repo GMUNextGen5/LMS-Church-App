@@ -35,7 +35,6 @@ export type LegalAcceptanceRecord = {
  */
 export function initAuth(onUserChanged: (user: User | null) => void): void {
   onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-    console.log('DEBUG: Auth State Resolved', firebaseUser);
     if (firebaseUser) {
       try {
         showLoading();
@@ -44,7 +43,6 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          console.log('DEBUG: Firestore Profile Loaded', userData);
           const role = userData?.role;
           const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
           const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
@@ -70,37 +68,8 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
           };
           onUserChanged(currentUser);
         } else {
-          // "Phantom profile" recovery: Auth user exists but Firestore `users/{uid}` is missing.
-          // Create a safe default profile instead of crashing the post-login UI.
-          const createdAt = new Date().toISOString();
-          const email = firebaseUser.email || '';
-          const fromAuth = (firebaseUser.displayName && firebaseUser.displayName.trim()) || '';
-          const displayName = fromAuth || undefined;
-
-          const defaultProfile = {
-            email,
-            role: 'student' as const,
-            createdAt,
-            displayName: displayName ?? null,
-            profileNeedsSetup: true,
-            updatedAt: serverTimestamp(),
-          };
-
-          await setDoc(userDocRef, defaultProfile, { merge: true });
-          console.log('DEBUG: Firestore Profile Loaded', defaultProfile);
-
-          currentUser = {
-            uid: firebaseUser.uid,
-            email,
-            role: 'student',
-            createdAt,
-            displayName,
-          };
-          onUserChanged(currentUser);
-
-          showBootstrapError(
-            'We created a default Student profile for your account because no profile document existed yet. ' +
-              'If you expected Teacher/Admin access, please contact an administrator to update your role.'
+          throw new Error(
+            'Your account profile was not found. Please contact an administrator to finish account setup.'
           );
         }
       } catch (error: unknown) {

@@ -1,6 +1,5 @@
 rules_version = '2';
 // Teacher access to student profiles and grades uses students.teacherIds (kept in sync from course rosters in app code).
-// Legacy data: run a one-time backfill of teacherIds from courses, or re-save affected class rosters after deploy.
 service cloud.firestore {
   match /databases/{database}/documents {
 
