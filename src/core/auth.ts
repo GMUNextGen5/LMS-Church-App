@@ -13,9 +13,39 @@ import {
   FirebaseUser
 } from './firebase';
 import { User, UserRole } from './types';
+import { LEGAL_TERMS_VERSION } from './legal-versions';
 import { showLoading, hideLoading, showBootstrapError } from '../ui/ui';
 
 let currentUser: User | null = null;
+
+type FirestoreTimestampLike = { toDate?: () => Date };
+
+function normalizeProfileCreatedAt(createdAt: unknown): string {
+  const tsLike = createdAt as FirestoreTimestampLike | undefined;
+  if (tsLike != null && typeof tsLike === 'object' && typeof tsLike.toDate === 'function') {
+    try {
+      return tsLike.toDate().toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  }
+  if (typeof createdAt === 'string' && createdAt.trim()) {
+    return createdAt.trim();
+  }
+  return new Date().toISOString();
+}
+
+/**
+ * True when the account must acknowledge the current in-app Terms version (`LEGAL_TERMS_VERSION`).
+ * Admin profiles and teacher profiles without a `legalAcceptance` block are exempt (manual provisioning).
+ */
+export function userLegalAcceptanceIncomplete(user: User): boolean {
+  const la = user?.legalAcceptance;
+  const terms = la?.termsVersion?.trim() ?? '';
+  if (user?.role === 'admin') return false;
+  if (user?.role === 'teacher' && !la) return false;
+  return terms !== LEGAL_TERMS_VERSION;
+}
 
 export function getCurrentUser(): User | null {
   return currentUser;
@@ -53,18 +83,33 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
             );
           }
           const fromDoc =
-            (typeof userData.displayName === 'string' && userData.displayName.trim()) ||
-            (typeof userData.fullName === 'string' && userData.fullName.trim()) ||
-            (typeof userData.name === 'string' && userData.name.trim()) ||
+            (typeof userData?.displayName === 'string' && userData.displayName.trim()) ||
+            (typeof userData?.fullName === 'string' && userData.fullName.trim()) ||
+            (typeof userData?.name === 'string' && userData.name.trim()) ||
             '';
-          const fromAuth = (firebaseUser.displayName && firebaseUser.displayName.trim()) || '';
+          const fromAuth = firebaseUser.displayName?.trim() || '';
           const displayName = fromDoc || fromAuth || undefined;
+          const laRaw = userData?.legalAcceptance;
+          const legalAcceptance =
+            laRaw != null && typeof laRaw === 'object'
+              ? {
+                  termsVersion:
+                    typeof (laRaw as { termsVersion?: unknown }).termsVersion === 'string'
+                      ? (laRaw as { termsVersion: string }).termsVersion
+                      : undefined,
+                  privacyVersion:
+                    typeof (laRaw as { privacyVersion?: unknown }).privacyVersion === 'string'
+                      ? (laRaw as { privacyVersion: string }).privacyVersion
+                      : undefined,
+                }
+              : undefined;
           currentUser = {
             uid: firebaseUser.uid,
-            email: firebaseUser.email || '',
+            email: firebaseUser.email ?? '',
             role: role as UserRole,
-            createdAt: userData.createdAt,
+            createdAt: normalizeProfileCreatedAt(userData?.createdAt),
             displayName,
+            legalAcceptance,
           };
           onUserChanged(currentUser);
         } else {

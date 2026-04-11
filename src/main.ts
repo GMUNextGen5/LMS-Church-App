@@ -14,7 +14,7 @@ import {
   installThemeChangeBridge,
   registerThemeRefreshHandler,
 } from './core/theme-events';
-import { initAuth, signUp, signIn, logout } from './core/auth';
+import { initAuth, signUp, signIn, logout, userLegalAcceptanceIncomplete } from './core/auth';
 import { ParticleSystem } from './ui/particles';
 import {
   initUI,
@@ -240,6 +240,21 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 
   // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
   if (isValidProfile) {
+    if (userLegalAcceptanceIncomplete(user)) {
+      showBootstrapError(
+        'Your account must acknowledge the current Terms of Service (version ' +
+          LEGAL_TERMS_VERSION +
+          '). Please contact an administrator to update your profile, or create a new student account through signup.'
+      );
+      try {
+        await logout();
+      } catch {
+        /* sign-out best-effort */
+      }
+      showAuthContainer();
+      resetAppState();
+      return;
+    }
     showAppContainer();
     configureUIForRole(user);
 

@@ -10,6 +10,11 @@ export interface User {
   createdAt: string;
   /** Display name from Firestore profile and/or Firebase Auth; prefer for UI over raw email. */
   displayName?: string;
+  /** Set for self-registered students; may be absent on admin-provisioned profiles. */
+  legalAcceptance?: {
+    termsVersion?: string;
+    privacyVersion?: string;
+  };
 }
 
 export interface Student {
