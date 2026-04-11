@@ -22,36 +22,53 @@ import { showLoading, hideLoading, showBootstrapError } from '../ui/ui';
 
 let currentUser: User | null = null;
 
-type TimestampLike = { toDate?: () => Date };
+type TimestampLike = { toDate?: () => Date; seconds?: unknown; nanoseconds?: unknown };
 
 /**
  * Normalizes Firestore Timestamp, ISO string, number, or Date-like values to an ISO string.
- * Never calls `.toDate()` unless it is a function on the value.
+ * Handles `createdAt` as ISO strings and `acceptedAt` as Firestore Timestamp instances or
+ * plain `{ seconds, nanoseconds }` shapes. Never throws; missing/invalid input yields "now".
  */
 export function coerceFirestoreDateToIso(value: unknown): string {
-  if (value == null || value === '') {
-    return new Date().toISOString();
-  }
-  const tsLike = value as TimestampLike;
-  if (typeof value === 'object' && value !== null && typeof tsLike.toDate === 'function') {
-    try {
-      const date = tsLike.toDate!();
-      if (date instanceof Date && !Number.isNaN(date.getTime())) {
+  const now = (): string => new Date().toISOString();
+  try {
+    if (value == null || value === '') {
+      return now();
+    }
+    const tsLike = value as TimestampLike;
+    if (typeof value === 'object' && value !== null && typeof tsLike.toDate === 'function') {
+      try {
+        const date = tsLike.toDate!();
+        if (date instanceof Date && !Number.isNaN(date.getTime())) {
+          return date.toISOString();
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    if (typeof value === 'object' && value !== null) {
+      const sec = tsLike.seconds;
+      if (typeof sec === 'number' && Number.isFinite(sec)) {
+        const ns = tsLike.nanoseconds;
+        const ms =
+          sec * 1000 +
+          (typeof ns === 'number' && Number.isFinite(ns) ? Math.floor(ns / 1e6) : 0);
+        const fromSec = new Date(ms);
+        if (!Number.isNaN(fromSec.getTime())) {
+          return fromSec.toISOString();
+        }
+      }
+    }
+    if (typeof value === 'string' || typeof value === 'number' || value instanceof Date) {
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) {
         return date.toISOString();
       }
-    } catch {
-      /* fall through */
-    }
-  }
-  try {
-    const date = new Date(value as string | number | Date);
-    if (!Number.isNaN(date.getTime())) {
-      return date.toISOString();
     }
   } catch {
     /* ignore */
   }
-  return new Date().toISOString();
+  return now();
 }
 
 function mapStudentFirestoreToStudent(id: string, raw: Record<string, unknown>): Student | null {
@@ -116,7 +133,7 @@ function buildFallbackUserFromFirebase(
   role: UserRole,
   userData: Record<string, unknown>
 ): User {
-  let legalAcceptance: User['legalAcceptance'];
+  let legalAcceptance: User['legalAcceptance'] = undefined;
   try {
     const laRaw = userData?.legalAcceptance;
     if (laRaw != null && typeof laRaw === 'object') {
@@ -167,20 +184,24 @@ async function mapFirestoreUserDocumentToUser(
   const fromAuth = firebaseUser.displayName?.trim() || '';
   const displayName = fromDoc || fromAuth || undefined;
 
-  const laRaw = userData?.legalAcceptance;
-  let legalAcceptance: User['legalAcceptance'];
-  if (laRaw != null && typeof laRaw === 'object') {
-    const o = laRaw as Record<string, unknown>;
-    const acceptedAtRaw = o.acceptedAt;
-    let acceptedAt: string | undefined;
-    if (acceptedAtRaw !== undefined) {
-      acceptedAt = coerceFirestoreDateToIso(acceptedAtRaw);
+  let legalAcceptance: User['legalAcceptance'] = undefined;
+  try {
+    const laRaw = userData?.legalAcceptance;
+    if (laRaw != null && typeof laRaw === 'object') {
+      const o = laRaw as Record<string, unknown>;
+      const acceptedAtRaw = o.acceptedAt;
+      let acceptedAt: string | undefined;
+      if (acceptedAtRaw !== undefined) {
+        acceptedAt = coerceFirestoreDateToIso(acceptedAtRaw);
+      }
+      legalAcceptance = {
+        termsVersion: typeof o.termsVersion === 'string' ? o.termsVersion : undefined,
+        privacyVersion: typeof o.privacyVersion === 'string' ? o.privacyVersion : undefined,
+        acceptedAt,
+      };
     }
-    legalAcceptance = {
-      termsVersion: typeof o.termsVersion === 'string' ? o.termsVersion : undefined,
-      privacyVersion: typeof o.privacyVersion === 'string' ? o.privacyVersion : undefined,
-      acceptedAt,
-    };
+  } catch {
+    legalAcceptance = undefined;
   }
 
   let studentProfile: Student | null | undefined;

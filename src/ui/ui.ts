@@ -192,11 +192,21 @@ function switchTab(tabName: string): void {
 }
 
 export function showLoading(): void {
-  loadingOverlay?.classList.remove('hide', 'hidden');
+  const el = loadingOverlay;
+  if (el instanceof HTMLElement) {
+    el.style.removeProperty('pointer-events');
+    el.style.removeProperty('display');
+    el.classList.remove('hide', 'hidden');
+  }
 }
 
 export function hideLoading(): void {
-  loadingOverlay?.classList.add('hide', 'hidden');
+  const el = loadingOverlay;
+  if (el instanceof HTMLElement) {
+    el.classList.add('hide', 'hidden');
+    el.style.setProperty('pointer-events', 'none');
+    el.style.setProperty('display', 'none');
+  }
 }
 
 export function showError(element: HTMLElement | null, message: string): void {
@@ -269,20 +279,25 @@ export function showModal(title: string, content: string, options?: ShowModalOpt
   aiModal?.classList.remove('hide');
 }
 
-async function runModalDismissPipeline(): Promise<void> {
+function runModalDismissPipeline(): void {
+  aiModal?.classList.add('hide');
   const cb = modalOnDismiss;
   modalOnDismiss = null;
-  aiModal?.classList.add('hide');
   if (!cb) return;
   try {
-    await cb();
+    const out = cb();
+    if (out != null && typeof (out as Promise<unknown>).then === 'function') {
+      void (out as Promise<unknown>).catch(() => {
+        /* InPrivate / auth: never block UI after modal is hidden */
+      });
+    }
   } catch {
-    /* caller handles user messaging; never block modal teardown */
+    /* localStorage, sanitization, etc. must not trap the dismiss path */
   }
 }
 
 export function closeModal(): void {
-  void runModalDismissPipeline();
+  runModalDismissPipeline();
 }
 
 export {

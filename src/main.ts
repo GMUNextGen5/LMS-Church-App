@@ -2092,13 +2092,11 @@ function showUidModal(uid: string, email: string): void {
     </div>`;
 
   showModal('Account Created!', modalHtml, {
-    onDismiss: async () => {
-      try {
-        await signOut(auth);
-      } catch {
-        /* best-effort sign-out */
-      }
+    onDismiss: () => {
       showAuthContainer();
+      void signOut(auth).catch(() => {
+        /* best-effort; do not await — InPrivate can stall auth promises */
+      });
     },
   });
 
@@ -2123,7 +2121,11 @@ function showUidModal(uid: string, email: string): void {
     }
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
-        closeModal();
+        try {
+          closeModal();
+        } catch {
+          /* InPrivate / blocked storage: still close the modal */
+        }
       });
     }
   }, 100);
