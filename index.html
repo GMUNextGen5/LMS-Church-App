@@ -5328,10 +5328,11 @@
                         </button>
                     </div>
 
-                    <!-- Student Tools -->
-                    <div class="lms-nav-section student-only hide" id="student-nav-section">
+                    <!-- My Account (all signed-in roles; visibility from configureUIForRole) -->
+                    <div class="lms-nav-section lms-my-account-nav hide" id="my-account-nav-section">
                         <div class="lms-nav-section-title">My Account</div>
-                        <button id="sidebar-student-profile-btn" class="lms-nav-item student-only hide">
+                        <button type="button" id="sidebar-student-profile-btn"
+                            class="lms-nav-item lms-my-account-nav hide" data-tab="student-profile">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
@@ -5339,7 +5340,7 @@
                             </svg>
                             My Profile
                         </button>
-                        <button id="sidebar-show-uid-btn" class="lms-nav-item student-only hide">
+                        <button type="button" id="sidebar-show-uid-btn" class="lms-nav-item lms-my-account-nav hide">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
@@ -6446,8 +6447,8 @@
                         </div>
                     </div>
 
-                    <!-- Student Profile Tab (Student Only) -->
-                    <div id="student-profile-content" class="tab-content student-only hide">
+                    <!-- My Profile (all authenticated roles) -->
+                    <div id="student-profile-content" class="tab-content hide">
                         <div class="glass-effect rounded-2xl p-6">
                             <div class="flex items-center justify-between mb-6">
                                 <h3 class="text-2xl font-bold text-white">My Profile</h3>
@@ -6473,15 +6474,6 @@
                                             <div
                                                 class="px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white">
                                                 <span id="profile-name">--</span>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-dark-200 text-sm font-semibold mb-2">Member
-                                                ID</label>
-                                            <div
-                                                class="px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white">
-                                                <span id="profile-member-id">--</span>
                                             </div>
                                         </div>
 
@@ -6565,6 +6557,15 @@
                                                 class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500">
                                         </div>
                                         <div>
+                                            <label for="profile-self-member-id"
+                                                class="block text-dark-200 text-sm font-semibold mb-2">Member
+                                                ID</label>
+                                            <input type="text" id="profile-self-member-id" maxlength="40"
+                                                autocomplete="off"
+                                                placeholder="Enter your Member ID."
+                                                class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-500 focus:outline-none focus:border-primary-500">
+                                        </div>
+                                        <div>
                                             <label for="profile-self-birth-year"
                                                 class="block text-dark-200 text-sm font-semibold mb-2">Year of birth
                                                 (optional)</label>
@@ -6582,42 +6583,58 @@
                                     </div>
                                 </div>
 
-                                <!-- Account Security Section -->
+                                <!-- Update password -->
                                 <div>
                                     <h4 class="text-lg font-semibold text-white mb-4 pb-2 border-b border-dark-600">
-                                        Account Security</h4>
-                                    <div>
-                                        <label class="block text-dark-200 text-sm font-semibold mb-2">Password</label>
-                                        <div class="relative">
-                                            <input type="password" id="profile-password" value="••••••••••••" readonly
-                                                class="w-full px-4 py-3 pr-12 rounded-lg bg-dark-800 border border-dark-600 text-white font-mono focus:outline-none">
-                                            <button type="button" id="toggle-password-visibility"
-                                                class="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white transition-colors"
-                                                title="Click to reveal password">
-                                                <svg id="password-eye-icon" class="w-5 h-5" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
-                                                    </path>
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                                                    </path>
-                                                </svg>
-                                            </button>
+                                        Update password</h4>
+                                    <p class="text-dark-400 text-sm mb-4">Enter your current password, then choose a new
+                                        one. Use a strong password you do not reuse elsewhere.</p>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div class="md:col-span-2">
+                                            <label for="profile-current-password"
+                                                class="block text-dark-200 text-sm font-semibold mb-2">Current
+                                                password</label>
+                                            <input type="password" id="profile-current-password" autocomplete="current-password"
+                                                class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500">
                                         </div>
-                                        <p class="text-dark-400 text-xs mt-2">
-                                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                                                </path>
-                                            </svg>
-                                            Passwords are encrypted for security and cannot
-                                            be displayed. Contact your
-                                            administrator if you need to reset your
-                                            password.
-                                        </p>
+                                        <div>
+                                            <label for="profile-new-password"
+                                                class="block text-dark-200 text-sm font-semibold mb-2">New password</label>
+                                            <input type="password" id="profile-new-password" autocomplete="new-password"
+                                                aria-describedby="profile-password-strength-label profile-password-strength-live"
+                                                class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500">
+                                            <span id="profile-password-strength-live" class="sr-only" aria-live="polite"
+                                                aria-atomic="true"></span>
+                                            <div id="profile-password-strength-wrap" class="mt-2 min-h-[2rem] w-full min-w-0">
+                                                <div id="profile-password-strength-inner"
+                                                    class="flex w-full gap-1.5 items-center min-w-0 invisible" aria-hidden="true">
+                                                    <div id="profile-password-strength-bar"
+                                                        class="flex flex-1 gap-1 min-w-0" role="progressbar"
+                                                        aria-valuemin="0" aria-valuemax="4" aria-valuenow="0"
+                                                        aria-valuetext="No password entered" aria-hidden="true">
+                                                        <div class="profile-pw-seg h-2 flex-1 min-w-0 rounded-[10px] bg-slate-400/35 dark:bg-slate-500/40"></div>
+                                                        <div class="profile-pw-seg h-2 flex-1 min-w-0 rounded-[10px] bg-slate-400/35 dark:bg-slate-500/40"></div>
+                                                        <div class="profile-pw-seg h-2 flex-1 min-w-0 rounded-[10px] bg-slate-400/35 dark:bg-slate-500/40"></div>
+                                                        <div class="profile-pw-seg h-2 flex-1 min-w-0 rounded-[10px] bg-slate-400/35 dark:bg-slate-500/40"></div>
+                                                    </div>
+                                                    <span id="profile-password-strength-label"
+                                                        class="shrink-0 text-xs font-medium text-slate-600 tabular-nums leading-none dark:text-slate-400"
+                                                        aria-hidden="true"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label for="profile-confirm-password"
+                                                class="block text-dark-200 text-sm font-semibold mb-2">Confirm new
+                                                password</label>
+                                            <input type="password" id="profile-confirm-password" autocomplete="new-password"
+                                                class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500">
+                                        </div>
+                                        <div class="md:col-span-2 flex flex-col sm:flex-row sm:items-center gap-3">
+                                            <button type="button" id="profile-update-password-btn"
+                                                class="px-6 py-3 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg w-fit">Update
+                                                password</button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -6729,7 +6746,7 @@
                                             <!-- Capabilities Grid -->
                                             <div id="ai-quick-prompts" class="grid grid-cols-2 gap-3 mb-4">
                                                 <button type="button" data-ai-query="Show student profiles and summarize any missing contact info or patterns you notice."
-                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary-400/50 dark:hover:border-primary-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary-400/50 dark:hover:border-primary-500/40 transition-all cursor-pointer hover:scale-105">
                                                     <div
                                                         class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                         <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none"
@@ -6748,7 +6765,7 @@
                                                     </div>
                                                 </button>
                                                 <button type="button" data-ai-query="Give me grade analytics: top performers, students below 70%, and any trends by category."
-                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-accent-400/50 dark:hover:border-accent-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-accent-400/50 dark:hover:border-accent-500/40 transition-all cursor-pointer hover:scale-105">
                                                     <div
                                                         class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                         <svg class="w-5 h-5 text-accent-600 dark:text-accent-400 opacity-90 dark:opacity-100" fill="none"
@@ -6767,7 +6784,7 @@
                                                     </div>
                                                 </button>
                                                 <button type="button" data-ai-query="Analyze attendance: who is below 80%, any late/absent patterns, and recommended follow-ups."
-                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-yellow-500/50 dark:hover:border-yellow-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-yellow-500/50 dark:hover:border-yellow-500/40 transition-all cursor-pointer hover:scale-105">
                                                     <div
                                                         class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                         <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 opacity-90 dark:opacity-100" fill="none"
@@ -6786,7 +6803,7 @@
                                                     </div>
                                                 </button>
                                                 <button type="button" data-ai-query="Identify trends: improvement/decline patterns and any categories that correlate with low performance or attendance."
-                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-purple-400/50 dark:hover:border-purple-500/40 transition-all cursor-pointer hover:scale-105 transition-transform">
+                                                    class="ai-suggestion-card group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-purple-400/50 dark:hover:border-purple-500/40 transition-all cursor-pointer hover:scale-105">
                                                     <div
                                                         class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                         <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 opacity-90 dark:opacity-100" fill="none"
@@ -6962,7 +6979,7 @@
                                                 Current Role
                                             </th>
                                             <th class="text-center py-3 px-4 text-dark-200 font-semibold">
-                                                User ID</th>
+                                                Account</th>
                                             <th class="text-center py-3 px-4 text-dark-200 font-semibold">
                                                 Actions</th>
                                         </tr>
@@ -7015,7 +7032,7 @@
 
     <!-- Privacy & Terms (auth footer; opened via src/ui/legal.ts) -->
     <div id="legal-modal"
-        class="fixed inset-0 z-[60] p-4 hide flex items-center justify-center backdrop-blur-sm relative"
+        class="fixed inset-0 z-[60] p-4 hide flex items-center justify-center backdrop-blur-sm"
         aria-hidden="true">
         <div id="legal-modal-backdrop" class="absolute inset-0 z-0" data-app-theme="dark" aria-hidden="true"></div>
         <div id="legal-modal-panel"
@@ -7150,14 +7167,14 @@
                 });
             }
 
-            // Mobile Student Profile button (triggers desktop profile button)
             const mobileStudentProfileBtn = document.getElementById('mobile-student-profile-btn');
-            const desktopStudentProfileBtn = document.getElementById('student-profile-btn');
-            if (mobileStudentProfileBtn && desktopStudentProfileBtn) {
+            if (mobileStudentProfileBtn) {
                 mobileStudentProfileBtn.addEventListener('click', function () {
                     closeMobileMenu();
                     setTimeout(() => {
-                        desktopStudentProfileBtn.click();
+                        if (typeof window.switchToTab === 'function') {
+                            window.switchToTab('student-profile');
+                        }
                     }, 300);
                 });
             }
@@ -8750,7 +8767,8 @@
             'registration': 'Student Registration',
             'teacher-registration': 'Teacher Registration',
             'ai-agent': 'AI Assistant',
-            'users': 'User Management'
+            'users': 'User Management',
+            'student-profile': 'My Profile'
         };
 
         // Switch to a specific tab
@@ -8847,17 +8865,6 @@
                     const mainLogout = document.getElementById('logout-btn');
                     if (mainLogout) {
                         mainLogout.click();
-                    }
-                });
-            }
-
-            // Sidebar student profile button
-            const sidebarProfile = document.getElementById('sidebar-student-profile-btn');
-            if (sidebarProfile) {
-                sidebarProfile.addEventListener('click', () => {
-                    const mainProfile = document.getElementById('student-profile-btn');
-                    if (mainProfile) {
-                        mainProfile.click();
                     }
                 });
             }

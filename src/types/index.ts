@@ -1,6 +1,6 @@
 /**
  * Type definitions for the LMS. Maps to Firestore: users, students, grades, attendance, courses, assessments.
- * Parity: backend role literals live in `functions/src/domain-types.ts` — keep both in sync when roles change.
+ * Parity: backend role literals live in `firebase-functions/src/domain-types.ts` — keep both in sync when roles change.
  */
 export type UserRole = 'admin' | 'teacher' | 'student';
 
@@ -26,6 +26,14 @@ export interface User {
   /** Self-service fields on `users/{uid}` (optional until the student saves them). */
   phoneNumber?: string;
   birthYear?: number;
+  /** Optional church/member reference; may also exist on linked `students/{id}` for learners. */
+  memberId?: string;
+  /** Admin/legacy fields sometimes stored on `users/{uid}` (teacher provisioning, imports). */
+  name?: string;
+  fullName?: string;
+  phone?: string;
+  yearOfBirth?: number;
+  notes?: string;
 }
 
 export interface Student {

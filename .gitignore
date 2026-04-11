@@ -1,15 +1,15 @@
 # Dependencies
 node_modules/
-functions/node_modules/
+firebase-functions/node_modules/
 
 # Build outputs
 dist/
-functions/lib/
+firebase-functions/lib/
 
 # Cloudflare Wrangler (local state; never commit)
 .wrangler/
 coverage/
-functions/coverage/
+firebase-functions/coverage/
 
 # Environment variables (never commit secrets)
 .env
@@ -17,7 +17,7 @@ functions/coverage/
 .env.*.local
 .env.development
 .env.production
-functions/.env
+firebase-functions/.env
 
 # Firebase
 .firebase/

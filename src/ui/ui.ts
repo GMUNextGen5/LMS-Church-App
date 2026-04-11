@@ -3,6 +3,7 @@
  */
 import { User, UserRole } from '../types';
 import DOMPurify from 'dompurify';
+import { renderTemplate } from './dom-render';
 
 let domPurifyHooksInstalled = false;
 
@@ -22,7 +23,10 @@ function installDomPurifyLinkHooks(): void {
   });
 }
 
-/** Sanitizes untrusted HTML for safe insertion via `innerHTML` (AI modal, chat bubbles). */
+/**
+ * Sanitizes untrusted HTML for safe insertion into the DOM (AI modal, legal docs, chat bubbles).
+ * Implemented with **DOMPurify** (not regex) — see `ALLOWED_TAGS` / hooks below.
+ */
 export function sanitizeHTML(html: string): string {
   installDomPurifyLinkHooks();
   return DOMPurify.sanitize(html, {
@@ -145,7 +149,7 @@ function runDelegatedModalCopy(
   })();
 }
 
-/** Single listener on `#ai-modal`: innerHTML swaps do not remove it (Account Created / My Account ID). */
+/** Single listener on `#ai-modal`: content swaps via `renderTemplate` do not remove it (Account Created / My Account ID). */
 function installAiModalDelegatedClicks(): void {
   const shell = aiModal;
   if (!(shell instanceof HTMLElement)) return;
@@ -257,7 +261,7 @@ export function configureUIForRole(user: User): void {
   if (!isValidRole) {
     currentUserRole = null;
     // Hide role-based regions until we have a valid profile.
-    document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach(el => {
+    document.querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav').forEach(el => {
       (el as HTMLElement).classList.add('hide');
     });
     return;
@@ -289,6 +293,10 @@ export function configureUIForRole(user: User): void {
       (el as HTMLElement).classList.remove('hide');
     });
   }
+
+  document.querySelectorAll('.lms-my-account-nav').forEach(el => {
+    (el as HTMLElement).classList.remove('hide');
+  });
 }
 
 const VALID_MAIN_TABS = new Set([
@@ -381,6 +389,37 @@ const TOAST_STYLES: Record<AppToastKind, string> = {
   info: 'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg bg-slate-900/95 text-slate-50 border-slate-600/60',
 };
 
+/**
+ * Turns thrown values into short, user-facing copy (no stack traces or verbose SDK dumps).
+ * `context` should be a full sentence or clause ending with punctuation, e.g. "Could not save your profile."
+ */
+export function formatErrorForUserToast(err: unknown, context: string): string {
+  const code =
+    typeof err === 'object' && err !== null && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+  if (code === 'permission-denied') {
+    return `${context} You do not have permission. Contact an administrator if you need access.`;
+  }
+  if (code === 'unavailable' || code === 'deadline-exceeded' || code === 'resource-exhausted') {
+    return `${context} The service is busy. Please wait a moment and try again.`;
+  }
+  if (code === 'failed-precondition' || code === 'aborted') {
+    return `${context} The request could not be completed. Please try again.`;
+  }
+  if (code === 'unauthenticated' || code === 'auth/network-request-failed') {
+    return `${context} Your session may have expired or the network dropped. Sign in again and retry.`;
+  }
+  const msg = err instanceof Error ? err.message : '';
+  const safe =
+    msg &&
+    msg.length < 180 &&
+    !/^\s*FirebaseError/i.test(msg) &&
+    !/\bat\s+[\w.$]+\s*\(/i.test(msg) &&
+    !/\n\s*at\s/.test(msg);
+  return safe ? `${context} ${msg}` : `${context} Please try again, or refresh the page if the problem continues.`;
+}
+
 /** Short-lived toast for confirmations and errors (replaces `alert` in production flows). */
 export function showAppToast(message: string, kind: AppToastKind = 'info'): void {
   const text = typeof message === 'string' ? message : String(message ?? '');
@@ -467,7 +506,7 @@ export function showModal(title: string, content: string, options?: ShowModalOpt
         }
         if (aiModalTitle) aiModalTitle.textContent = title ?? '';
         if (aiModalContent) {
-          aiModalContent.innerHTML = sanitizeHTML(typeof content === 'string' ? content : '');
+          renderTemplate(aiModalContent, sanitizeHTML(typeof content === 'string' ? content : ''));
         }
         aiModal?.classList.remove('hide');
       } catch {

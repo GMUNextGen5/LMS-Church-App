@@ -46,8 +46,8 @@
  * ENVIRONMENT VARIABLES:
  * 
  * LOCAL DEVELOPMENT:
- * - Load from functions/.env (copy from functions/.env.example)
- * - Set GEMINI_API_KEY in functions/.env
+ * - Load from firebase-functions/.env (copy from firebase-functions/.env.example)
+ * - Set GEMINI_API_KEY in firebase-functions/.env
  * 
  * PRODUCTION:
  * - Set GEMINI_API_KEY in Firebase Functions config or Secret Manager (never in code)
@@ -131,7 +131,7 @@
  * 
  * DEPLOYMENT STEPS:
  * 
- * 1. Set GEMINI_API_KEY in functions/.env (see functions/.env.example). Never commit .env.
+ * 1. Set GEMINI_API_KEY in firebase-functions/.env (see firebase-functions/.env.example). Never commit .env.
  * 
  * 2. Build TypeScript:
  *    cd functions && npm run build
@@ -166,7 +166,7 @@
  * COMMON ISSUES:
  * 
  * 1. "GEMINI_API_KEY not set"
- *    FIX: Set GEMINI_API_KEY in functions/.env (or Firebase config), then redeploy
+ *    FIX: Set GEMINI_API_KEY in firebase-functions/.env (or Firebase config), then redeploy
  * 
  * 2. "Permission denied"
  *    CHECK:
@@ -200,7 +200,7 @@
  * TESTING:
  * 
  * LOCAL TESTING:
- * 1. Set GEMINI_API_KEY in functions/.env
+ * 1. Set GEMINI_API_KEY in firebase-functions/.env
  * 2. Deploy: firebase deploy --only functions
  * 3. Run client (npm run dev) and trigger AI features
  * 4. Check Firebase Console > Functions > Logs
@@ -308,7 +308,7 @@ import { isUserRole, isPrivilegedAiRole } from './domain-types';
 initializeApp();
 const db = getFirestore();
 
-// Initialize Gemini AI; key is read from GEMINI_API_KEY (set in functions/.env or Firebase config)
+// Initialize Gemini AI; key is read from GEMINI_API_KEY (set in firebase-functions/.env or Firebase config)
 const apiKey = getApiKey();
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 const isDev = process.env.NODE_ENV !== 'production';
@@ -318,11 +318,11 @@ function aiNotConfiguredMessage(): string {
     'AI service is not configured.',
     '',
     'Admin setup:',
-    '- Set GEMINI_API_KEY in Firebase Functions (Secret Manager / env) or in functions/.env for local emulator.',
+    '- Set GEMINI_API_KEY in Firebase Functions (Secret Manager / env) or in firebase-functions/.env for local emulator.',
     '- Redeploy functions.',
     '',
     'Docs:',
-    '- See DEPLOYMENT.md and functions/.env.example in this repo.',
+    '- See DEPLOYMENT.md and firebase-functions/.env.example in this repo.',
   ].join('\n');
 }
 

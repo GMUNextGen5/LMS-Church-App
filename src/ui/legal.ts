@@ -4,6 +4,7 @@
 
 import { getAppTheme, registerThemeRefreshHandler } from '../core/theme-events';
 import { sanitizeHTML } from './ui';
+import { renderTemplate } from './dom-render';
 
 /** Slug for a legal document shown in the in-app modal (footer and signup links). */
 export type LegalDocumentId = 'privacy' | 'terms';
@@ -114,7 +115,7 @@ export function openLegalModal(doc: LegalDocumentId): void {
   const els = getLegalElements();
   if (!els) return;
   els.title.textContent = TITLES[doc];
-  els.body.innerHTML = sanitizeHTML(BODY_HTML[doc]);
+  renderTemplate(els.body, sanitizeHTML(BODY_HTML[doc]));
   applyLegalModalTheme();
   els.root.classList.remove('hide');
   els.root.setAttribute('aria-hidden', 'false');
@@ -127,7 +128,7 @@ export function closeLegalModal(): void {
   if (!els) return;
   els.root.classList.add('hide');
   els.root.setAttribute('aria-hidden', 'true');
-  els.body.innerHTML = '';
+  els.body.replaceChildren();
 }
 
 /**

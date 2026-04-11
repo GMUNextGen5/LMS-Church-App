@@ -1,3 +1,4 @@
+import type { DocumentReference } from 'firebase/firestore';
 import {
   db,
   collection,
@@ -12,9 +13,11 @@ import {
   where,
   orderBy,
   onSnapshot,
+  serverTimestamp,
 } from '../core/firebase';
 import { Student, Grade, Attendance, Course, User } from '../types';
-import { getCurrentUser } from '../core/auth';
+import { getCurrentUser, normalizeLegalUserAgent } from '../core/auth';
+import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from '../core/legal-versions';
 import { showAppToast } from '../ui/ui';
 
 function cleanText(value: unknown, maxLen: number): string {
@@ -97,26 +100,89 @@ export async function createStudent(studentData: {
 }): Promise<string> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can create student records');
+
+  const studentUid = cleanText(studentData.studentUid, 128);
+  const userRecordRef = doc(db, 'users', studentUid);
+  const existingUserSnap = await getDoc(userRecordRef);
+
+  if (user.role === 'teacher') {
+    if (existingUserSnap.exists()) {
+      const role = existingUserSnap.data()?.role;
+      if (role !== 'student') {
+        throw new Error('Cannot register: selected account is not a student user.');
+      }
+    }
+  }
+
+  const hadStudentUserDoc = existingUserSnap.exists() && existingUserSnap.data()?.role === 'student';
+  if (user.role === 'teacher' && !hadStudentUserDoc) {
+    const em = cleanEmail(studentData.contactEmail);
+    if (!em) {
+      throw new Error('Contact email is required when the student has no user profile yet.');
+    }
+  }
+
   const studentsRef = collection(db, 'students');
-  const docRef = await addDoc(studentsRef, {
-    name: cleanText(studentData.name, 120),
-    memberId: cleanText(studentData.memberId || '', 40),
-    yearOfBirth: studentData.yearOfBirth,
-    contactPhone: cleanText(studentData.contactPhone, 40),
-    contactEmail: cleanEmail(studentData.contactEmail),
-    parentUid: cleanText(studentData.parentUid, 128),
-    studentUid: cleanText(studentData.studentUid, 128),
-    teacherIds: user.role === 'teacher' ? [user.uid] : [],
-    notes: cleanText(studentData.notes || '', 2000),
-    createdAt: new Date().toISOString(),
-    createdBy: user.uid
-  });
-  await setDoc(
-    doc(db, 'users', studentData.studentUid),
-    { studentProfileId: docRef.id },
-    { merge: true }
-  );
-  return docRef.id;
+  let profileRef: DocumentReference | null = null;
+  try {
+    profileRef = await addDoc(studentsRef, {
+      name: cleanText(studentData.name, 120),
+      memberId: cleanText(studentData.memberId || '', 40),
+      yearOfBirth: studentData.yearOfBirth,
+      contactPhone: cleanText(studentData.contactPhone, 40),
+      contactEmail: cleanEmail(studentData.contactEmail),
+      parentUid: cleanText(studentData.parentUid, 128),
+      studentUid,
+      teacherIds: user.role === 'teacher' ? [user.uid] : [],
+      notes: cleanText(studentData.notes || '', 2000),
+      createdAt: new Date().toISOString(),
+      createdBy: user.uid,
+    });
+
+    const linkPayload = { studentProfileId: profileRef.id };
+
+    if (user.role === 'admin') {
+      await setDoc(userRecordRef, linkPayload, { merge: true });
+    } else {
+      if (hadStudentUserDoc) {
+        await setDoc(userRecordRef, linkPayload, { merge: true });
+      } else {
+        await setDoc(userRecordRef, {
+          email: cleanEmail(studentData.contactEmail),
+          role: 'student',
+          createdAt: new Date().toISOString(),
+          legalAcceptance: {
+            termsVersion: LEGAL_TERMS_VERSION,
+            privacyVersion: LEGAL_PRIVACY_VERSION,
+            userAgent: normalizeLegalUserAgent(typeof navigator !== 'undefined' ? navigator.userAgent : ''),
+            acceptedAt: serverTimestamp(),
+          },
+        });
+        await setDoc(userRecordRef, linkPayload, { merge: true });
+      }
+    }
+
+    return profileRef.id;
+  } catch (error: unknown) {
+    if (profileRef) {
+      try {
+        await deleteDoc(profileRef);
+      } catch {
+        /* best-effort rollback */
+      }
+    }
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: string }).code)
+        : '';
+    if (code === 'permission-denied') {
+      showAppToast(
+        'Verification failed: You are not authorized to manage this student profile.',
+        'error'
+      );
+    }
+    throw error;
+  }
 }
 
 export async function deleteStudent(studentId: string): Promise<void> {
@@ -237,19 +303,21 @@ export async function updateUserRoleDirect(targetUserId: string, newRole: User['
 }
 
 /**
- * Student self-service: merges `displayName`, `phoneNumber`, and optional `birthYear` onto `users/{uid}` only.
+ * Self-service: merges `displayName`, `phoneNumber`, optional `birthYear`, and `memberId` onto `users/{uid}`.
  * Does not touch `legalAcceptance` (preserved by `merge: true` and enforced in rules).
  */
-export async function saveStudentUserSelfServiceProfile(data: {
+export async function saveUserSelfServiceProfile(data: {
   displayName: string;
   phoneNumber: string;
   birthYearStr: string;
+  memberId: string;
 }): Promise<void> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'student') throw new Error('Only students can update this profile');
+  if (!user) throw new Error('Not signed in');
 
   const displayName = cleanText(data.displayName, 120);
   const phoneNumber = cleanText(data.phoneNumber, 40);
+  const memberId = cleanText(data.memberId, 40);
 
   const y = data.birthYearStr.trim();
   let birthYear: number | undefined;
@@ -265,6 +333,7 @@ export async function saveStudentUserSelfServiceProfile(data: {
   const updates: Record<string, unknown> = {
     displayName,
     phoneNumber,
+    memberId,
     updatedAt: new Date().toISOString(),
   };
   if (birthYear !== undefined) updates.birthYear = birthYear;

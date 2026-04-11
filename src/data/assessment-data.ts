@@ -57,9 +57,9 @@ export async function createAssessment(
     createdBy: user.uid,
     createdAt: now,
     updatedAt: now,
-    title: cleanText((data as any).title, 160),
-    description: cleanText((data as any).description, 4000),
-    latePolicy: cleanText((data as any).latePolicy, 200),
+    title: cleanText(data.title, 160),
+    description: cleanText(data.description, 4000),
+    latePolicy: cleanText(data.latePolicy ?? '', 200),
   });
   return docRef.id;
 }
@@ -73,11 +73,15 @@ export async function updateAssessment(
   requireTeacherOrAdmin();
   const ref = doc(db, 'courses', classId, 'assessments', assessmentId);
   // Strip `id` to avoid writing it as a field
-  const { id: _id, ...rest } = data as any;
+  const { id: _omitId, ...rest } = data as Partial<Assessment> & { id?: string };
   const sanitized: Record<string, unknown> = { ...rest, updatedAt: iso() };
-  if ('title' in rest) sanitized.title = cleanText((rest as any).title, 160);
-  if ('description' in rest) sanitized.description = cleanText((rest as any).description, 4000);
-  if ('latePolicy' in rest) sanitized.latePolicy = cleanText((rest as any).latePolicy, 200);
+  if ('title' in rest && rest.title !== undefined) sanitized.title = cleanText(rest.title, 160);
+  if ('description' in rest && rest.description !== undefined) {
+    sanitized.description = cleanText(rest.description, 4000);
+  }
+  if ('latePolicy' in rest && rest.latePolicy !== undefined) {
+    sanitized.latePolicy = cleanText(rest.latePolicy, 200);
+  }
   await updateDoc(ref, sanitized);
 }
 
@@ -227,16 +231,16 @@ export async function updateQuestion(
   data: Partial<AssessmentQuestion>
 ): Promise<void> {
   requireTeacherOrAdmin();
-  const { id: _id, ...rest } = data as any;
+  const { id: _omitQid, ...rest } = data as Partial<AssessmentQuestion> & { id?: string };
   const sanitized: Record<string, unknown> = { ...rest };
-  if ('prompt' in rest) sanitized.prompt = cleanText((rest as any).prompt, 2000);
-  if ('options' in rest) {
-    const opts = (rest as any).options;
-    sanitized.options = Array.isArray(opts) ? opts.map((o: any) => cleanText(o, 500)) : [];
+  if ('prompt' in rest && rest.prompt !== undefined) sanitized.prompt = cleanText(rest.prompt, 2000);
+  if ('options' in rest && rest.options !== undefined) {
+    const opts = rest.options;
+    sanitized.options = Array.isArray(opts) ? opts.map((o) => cleanText(o, 500)) : [];
   }
-  if ('correctAnswers' in rest) {
-    const ca = (rest as any).correctAnswers;
-    sanitized.correctAnswers = Array.isArray(ca) ? ca.map((a: any) => cleanText(a, 200)) : [];
+  if ('correctAnswers' in rest && rest.correctAnswers !== undefined) {
+    const ca = rest.correctAnswers;
+    sanitized.correctAnswers = Array.isArray(ca) ? ca.map((a) => cleanText(a, 200)) : [];
   }
   await updateDoc(doc(db, 'courses', classId, 'assessments', assessmentId, 'questions', questionId), sanitized);
   await recalcAssessmentTotals(classId, assessmentId);

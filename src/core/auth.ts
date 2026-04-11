@@ -190,6 +190,9 @@ function buildFallbackUserFromFirebase(
   const fromAuth = firebaseUser.displayName?.trim() || '';
   const displayName = fromDoc || fromAuth || undefined;
   const { phoneNumber, birthYear } = pickSelfServiceUserFields(userData);
+  const memberIdRaw = userData?.memberId;
+  const memberId =
+    typeof memberIdRaw === 'string' && memberIdRaw.trim() ? memberIdRaw.trim().slice(0, 40) : undefined;
 
   return {
     uid: firebaseUser.uid,
@@ -201,6 +204,7 @@ function buildFallbackUserFromFirebase(
     studentProfile: role === 'student' ? null : undefined,
     phoneNumber,
     birthYear,
+    memberId,
   };
 }
 
@@ -247,6 +251,9 @@ async function mapFirestoreUserDocumentToUser(
   }
 
   const { phoneNumber, birthYear } = pickSelfServiceUserFields(userData);
+  const memberIdRaw = userData?.memberId;
+  const memberId =
+    typeof memberIdRaw === 'string' && memberIdRaw.trim() ? memberIdRaw.trim().slice(0, 40) : undefined;
 
   return {
     uid: firebaseUser.uid,
@@ -258,6 +265,7 @@ async function mapFirestoreUserDocumentToUser(
     studentProfile,
     phoneNumber,
     birthYear,
+    memberId,
   };
 }
 

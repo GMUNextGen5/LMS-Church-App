@@ -16,6 +16,9 @@ import {
   signOut,
   doc,
   getDoc,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
 } from './core/firebase';
 import {
   getAppTheme,
@@ -52,6 +55,7 @@ import {
   showFirebaseConfigurationError,
   showBootstrapError,
   showAppToast,
+  formatErrorForUserToast,
 } from './ui/ui';
 import {
   fetchStudents,
@@ -67,14 +71,23 @@ import {
   fetchAllUsers,
   updateUserRoleDirect,
   createTeacher,
-  saveStudentUserSelfServiceProfile,
+  saveUserSelfServiceProfile,
 } from './data/data';
 import { User, Student, Grade, Attendance } from './types';
+import { userProfileDisplayLabel } from './data/classes-data';
+import { Chart } from 'chart.js';
+import type { ChartConfiguration, TooltipItem } from 'chart.js';
+
+type AnyChartInstance = InstanceType<typeof Chart>;
 import { initAssessments, loadAssessments } from './ui/assessment-ui';
 import { initClasses, loadClasses } from './ui/classes-ui';
 import { initLegalModals } from './ui/legal';
 import { setupSignupPasswordStrengthMeter } from './ui/signup-password-strength';
+import { setupProfilePasswordStrengthMeter } from './ui/profile-password-strength';
+import { evaluatePasswordStrength } from './core/password-strength';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './core/legal-versions';
+import { LMS_SEARCH_DEBOUNCE_MS } from './core/input-timing';
+import { escapeHtmlText, renderTemplate } from './ui/dom-render';
 
 let currentStudents: Student[] = [];
 let currentGrades: Grade[] = [];
@@ -82,6 +95,18 @@ let currentAttendance: Attendance[] = [];
 let selectedStudentId: string | null = null;
 let gradesUnsubscribe: (() => void) | null = null;
 let particleSystem: ParticleSystem | null = null;
+
+type LmsGlobalWindow = Window & {
+  handleEditStudent?: (id: string) => void;
+  handleDeleteStudent?: (id: string) => Promise<void>;
+  handleDeleteTeacher?: (id: string) => Promise<void>;
+  handleChangeRole?: (id: string, role: string) => Promise<void>;
+  handleDeleteGrade?: (sid: string, gid: string) => Promise<void>;
+  updateSidebarUserInfo?: (label: string, role: string) => void;
+  askAISuggestion?: (q: string) => void;
+};
+
+type TabSwitchedDetail = { tab?: string };
 
 /** True after the first auth-driven shell update finishes (or bootstrap gave up / config failed). */
 let authShellReady = false;
@@ -112,22 +137,13 @@ function scheduleDomPaint(fn: () => void): void {
   });
 }
 
-// Reused for HTML escaping to avoid XSS when rendering user/AI content
-const escapeEl = document.createElement('div');
-function escapeHtml(s: string): string {
-  escapeEl.textContent = s;
-  return escapeEl.innerHTML;
-}
-
-/**
- * Returns a debounced wrapper that invokes `fn` after `ms` milliseconds of inactivity.
- */
-function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
+/** Returns a debounced wrapper that invokes `fn` after `ms` milliseconds of inactivity. */
+function debounce<Args extends unknown[]>(fn: (...args: Args) => void, ms: number): (...args: Args) => void {
   let timer: number;
-  return ((...args: any[]) => {
-    clearTimeout(timer);
+  return (...args: Args) => {
+    window.clearTimeout(timer);
     timer = window.setTimeout(() => fn(...args), ms);
-  }) as unknown as T;
+  };
 }
 
 /** Delegated clicks for dashboard tables (avoids inline onclick / quoted-ID XSS issues). */
@@ -135,6 +151,7 @@ function setupLmsDelegatedActions(): void {
   const app = document.getElementById('app-container');
   if (!app || (app as HTMLElement & { __lmsDel?: boolean }).__lmsDel) return;
   (app as HTMLElement & { __lmsDel?: boolean }).__lmsDel = true;
+  const gw = window as LmsGlobalWindow;
   app.addEventListener('click', async (e) => {
     if ((e.target as HTMLElement).closest('#assessments-content')) return;
     const el = (e.target as HTMLElement).closest('[data-lms-action]') as HTMLElement | null;
@@ -142,29 +159,29 @@ function setupLmsDelegatedActions(): void {
     const action = el.dataset.lmsAction;
     if (action === 'edit-student') {
       const id = el.dataset.studentId;
-      if (id) (window as any).handleEditStudent(id);
+      if (id) gw.handleEditStudent?.(id);
       return;
     }
     if (action === 'delete-student') {
       const id = el.dataset.studentId;
-      if (id) await (window as any).handleDeleteStudent(id);
+      if (id) await gw.handleDeleteStudent?.(id);
       return;
     }
     if (action === 'delete-teacher') {
       const id = el.dataset.userId;
-      if (id) await (window as any).handleDeleteTeacher(id);
+      if (id) await gw.handleDeleteTeacher?.(id);
       return;
     }
     if (action === 'change-role') {
       const id = el.dataset.userId;
       const role = el.dataset.userRole ?? '';
-      if (id) await (window as any).handleChangeRole(id, role);
+      if (id) await gw.handleChangeRole?.(id, role);
       return;
     }
     if (action === 'delete-grade') {
       const sid = el.dataset.studentId;
       const gid = el.dataset.gradeId;
-      if (sid && gid) await (window as any).handleDeleteGrade(sid, gid);
+      if (sid && gid) await gw.handleDeleteGrade?.(sid, gid);
     }
   });
 }
@@ -263,8 +280,12 @@ async function init(): Promise<void> {
     } catch {
       scheduleDomPaint(() => {
         showBootstrapError(
-          'Something went wrong while loading the dashboard. Please refresh the page. ' +
-            'If the problem continues, check your network connection.'
+          'Dashboard load was interrupted. Please refresh the page. ' +
+            'If this keeps happening, check your network connection and Firebase configuration.'
+        );
+        showAppToast(
+          'We could not finish loading the dashboard after sign-in. Refresh the page to try again.',
+          'error'
         );
       });
     } finally {
@@ -303,13 +324,14 @@ async function init(): Promise<void> {
     }
   });
 
-  document.addEventListener('tab-switched', async (e: any) => {
-    const tab = e.detail?.tab;
+  document.addEventListener('tab-switched', async (e: Event) => {
+    const tab = (e as CustomEvent<TabSwitchedDetail>).detail?.tab;
     if (tab === 'classes') await loadClasses();
     else if (tab === 'attendance' && selectedStudentId) await loadStudentAttendance(selectedStudentId);
     else if (tab === 'dashboard') await loadRecentActivity();
     else if (tab === 'assessments') await loadAssessments();
     else if (tab === 'users') await loadAllUsers();
+    else if (tab === 'student-profile') void loadUserProfile();
     else if (tab === 'teacher-registration') {
       await Promise.all([loadRegisteredTeachers(), populateTeacherAccountDropdown()]);
     }
@@ -393,17 +415,14 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       showAppContainer();
       configureUIForRole(user);
       const userRole = getCurrentUserRole();
-      if (typeof (window as any).updateSidebarUserInfo === 'function') {
-        const sidebarLabel = (user.displayName && user.displayName.trim()) || user.email || '';
-        (window as any).updateSidebarUserInfo(sidebarLabel, userRole);
-      }
+      const gw = window as LmsGlobalWindow;
+      const sidebarLabel = userProfileDisplayLabel(user);
+      gw.updateSidebarUserInfo?.(sidebarLabel === '—' ? user.email || '' : sidebarLabel, userRole ?? 'student');
     });
     markAuthShellReady();
 
     await loadDashboardData();
-    if (user.role === 'student') {
-      void loadStudentProfile();
-    }
+    void loadUserProfile();
 
     scheduleDomPaint(() => {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
@@ -464,8 +483,11 @@ function setupAuthForms(): void {
     try {
       await signIn(email, password);
       lf.reset();
-    } catch (error: any) {
-      showError(loginError, error.message || 'Login failed. Please try again.');
+    } catch (error: unknown) {
+      showError(
+        loginError,
+        error instanceof Error ? error.message : 'Login failed. Please try again.'
+      );
     }
   });
 
@@ -514,8 +536,11 @@ function setupAuthForms(): void {
       });
       showUidModal(uid, email);
       sf.reset();
-    } catch (error: any) {
-      showError(signupError, error.message || 'Signup failed. Please try again.');
+    } catch (error: unknown) {
+      showError(
+        signupError,
+        error instanceof Error ? error.message : 'Signup failed. Please try again.'
+      );
     }
   });
 
@@ -668,7 +693,7 @@ function setupAppForms(): void {
         const show = !q || email.includes(q) || name.includes(q);
         el.style.display = show ? '' : 'none';
       });
-    }, 200);
+    }, LMS_SEARCH_DEBOUNCE_MS);
     usersSearch.addEventListener('input', () => {
       runUsersFilter((usersSearch.value || '').toLowerCase().trim());
     });
@@ -687,7 +712,7 @@ function setupAppForms(): void {
         const show = !q || memberId.includes(q) || name.includes(q) || email.includes(q);
         el.style.display = show ? '' : 'none';
       });
-    }, 200);
+    }, LMS_SEARCH_DEBOUNCE_MS);
     registeredStudentsSearch.addEventListener('input', () => {
       runRegStudentsFilter((registeredStudentsSearch.value || '').toLowerCase().trim());
     });
@@ -705,7 +730,7 @@ function setupAppForms(): void {
         const show = !q || memberId.includes(q) || name.includes(q) || email.includes(q);
         el.style.display = show ? '' : 'none';
       });
-    }, 200);
+    }, LMS_SEARCH_DEBOUNCE_MS);
     registeredTeachersSearch.addEventListener('input', () => {
       runRegTeachersFilter((registeredTeachersSearch.value || '').toLowerCase().trim());
     });
@@ -737,8 +762,7 @@ function setupAppForms(): void {
         await Promise.all([loadDashboardData(), loadRegisteredStudents()]);
         showAppToast('Student updated successfully.', 'success');
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Update failed';
-        showAppToast('Failed to update student: ' + msg, 'error');
+        showAppToast(formatErrorForUserToast(err, 'Could not update this student.'), 'error');
       } finally {
         hideLoading();
       }
@@ -777,7 +801,7 @@ function setupAppForms(): void {
       const formData = new FormData(gradeEntryForm);
       const gradeData = {
         assignmentName: formData.get('assignmentName') as string,
-        category: formData.get('category') as any,
+        category: formData.get('category') as Grade['category'],
         score: parseFloat(formData.get('score') as string),
         totalPoints: parseFloat(formData.get('totalPoints') as string),
         teacherId: '',
@@ -786,8 +810,8 @@ function setupAppForms(): void {
       try {
         await addGrade(selectedStudentId, gradeData);
         gradeEntryForm.reset();
-      } catch (error: any) {
-        showAppToast('Failed to add grade: ' + error.message, 'error');
+      } catch (error: unknown) {
+        showAppToast(formatErrorForUserToast(error, 'Could not add this grade.'), 'error');
       }
     });
   }
@@ -957,7 +981,7 @@ function setupAppForms(): void {
         dashboardStudentSelect.value = visibleOptions[0].value;
         dashboardStudentSelect.dispatchEvent(new Event('change'));
       }
-    }, 200);
+    }, LMS_SEARCH_DEBOUNCE_MS);
     dashboardStudentSearch.addEventListener('input', (e) => {
       doSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
     });
@@ -978,7 +1002,7 @@ function setupAppForms(): void {
   if (gradesStudentSearch && studentSelectGrades) {
     const doGradesSearch = debounce((searchTerm: string) => {
       filterStudentSelectOptions(studentSelectGrades, searchTerm);
-    }, 200);
+    }, LMS_SEARCH_DEBOUNCE_MS);
     gradesStudentSearch.addEventListener('input', (e) => {
       doGradesSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
     });
@@ -989,7 +1013,7 @@ function setupAppForms(): void {
   if (attendanceStudentSearch && attendanceSelectEl) {
     const doAttendanceSearch = debounce((searchTerm: string) => {
       filterStudentSelectOptions(attendanceSelectEl, searchTerm);
-    }, 200);
+    }, LMS_SEARCH_DEBOUNCE_MS);
     attendanceStudentSearch.addEventListener('input', (e) => {
       doAttendanceSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
     });
@@ -998,9 +1022,14 @@ function setupAppForms(): void {
   const studentProfileBtn = document.getElementById('student-profile-btn');
   if (studentProfileBtn) {
     studentProfileBtn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
-      document.getElementById('student-profile-content')?.classList.remove('hide');
-      void loadStudentProfile();
+      const w = window as unknown as { switchToTab?: (t: string) => void };
+      if (typeof w.switchToTab === 'function') {
+        w.switchToTab('student-profile');
+      } else {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
+        document.getElementById('student-profile-content')?.classList.remove('hide');
+        void loadUserProfile();
+      }
     });
   }
 
@@ -1012,33 +1041,32 @@ function setupAppForms(): void {
       const nameEl = document.getElementById('profile-self-display-name') as HTMLInputElement | null;
       const phoneEl = document.getElementById('profile-self-phone') as HTMLInputElement | null;
       const birthEl = document.getElementById('profile-self-birth-year') as HTMLInputElement | null;
+      const memberEl = document.getElementById('profile-self-member-id') as HTMLInputElement | null;
       if (!nameEl || !phoneEl || !birthEl) return;
       if (studentProfileSaveStatus) {
-        studentProfileSaveStatus.textContent = 'Saving…';
+        studentProfileSaveStatus.textContent = '';
         studentProfileSaveStatus.classList.remove('text-red-400', 'text-green-400');
       }
       try {
-        await saveStudentUserSelfServiceProfile({
+        await saveUserSelfServiceProfile({
           displayName: nameEl.value,
           phoneNumber: phoneEl.value,
           birthYearStr: birthEl.value,
+          memberId: memberEl?.value ?? '',
         });
         const refreshed = await reloadCurrentUserFromFirestore();
         const u = refreshed ?? getCurrentUser();
         if (u) {
           configureUIForRole(u);
-          if (typeof (window as any).updateSidebarUserInfo === 'function') {
-            const sidebarLabel = (u.displayName && u.displayName.trim()) || u.email || '';
-            (window as any).updateSidebarUserInfo(sidebarLabel, u.role);
-          }
+          const gw = window as LmsGlobalWindow;
+          const sideLabel = userProfileDisplayLabel(u);
+          gw.updateSidebarUserInfo?.(sideLabel === '—' ? u.email || '' : sideLabel, u.role);
         }
-        await loadStudentProfile();
-        if (studentProfileSaveStatus) {
-          studentProfileSaveStatus.textContent = 'Saved.';
-          studentProfileSaveStatus.classList.add('text-green-400');
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Save failed.';
+        await loadUserProfile();
+        showAppToast('Profile saved.', 'success');
+      } catch (err: unknown) {
+        const msg = formatErrorForUserToast(err, 'Could not save your profile.');
+        showAppToast(msg, 'error');
         if (studentProfileSaveStatus) {
           studentProfileSaveStatus.textContent = msg;
           studentProfileSaveStatus.classList.add('text-red-400');
@@ -1046,6 +1074,8 @@ function setupAppForms(): void {
       }
     });
   }
+
+  wireProfilePasswordUpdate();
 }
 
 // --- Dashboard data loading ---
@@ -1072,21 +1102,24 @@ async function loadRegisteredStudents(): Promise<void> {
     const role = getCurrentUserRole();
     if (role !== 'admin' && role !== 'teacher') return;
     if (currentStudents.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-dark-300">No students registered yet</td></tr>';
+      renderTemplate(
+        tableBody,
+        '<tr><td colspan="5" class="text-center py-8 text-dark-300">No students registered yet</td></tr>'
+      );
       return;
     }
-    tableBody.innerHTML = currentStudents.map(student => {
+    const studentsRowsHtml = currentStudents.map(student => {
       const memberId = (student.memberId || '').toLowerCase().replace(/"/g, '&quot;');
       const name = (student.name || '').toLowerCase().replace(/"/g, '&quot;');
-      const email = ((student as any).contactEmail || '').toLowerCase().replace(/"/g, '&quot;');
+      const email = (student.contactEmail || '').toLowerCase().replace(/"/g, '&quot;');
       return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors registered-student-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
-        <td class="py-3 px-4 text-white font-semibold">${student.memberId || 'N/A'}</td>
-        <td class="py-3 px-4 text-white">${escapeHtml(student.name)}</td>
-        <td class="py-3 px-4 text-center text-dark-300">${(student as any).yearOfBirth || 'N/A'}</td>
+        <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(student.memberId || 'N/A')}</td>
+        <td class="py-3 px-4 text-white">${escapeHtmlText(student.name)}</td>
+        <td class="py-3 px-4 text-center text-dark-300">${student.yearOfBirth ?? 'N/A'}</td>
         <td class="py-3 px-4 text-dark-300 text-sm">
-          ${(student as any).contactEmail || 'N/A'}<br>
-          ${(student as any).contactPhone || ''}
+          ${escapeHtmlText(student.contactEmail || 'N/A')}<br>
+          ${escapeHtmlText(student.contactPhone || '')}
         </td>
         <td class="py-3 px-4 text-center">
           <button type="button" data-lms-action="edit-student" data-student-id="${student.id}"
@@ -1097,6 +1130,7 @@ async function loadRegisteredStudents(): Promise<void> {
       </tr>
     `;
     }).join('');
+    renderTemplate(tableBody, studentsRowsHtml);
   } catch { /* registered students load error */ }
 }
 
@@ -1106,22 +1140,26 @@ async function loadRegisteredTeachers(): Promise<void> {
   try {
     if (getCurrentUserRole() !== 'admin') return;
     const users = await fetchAllUsers();
-    const teachers = users.filter((u: { role: string }) => u.role === 'teacher');
+    const teachers = users.filter((u) => u.role === 'teacher');
     if (teachers.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-dark-300">No teachers registered yet</td></tr>';
+      renderTemplate(
+        tableBody,
+        '<tr><td colspan="5" class="text-center py-8 text-dark-300">No teachers registered yet</td></tr>'
+      );
       return;
     }
-    tableBody.innerHTML = teachers.map((t: any) => {
+    const teachersRowsHtml = teachers.map((t: User) => {
       const memberId = (t.memberId || '').toLowerCase().replace(/"/g, '&quot;');
-      const name = (t.name || t.email || '').toLowerCase().replace(/"/g, '&quot;');
+      const displayName = userProfileDisplayLabel(t);
+      const name = displayName.toLowerCase().replace(/"/g, '&quot;');
       const email = (t.email || '').toLowerCase().replace(/"/g, '&quot;');
       return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors registered-teacher-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
-        <td class="py-3 px-4 text-white font-semibold">${escapeHtml(t.memberId || 'N/A')}</td>
-        <td class="py-3 px-4 text-white">${escapeHtml(t.name || t.email || 'N/A')}</td>
+        <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(t.memberId || 'N/A')}</td>
+        <td class="py-3 px-4 text-white">${escapeHtmlText(displayName === '—' ? t.email || 'N/A' : displayName)}</td>
         <td class="py-3 px-4 text-center text-dark-300">${t.yearOfBirth ?? 'N/A'}</td>
         <td class="py-3 px-4 text-dark-300 text-sm">
-          ${escapeHtml(t.email || 'N/A')}<br>${escapeHtml(t.phone || '')}
+          ${escapeHtmlText(t.email || 'N/A')}<br>${escapeHtmlText(t.phone || t.phoneNumber || '')}
         </td>
         <td class="py-3 px-4 text-center">
           <button type="button" data-lms-action="delete-teacher" data-user-id="${t.uid}"
@@ -1130,6 +1168,7 @@ async function loadRegisteredTeachers(): Promise<void> {
       </tr>
     `;
     }).join('');
+    renderTemplate(tableBody, teachersRowsHtml);
   } catch { /* teacher load error */ }
 }
 
@@ -1138,10 +1177,16 @@ async function loadAllUsers(): Promise<void> {
   if (!tableBody) return;
   try {
     if (getCurrentUserRole() !== 'admin') return;
-    tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-dark-300"><div class="loading-spinner mx-auto mb-2"></div>Loading users...</td></tr>';
+    renderTemplate(
+      tableBody,
+      '<tr><td colspan="4" class="text-center py-8 text-dark-300"><div class="loading-spinner mx-auto mb-2"></div>Loading users...</td></tr>'
+    );
     const users = await fetchAllUsers();
     if (users.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-dark-300">No users found</td></tr>';
+      renderTemplate(
+        tableBody,
+        '<tr><td colspan="4" class="text-center py-8 text-dark-300">No users found</td></tr>'
+      );
       return;
     }
     const getRoleBadgeClass = (role: string) => {
@@ -1152,18 +1197,19 @@ async function loadAllUsers(): Promise<void> {
         default: return 'bg-gray-500/20 text-gray-400';
       }
     };
-    tableBody.innerHTML = users.map((user: any) => {
+    const usersRowsHtml = users.map((user: User) => {
       const email = (user.email || '').toLowerCase().replace(/"/g, '&quot;');
-      const name = (user.name || '').toLowerCase().replace(/"/g, '&quot;');
+      const accountLabel = userProfileDisplayLabel(user);
+      const name = accountLabel.toLowerCase().replace(/"/g, '&quot;');
       return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors user-management-row" data-email="${email}" data-name="${name}">
-        <td class="py-3 px-4 text-white">${escapeHtml(user.email)}</td>
+        <td class="py-3 px-4 text-white">${escapeHtmlText(user.email)}</td>
         <td class="py-3 px-4 text-center">
           <span class="px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeClass(user.role)}">
             ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
           </span>
         </td>
-        <td class="py-3 px-4 text-center text-dark-400 text-xs font-mono">${user.uid}</td>
+        <td class="py-3 px-4 text-center text-dark-300 text-sm">${escapeHtmlText(accountLabel)}</td>
         <td class="py-3 px-4 text-center">
           <button type="button" data-lms-action="change-role" data-user-id="${user.uid}" data-user-role="${user.role}"
             class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm">Change Role</button>
@@ -1171,10 +1217,15 @@ async function loadAllUsers(): Promise<void> {
       </tr>
     `;
     }).join('');
-  } catch (error: any) {
+    renderTemplate(tableBody, usersRowsHtml);
+  } catch (error: unknown) {
     if (tableBody) {
-      tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-400">Error loading users: ${escapeHtml(error?.message || '')}</td></tr>`;
+      renderTemplate(
+        tableBody,
+        '<tr><td colspan="4" class="text-center py-8 text-dark-300">Could not load the user list. Use Refresh or try again shortly.</td></tr>'
+      );
     }
+    showAppToast(formatErrorForUserToast(error, 'Could not load users.'), 'error');
   }
 }
 
@@ -1232,7 +1283,7 @@ function setupAccountDropdown(containerId: string, hiddenInputId: string, popula
   if (searchInput) {
     const runDropdownSearch = debounce((q: string) => {
       filterAccountDropdownList(listElRef, q);
-    }, 200);
+    }, LMS_SEARCH_DEBOUNCE_MS);
     searchInput.addEventListener('input', () => {
       runDropdownSearch((searchInput.value || '').toLowerCase().trim());
     });
@@ -1268,16 +1319,17 @@ async function populateStudentAccountDropdown(): Promise<void> {
     const role = getCurrentUserRole();
     if (role !== 'admin' && role !== 'teacher') return;
     let users = await fetchAllUsers();
-    if (role === 'teacher') users = users.filter((u: { role: string }) => u.role === 'student');
-    (users as any[]).sort((a, b) => (a.email || '').localeCompare(b.email || ''));
-    listEl.innerHTML = '';
-    users.forEach((user: any) => {
-      const displayText = user.email + (user.name ? ` (${user.name})` : '') + ` - ${user.role}`;
+    if (role === 'teacher') users = users.filter((u) => u.role === 'student');
+    users.sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+    listEl.replaceChildren();
+    users.forEach((user: User) => {
+      const label = userProfileDisplayLabel(user);
+      const displayText = `${label} · ${user.role}`;
       const opt = document.createElement('div');
       opt.setAttribute('role', 'option');
       opt.setAttribute('data-uid', user.uid);
       opt.setAttribute('data-email', (user.email || '').toLowerCase());
-      opt.setAttribute('data-name', (user.name || '').toLowerCase());
+      opt.setAttribute('data-name', (user.name || user.displayName || '').toLowerCase());
       opt.textContent = displayText;
       opt.className = 'px-4 py-2 cursor-pointer hover:bg-dark-700 text-white text-sm';
       listEl.appendChild(opt);
@@ -1287,7 +1339,12 @@ async function populateStudentAccountDropdown(): Promise<void> {
       filterAccountDropdownList(listEl, q);
     }
   } catch {
-    listEl.innerHTML = '<div class="px-4 py-3 text-dark-400 text-sm">Cloud Functions not deployed - use manual entry</div>';
+    listEl.replaceChildren();
+    const msg = document.createElement('div');
+    msg.className = 'px-4 py-3 text-dark-400 text-sm';
+    msg.textContent =
+      'Could not load registered accounts. Use manual UID entry below, or open Refresh and try again.';
+    listEl.appendChild(msg);
   }
 }
 
@@ -1300,15 +1357,16 @@ async function populateTeacherAccountDropdown(): Promise<void> {
   try {
     if (getCurrentUserRole() !== 'admin') return;
     const users = await fetchAllUsers();
-    (users as any[]).sort((a, b) => (a.email || '').localeCompare(b.email || ''));
-    listEl.innerHTML = '';
-    users.forEach((user: any) => {
-      const displayText = (user.email || user.uid) + (user.name ? ` (${user.name})` : '') + ` - ${user.role}`;
+    users.sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+    listEl.replaceChildren();
+    users.forEach((user: User) => {
+      const label = userProfileDisplayLabel(user);
+      const displayText = `${label} · ${user.role}`;
       const opt = document.createElement('div');
       opt.setAttribute('role', 'option');
       opt.setAttribute('data-uid', user.uid);
       opt.setAttribute('data-email', (user.email || '').toLowerCase());
-      opt.setAttribute('data-name', (user.name || '').toLowerCase());
+      opt.setAttribute('data-name', (user.name || user.displayName || '').toLowerCase());
       opt.textContent = displayText;
       opt.className = 'px-4 py-2 cursor-pointer hover:bg-dark-700 text-white text-sm';
       listEl.appendChild(opt);
@@ -1318,7 +1376,11 @@ async function populateTeacherAccountDropdown(): Promise<void> {
       filterAccountDropdownList(listEl, q);
     }
   } catch {
-    listEl.innerHTML = '<div class="px-4 py-3 text-dark-400 text-sm">Use manual UID entry below</div>';
+    listEl.replaceChildren();
+    const msg = document.createElement('div');
+    msg.className = 'px-4 py-3 text-dark-400 text-sm';
+    msg.textContent = 'Could not load teacher accounts. Use manual UID entry below.';
+    listEl.appendChild(msg);
   }
 }
 
@@ -1342,42 +1404,26 @@ function updateStudentSelect(): void {
   const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
   const dashboardStudentSelect = document.getElementById('dashboard-student-select') as HTMLSelectElement;
 
-  studentSelect.innerHTML = '<option value="">-- Select a student --</option>';
-  currentStudents.forEach(student => {
-    const option = document.createElement('option');
-    option.value = student.id;
-    option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
-    option.setAttribute('data-name', student.name.toLowerCase());
-    option.setAttribute('data-email', ((student as any).contactEmail || '').toLowerCase());
-    option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
-    studentSelect.appendChild(option);
-  });
-
-  if (attendanceStudentSelect) {
-    attendanceStudentSelect.innerHTML = '<option value="">-- Select a student --</option>';
+  const fillStudentSelect = (sel: HTMLSelectElement): void => {
+    sel.replaceChildren();
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Select a student --';
+    sel.appendChild(placeholder);
     currentStudents.forEach(student => {
       const option = document.createElement('option');
       option.value = student.id;
       option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
       option.setAttribute('data-name', student.name.toLowerCase());
-      option.setAttribute('data-email', ((student as any).contactEmail || '').toLowerCase());
+      option.setAttribute('data-email', (student.contactEmail || '').toLowerCase());
       option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
-      attendanceStudentSelect.appendChild(option);
+      sel.appendChild(option);
     });
-  }
+  };
 
-  if (dashboardStudentSelect) {
-    dashboardStudentSelect.innerHTML = '<option value="">-- Select a student --</option>';
-    currentStudents.forEach(student => {
-      const option = document.createElement('option');
-      option.value = student.id;
-      option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
-      option.setAttribute('data-name', student.name.toLowerCase());
-      option.setAttribute('data-email', ((student as any).contactEmail || '').toLowerCase());
-      option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
-      dashboardStudentSelect.appendChild(option);
-    });
-  }
+  fillStudentSelect(studentSelect);
+  if (attendanceStudentSelect) fillStudentSelect(attendanceStudentSelect);
+  if (dashboardStudentSelect) fillStudentSelect(dashboardStudentSelect);
 
   const userRole = getCurrentUserRole();
   if (userRole === 'student' && currentStudents.length === 1) {
@@ -1403,7 +1449,7 @@ function showGradesSkeletonLoading(): void {
   const chartsSection = document.getElementById('grade-charts-section');
   if (gradesTableBody) {
     const row = '<tr class="border-b border-dark-700"><td class="py-3 px-4"><div class="skeleton skeleton-text !w-[70%]"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td></tr>';
-    gradesTableBody.innerHTML = row.repeat(5);
+    renderTemplate(gradesTableBody, row.repeat(5));
   }
   chartsSection?.classList.add('hide');
 }
@@ -1428,7 +1474,10 @@ function displayGrades(grades: Grade[]): void {
   const chartsSection = document.getElementById('grade-charts-section');
 
   if (grades.length === 0) {
-    gradesTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-dark-300">No grades recorded yet</td></tr>';
+    renderTemplate(
+      gradesTableBody,
+      '<tr><td colspan="5" class="text-center py-8 text-dark-300">No grades recorded yet</td></tr>'
+    );
     chartsSection?.classList.add('hide');
     return;
   }
@@ -1437,24 +1486,25 @@ function displayGrades(grades: Grade[]): void {
   const userRole = getCurrentUserRole();
   const showActions = userRole === 'teacher' || userRole === 'admin';
 
-  gradesTableBody.innerHTML = grades.map(grade => {
+  const gradesRowsHtml = grades.map(grade => {
     const percentage = ((grade.score / grade.totalPoints) * 100).toFixed(1);
     const percentageClass = parseFloat(percentage) >= 70 ? 'text-green-400' : 'text-red-400';
     return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
-        <td class="py-3 px-4 text-white">${escapeHtml(grade.assignmentName)}</td>
-        <td class="py-3 px-4 text-dark-300">${escapeHtml(grade.category)}</td>
+        <td class="py-3 px-4 text-white">${escapeHtmlText(grade.assignmentName)}</td>
+        <td class="py-3 px-4 text-dark-300">${escapeHtmlText(grade.category)}</td>
         <td class="py-3 px-4 text-center text-white">${grade.score} / ${grade.totalPoints}</td>
         <td class="py-3 px-4 text-center font-semibold ${percentageClass}">${percentage}%</td>
         ${showActions && selectedStudentId ? `<td class="py-3 px-4 text-center"><button type="button" data-lms-action="delete-grade" data-student-id="${selectedStudentId}" data-grade-id="${grade.id}" class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button></td>` : ''}
       </tr>`;
   }).join('');
+  renderTemplate(gradesTableBody, gradesRowsHtml);
 
   renderGradeCharts(grades);
 }
 
-let gradeTrendChart: any = null;
-let categoryChart: any = null;
+let gradeTrendChart: AnyChartInstance | null = null;
+let categoryChart: AnyChartInstance | null = null;
 
 function isAppLightTheme(): boolean {
   return getAppTheme() === 'light';
@@ -1504,9 +1554,6 @@ function getGradeChartOptions(): Record<string, unknown> {
  * Renders or updates grade trend and category charts. Destroys existing Chart instances first to avoid leaks.
  */
 function renderGradeCharts(grades: Grade[]): void {
-  if (typeof (window as any).Chart === 'undefined') return;
-  const Chart = (window as any).Chart;
-
   const sortedGrades = [...grades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const trendLabels = sortedGrades.map(g => g.assignmentName.length > 12 ? g.assignmentName.substring(0, 12) + '...' : g.assignmentName);
   const trendData = sortedGrades.map(g => ((g.score / g.totalPoints) * 100).toFixed(1));
@@ -1522,7 +1569,7 @@ function renderGradeCharts(grades: Grade[]): void {
   const categoryAverages = categoryLabels.map(cat => (categoryData[cat].total / categoryData[cat].count).toFixed(1));
   const categoryColors = ['#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#3b82f6'];
 
-  const chartOptions = getGradeChartOptions() as any;
+  const chartOptions = getGradeChartOptions() as ChartConfiguration<'line' | 'bar'>['options'];
   const light = isAppLightTheme();
   const pointBorder = light ? '#0f172a' : '#ffffff';
 
@@ -1564,7 +1611,18 @@ function renderGradeCharts(grades: Grade[]): void {
             labels: categoryLabels,
             datasets: [{ label: 'Average %', data: categoryAverages, backgroundColor: categoryLabels.map((_, i) => categoryColors[i % categoryColors.length]), borderRadius: 8, barThickness: 40 }],
           },
-          options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: (ctx: any) => `Average: ${ctx.raw}%` } } } },
+          options: {
+            ...chartOptions,
+            plugins: {
+              ...chartOptions?.plugins,
+              tooltip: {
+                callbacks: {
+                  label: (ctx: TooltipItem<'bar'>) =>
+                    `Average: ${ctx.formattedValue ?? (ctx.raw == null ? '' : String(ctx.raw))}%`,
+                },
+              },
+            },
+          },
         });
       } catch {
         categoryChart = null;
@@ -1573,27 +1631,29 @@ function renderGradeCharts(grades: Grade[]): void {
   }
 }
 
-(window as any).handleDeleteGrade = async (studentId: string, gradeId: string) => {
+const lmsWin = window as LmsGlobalWindow;
+
+lmsWin.handleDeleteGrade = async (studentId: string, gradeId: string) => {
   if (!confirm('Are you sure you want to delete this grade?')) return;
   try {
     await deleteGrade(studentId, gradeId);
-  } catch (error: any) {
-    showAppToast('Failed to delete grade: ' + (error?.message ?? 'Unknown error'), 'error');
+  } catch (error: unknown) {
+    showAppToast(formatErrorForUserToast(error, 'Could not delete the grade.'), 'error');
   }
 };
 
-(window as any).handleDeleteStudent = async (studentId: string) => {
+lmsWin.handleDeleteStudent = async (studentId: string) => {
   if (!confirm('Are you sure you want to delete this student? This will also delete all their grades and attendance records.')) return;
   try {
     await deleteStudent(studentId);
     await loadDashboardData();
     showAppToast('Student deleted successfully.', 'success');
-  } catch (error: any) {
-    showAppToast('Failed to delete student: ' + (error?.message ?? 'Unknown error'), 'error');
+  } catch (error: unknown) {
+    showAppToast(formatErrorForUserToast(error, 'Could not delete this student.'), 'error');
   }
 };
 
-(window as any).handleEditStudent = (studentId: string) => {
+lmsWin.handleEditStudent = (studentId: string) => {
   const student = currentStudents.find(s => s.id === studentId);
   if (!student) return;
   const modal = document.getElementById('edit-student-modal');
@@ -1608,14 +1668,14 @@ function renderGradeCharts(grades: Grade[]): void {
   idEl.value = studentId;
   nameEl.value = student.name;
   memberIdEl.value = (student.memberId || '');
-  yearEl.value = String((student as any).yearOfBirth ?? '');
-  phoneEl.value = (student as any).contactPhone || '';
-  emailEl.value = (student as any).contactEmail || '';
-  notesEl.value = (student as any).notes || '';
+  yearEl.value = String(student.yearOfBirth ?? '');
+  phoneEl.value = student.contactPhone || '';
+  emailEl.value = student.contactEmail || '';
+  notesEl.value = student.notes || '';
   modal.classList.remove('hide');
 };
 
-(window as any).handleDeleteTeacher = async (userId: string) => {
+lmsWin.handleDeleteTeacher = async (userId: string) => {
   if (!confirm('Remove this teacher? Their role will be set back to student.')) return;
   try {
     showLoading();
@@ -1623,13 +1683,13 @@ function renderGradeCharts(grades: Grade[]): void {
     await loadRegisteredTeachers();
     hideLoading();
     showAppToast('Teacher removed (role set to student).', 'success');
-  } catch (err: any) {
+  } catch (err: unknown) {
     hideLoading();
-    showAppToast('Failed to remove teacher: ' + (err?.message ?? 'Unknown error'), 'error');
+    showAppToast(formatErrorForUserToast(err, 'Could not remove this teacher.'), 'error');
   }
 };
 
-(window as any).handleChangeRole = async (userId: string, currentRole: string) => {
+lmsWin.handleChangeRole = async (userId: string, currentRole: string) => {
   const newRole = prompt(`Change role for this user.\n\nCurrent role: ${currentRole}\n\nEnter new role (admin, teacher, or student):`, currentRole);
   if (!newRole) return;
   const roleNormalized = newRole.trim().toLowerCase();
@@ -1646,8 +1706,8 @@ function renderGradeCharts(grades: Grade[]): void {
     await updateUserRoleDirect(userId, roleNormalized as 'admin' | 'teacher' | 'student');
     await loadAllUsers();
     showAppToast(`User role changed to ${roleNormalized}.`, 'success');
-  } catch (error: any) {
-    showAppToast('Failed to change role: ' + (error?.message ?? 'Unknown error'), 'error');
+  } catch (error: unknown) {
+    showAppToast(formatErrorForUserToast(error, "Could not change this user's role."), 'error');
   } finally { hideLoading(); }
 };
 
@@ -1738,7 +1798,7 @@ async function loadRecentActivity(): Promise<void> {
   if (!recentActivityEl) return;
   try {
     const userRole = getCurrentUserRole();
-    let activities: Array<{ type: 'grade' | 'attendance'; date: Date; data: any }> = [];
+    let activities: Array<{ type: 'grade' | 'attendance'; date: Date; data: Grade | Attendance }> = [];
 
     const hasStudent = (userRole === 'student' || userRole === 'admin' || userRole === 'teacher') && selectedStudentId;
     if (hasStudent) {
@@ -1754,17 +1814,20 @@ async function loadRecentActivity(): Promise<void> {
     activities = activities.slice(0, 10);
 
     if (activities.length === 0) {
-      recentActivityEl.innerHTML = '<div class="glass-effect rounded-xl p-4 text-dark-300">No recent activity</div>';
+      renderTemplate(
+        recentActivityEl,
+        '<div class="glass-effect rounded-xl p-4 text-dark-300">No recent activity</div>'
+      );
       return;
     }
 
-    recentActivityEl.innerHTML = activities.map(activity => {
+    const activityHtml = activities.map(activity => {
       const dateStr = activity.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       if (activity.type === 'grade') {
         const grade = activity.data as Grade;
         const percentage = ((grade.score / grade.totalPoints) * 100).toFixed(1);
         const cls = parseFloat(percentage) >= 70 ? 'text-green-400' : 'text-red-400';
-        return `<div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors"><div class="flex items-start justify-between"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg><span class="text-white font-semibold">${escapeHtml(grade.assignmentName)}</span></div><p class="text-dark-300 text-sm">${escapeHtml(grade.category)} &bull; ${grade.score}/${grade.totalPoints} (<span class="${cls}">${percentage}%</span>)</p></div><span class="text-dark-400 text-xs whitespace-nowrap ml-4">${dateStr}</span></div></div>`;
+        return `<div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors"><div class="flex items-start justify-between"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg><span class="text-white font-semibold">${escapeHtmlText(grade.assignmentName)}</span></div><p class="text-dark-300 text-sm">${escapeHtmlText(grade.category)} &bull; ${grade.score}/${grade.totalPoints} (<span class="${cls}">${percentage}%</span>)</p></div><span class="text-dark-400 text-xs whitespace-nowrap ml-4">${dateStr}</span></div></div>`;
       } else {
         const att = activity.data as Attendance;
         const statusMap: Record<string, [string, string]> = {
@@ -1772,11 +1835,16 @@ async function loadRecentActivity(): Promise<void> {
           late: ['⏰ Late', 'text-yellow-400'], excused: ['📝 Excused', 'text-blue-400'],
         };
         const [badge, color] = statusMap[att.status] || ['Unknown', 'text-dark-300'];
-        return `<div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors"><div class="flex items-start justify-between"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="${color} font-semibold">${badge}</span></div><p class="text-dark-300 text-sm">${escapeHtml(att.notes || 'No notes')}</p></div><span class="text-dark-400 text-xs whitespace-nowrap ml-4">${dateStr}</span></div></div>`;
+        return `<div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors"><div class="flex items-start justify-between"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="${color} font-semibold">${badge}</span></div><p class="text-dark-300 text-sm">${escapeHtmlText(att.notes || 'No notes')}</p></div><span class="text-dark-400 text-xs whitespace-nowrap ml-4">${dateStr}</span></div></div>`;
       }
     }).join('');
-  } catch {
-    recentActivityEl.innerHTML = '<div class="glass-effect rounded-xl p-4 text-red-400">Error loading recent activity</div>';
+    renderTemplate(recentActivityEl, activityHtml);
+  } catch (err: unknown) {
+    renderTemplate(
+      recentActivityEl,
+      '<div class="glass-effect rounded-xl p-4 text-dark-300">Recent activity is unavailable right now.</div>'
+    );
+    showAppToast(formatErrorForUserToast(err, 'Could not load recent activity.'), 'error');
   }
 }
 
@@ -1796,10 +1864,10 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
     const getPerformanceSummary = httpsCallable(functions, 'getPerformanceSummary', { timeout: 120_000 });
     const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. The AI service may be busy — please try again.')), 120_000));
     const result = await Promise.race([getPerformanceSummary({ studentId }), timeoutPromise]);
-    const data = result.data as any;
+    const data = result.data as { studentName?: string; summaryHtml?: string };
     showModal(`Performance Summary - ${data?.studentName ?? 'Student'}`, data?.summaryHtml ?? '<p>No summary generated.</p>');
-  } catch (error: any) {
-    showAppToast(`Failed to generate summary: ${error.message || 'Unknown error occurred'}`, 'error');
+  } catch (error: unknown) {
+    showAppToast(formatErrorForUserToast(error, 'Could not generate the performance summary.'), 'error');
   } finally {
     hideLoading();
     if (btn) { btn.disabled = false; btn.textContent = 'AI Performance Summary'; }
@@ -1814,10 +1882,10 @@ async function generateStudyTips(studentId: string): Promise<void> {
     const getStudyTips = httpsCallable(functions, 'getStudyTips', { timeout: 120_000 });
     const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. The AI service may be busy — please try again.')), 120_000));
     const result = await Promise.race([getStudyTips({ studentId }), timeoutPromise]);
-    const data = result.data as any;
+    const data = result.data as { studentName?: string; tipsHtml?: string };
     showModal(`Study Tips - ${data?.studentName ?? 'Student'}`, data?.tipsHtml ?? '<p>No study tips generated.</p>');
-  } catch (error: any) {
-    showAppToast(`Failed to generate study tips: ${error.message || 'Unknown error occurred'}`, 'error');
+  } catch (error: unknown) {
+    showAppToast(formatErrorForUserToast(error, 'Could not generate study tips.'), 'error');
   } finally {
     hideLoading();
     if (btn) { btn.disabled = false; btn.textContent = 'Get Study Tips'; }
@@ -1844,7 +1912,8 @@ function setupAIAgentChat(): void {
     if (mirrorEl) mirrorEl.textContent = v + (v.endsWith('\n') ? '\n ' : '');
     if (charCountEl) charCountEl.textContent = `${v.length} / 500`;
   };
-  chatInput.addEventListener('input', syncAiInputMirror);
+  const debouncedMirror = debounce(syncAiInputMirror, LMS_SEARCH_DEBOUNCE_MS);
+  chatInput.addEventListener('input', debouncedMirror);
   syncAiInputMirror();
 
   chatInput.addEventListener('keydown', (e) => {
@@ -1878,19 +1947,20 @@ function setupAIAgentChat(): void {
     try {
       const aiAgentChat = httpsCallable(functions, 'aiAgentChat');
       const result = await aiAgentChat({ message, conversationHistory });
-      const data = result.data as any;
+      const data = result.data as { response?: string };
       removeTypingIndicator(typingId);
       const responseText = data?.response;
       addMessageToChat('assistant', typeof responseText === 'string' && responseText.trim() ? responseText : "Sorry, I didn't get a valid response. Please try again.");
       const assistantText = typeof responseText === 'string' && responseText.trim() ? responseText : '';
       conversationHistory.push({ user: message, assistant: assistantText });
       if (conversationHistory.length > 10) conversationHistory = conversationHistory.slice(-10);
-    } catch (error: any) {
+    } catch (error: unknown) {
       removeTypingIndicator(typingId);
       addMessageToChat(
         'assistant',
-        `Sorry, I encountered an error: ${escapeHtml(error.message || 'Unknown error')}. Please try again.`
+        'Sorry, the assistant hit a problem. Please try again in a moment, or shorten your message.'
       );
+      showAppToast(formatErrorForUserToast(error, 'The AI assistant could not respond.'), 'error');
     } finally {
       chatInput.disabled = false;
       sendBtn.disabled = false;
@@ -1919,7 +1989,7 @@ function setupAIAgentChat(): void {
   };
 
   // Make quick prompts and chips work without inline handlers
-  (window as any).askAISuggestion = (query: string) => runQuickPrompt(query);
+  lmsWin.askAISuggestion = (query: string) => runQuickPrompt(query);
 
   const quickPrompts = document.getElementById('ai-quick-prompts');
   if (quickPrompts && !(quickPrompts as HTMLElement & { __aiPrompts?: boolean }).__aiPrompts) {
@@ -1946,13 +2016,17 @@ function setupAIAgentChat(): void {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (role === 'user') {
-      messageDiv.innerHTML = `
-        <div class="flex-1 flex justify-end"><div class="max-w-[85%]"><div class="rounded-2xl rounded-tr-sm p-4 bg-gradient-to-br from-primary-500/20 to-accent-500/10 border border-primary-500/30 shadow-lg shadow-primary-500/10 hover:shadow-primary-500/20 transition-shadow"><p class="ai-chat-user-text whitespace-pre-wrap leading-relaxed">${escapeHtml(content)}</p></div><p class="text-dark-500 text-xs mt-1.5 mr-2 text-right">${timestamp}</p></div></div>
-        <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/25"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>`;
+      renderTemplate(
+        messageDiv,
+        `
+        <div class="flex-1 flex justify-end"><div class="max-w-[85%]"><div class="rounded-2xl rounded-tr-sm p-4 bg-gradient-to-br from-primary-500/20 to-accent-500/10 border border-primary-500/30 shadow-lg shadow-primary-500/10 hover:shadow-primary-500/20 transition-shadow"><p class="ai-chat-user-text whitespace-pre-wrap leading-relaxed">${escapeHtmlText(content)}</p></div><p class="text-dark-500 text-xs mt-1.5 mr-2 text-right">${escapeHtmlText(timestamp)}</p></div></div>
+        <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/25"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>`
+      );
     } else {
       const msgId = `ai-msg-${Date.now()}`;
-      const formattedContent = formatMarkdown(content);
-      messageDiv.innerHTML = `
+      renderTemplate(
+        messageDiv,
+        `
         <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></div>
         <div class="flex-1 max-w-3xl">
           <div class="ai-message-content glass-effect rounded-2xl rounded-tl-sm p-5 border border-primary-500/20 hover:border-primary-500/30 transition-all group relative">
@@ -1960,13 +2034,17 @@ function setupAIAgentChat(): void {
             <button type="button" data-lms-action="copy-ai-response" class="ai-copy-btn absolute top-3 right-3 p-2 rounded-lg bg-dark-800/80 hover:bg-dark-700 text-dark-400 hover:text-white transition-all" title="Copy response"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>
           </div>
           <div class="flex items-center gap-3 mt-2 ml-2">
-            <p class="text-dark-500 text-xs">${timestamp}</p>
+            <p class="text-dark-500 text-xs">${escapeHtmlText(timestamp)}</p>
             <span class="text-dark-600">&bull;</span>
             <span class="text-dark-500 text-xs flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>AI Assistant</span>
           </div>
-        </div>`;
+        </div>`
+      );
       const contentDiv = messageDiv.querySelector(`#${msgId}`);
-      if (contentDiv) contentDiv.innerHTML = formattedContent;
+      if (contentDiv) {
+        // formatMarkdown ends with sanitizeHTML (DOMPurify); renderTemplate applies it without live-container innerHTML.
+        renderTemplate(contentDiv, formatMarkdown(content));
+      }
     }
 
     messagesContainer.appendChild(messageDiv);
@@ -1979,9 +2057,12 @@ function setupAIAgentChat(): void {
     const typingDiv = document.createElement('div');
     typingDiv.id = typingId;
     typingDiv.className = 'flex items-start gap-4 ai-chat-message animate-fade-in-up';
-    typingDiv.innerHTML = `
+    renderTemplate(
+      typingDiv,
+      `
       <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25 animate-pulse-slow"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></div>
-      <div class="flex-1 max-w-3xl"><div class="glass-effect rounded-2xl rounded-tl-sm p-5 border border-primary-500/20 ai-message-loading"><div class="flex items-center gap-4"><div class="flex gap-2"><div class="typing-dot w-3 h-3 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full"></div><div class="typing-dot w-3 h-3 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full"></div><div class="typing-dot w-3 h-3 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full"></div></div><span class="text-dark-400 text-sm font-medium">Analyzing your student data...</span></div><p class="text-dark-500 text-xs mt-3 flex items-center gap-2"><svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Querying Firebase database...</p></div></div>`;
+      <div class="flex-1 max-w-3xl"><div class="glass-effect rounded-2xl rounded-tl-sm p-5 border border-primary-500/20 ai-message-loading"><div class="flex items-center gap-4"><div class="flex gap-2"><div class="typing-dot w-3 h-3 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full"></div><div class="typing-dot w-3 h-3 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full"></div><div class="typing-dot w-3 h-3 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full"></div></div><span class="text-dark-400 text-sm font-medium">Analyzing your student data...</span></div><p class="text-dark-500 text-xs mt-3 flex items-center gap-2"><svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Querying Firebase database...</p></div></div>`
+    );
     messagesContainer.appendChild(typingDiv);
     messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
     return typingId;
@@ -1992,7 +2073,8 @@ function setupAIAgentChat(): void {
   }
 
   /**
-   * Converts assistant plain text / light HTML into styled markup, then runs DOMPurify (XSS-safe for `innerHTML`).
+   * Converts assistant plain text / light HTML into styled markup, then `sanitizeHTML` (DOMPurify).
+   * Insert the returned string with the module `renderTemplate` helper (detached `<template>` parse), not `innerHTML` on a live node.
    */
   function formatMarkdown(text: string): string {
     let html = text.trim();
@@ -2061,7 +2143,7 @@ function setupAIAgentChat(): void {
         conversationHistory = [];
         if (messagesContainer) {
           const welcomeMsg = messagesContainer.querySelector('.flex.items-start.gap-3');
-          messagesContainer.innerHTML = '';
+          messagesContainer.replaceChildren();
           if (welcomeMsg) messagesContainer.appendChild(welcomeMsg);
         }
       }
@@ -2085,10 +2167,13 @@ async function loadStudentAttendance(studentId: string): Promise<void> {
 function displayAttendance(attendance: Attendance[]): void {
   const attendanceTableBody = document.getElementById('attendance-history-body')!;
   if (attendance.length === 0) {
-    attendanceTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-dark-300">No attendance records yet</td></tr>';
+    renderTemplate(
+      attendanceTableBody,
+      '<tr><td colspan="4" class="text-center py-8 text-dark-300">No attendance records yet</td></tr>'
+    );
     return;
   }
-  attendanceTableBody.innerHTML = attendance.map(record => {
+  const attendanceRowsHtml = attendance.map(record => {
     const date = new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     const student = currentStudents.find(s => s.id === record.studentId);
     const studentName = student ? student.name : 'Unknown';
@@ -2101,11 +2186,12 @@ function displayAttendance(attendance: Attendance[]): void {
     return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
         <td class="py-3 px-4 text-white">${date}</td>
-        <td class="py-3 px-4 text-dark-300">${escapeHtml(studentName)}</td>
+        <td class="py-3 px-4 text-dark-300">${escapeHtmlText(studentName)}</td>
         <td class="py-3 px-4 text-center">${badges[record.status] || ''}</td>
-        <td class="py-3 px-4 text-dark-400 text-sm">${escapeHtml(record.notes || '-')}</td>
+        <td class="py-3 px-4 text-dark-400 text-sm">${escapeHtmlText(record.notes || '-')}</td>
       </tr>`;
   }).join('');
+  renderTemplate(attendanceTableBody, attendanceRowsHtml);
 }
 
 function updateAttendanceStats(attendance: Attendance[]): void {
@@ -2126,14 +2212,17 @@ function updateAttendanceStats(attendance: Attendance[]): void {
   if (rateEl) rateEl.textContent = rate + '%';
 }
 
-// --- Student profile & UID display ---
-let passwordToggleInitialized = false;
+// --- Profile & UID display ---
 let studentProfileSaveWired = false;
+let profilePasswordUpdateWired = false;
+let loadUserProfileGeneration = 0;
 
-async function loadStudentProfile(): Promise<void> {
-  if (getCurrentUserRole() !== 'student') return;
+async function loadUserProfile(): Promise<void> {
+  const generation = ++loadUserProfileGeneration;
   const firebaseUser = auth.currentUser;
   if (!firebaseUser) return;
+
+  const role = getCurrentUserRole();
 
   let userDocData: Record<string, unknown> = {};
   try {
@@ -2143,13 +2232,17 @@ async function loadStudentProfile(): Promise<void> {
     /* ignore: offline / rules */
   }
 
+  if (generation !== loadUserProfileGeneration) return;
+
   const memUser = getCurrentUser();
   const selfDisplay =
     (typeof userDocData.displayName === 'string' && userDocData.displayName.trim()) ||
+    (typeof userDocData.fullName === 'string' && userDocData.fullName.trim()) ||
     memUser?.displayName?.trim() ||
     '';
   const selfPhone =
     (typeof userDocData.phoneNumber === 'string' && userDocData.phoneNumber.trim()) ||
+    (typeof userDocData.phone === 'string' && userDocData.phone.trim()) ||
     memUser?.phoneNumber?.trim() ||
     '';
 
@@ -2160,18 +2253,33 @@ async function loadStudentProfile(): Promise<void> {
     selfBirthYearStr = String(memUser.birthYear);
   }
 
-  const student = currentStudents.find(s => s.studentUid === firebaseUser.uid);
+  const docYearOfBirth =
+    typeof userDocData.yearOfBirth === 'number' && Number.isFinite(userDocData.yearOfBirth)
+      ? String(Math.round(userDocData.yearOfBirth))
+      : '';
+
+  const student =
+    role === 'student' ? currentStudents.find(s => s.studentUid === firebaseUser.uid) : undefined;
 
   const rosterName = student?.name?.trim() || '';
+  const docName = typeof userDocData.name === 'string' ? userDocData.name.trim() : '';
   const emailLocal = firebaseUser.email?.split('@')[0]?.trim() || '';
-  const summaryName = rosterName || selfDisplay || emailLocal || 'Student';
+  const summaryName =
+    rosterName ||
+    selfDisplay ||
+    docName ||
+    emailLocal ||
+    (role === 'admin' ? 'Administrator' : role === 'teacher' ? 'Teacher' : 'Student');
 
-  const memberLabel = student?.memberId?.trim() ? student.memberId : 'Not assigned';
+  const userDocMemberId =
+    typeof userDocData.memberId === 'string' ? userDocData.memberId.trim() : '';
+  const rosterMemberId = student?.memberId?.trim() || '';
+  const memberIdCombined = rosterMemberId || userDocMemberId || memUser?.memberId?.trim() || '';
 
   const summaryBirth =
-    student?.yearOfBirth != null
+    role === 'student' && student?.yearOfBirth != null
       ? String(student.yearOfBirth)
-      : selfBirthYearStr || '--';
+      : selfBirthYearStr || docYearOfBirth || '--';
 
   const fromStudentPhone = student?.contactPhone?.trim() || '';
   const summaryPhone = fromStudentPhone || selfPhone || 'Not provided';
@@ -2181,7 +2289,6 @@ async function loadStudentProfile(): Promise<void> {
 
   const fields: Record<string, string> = {
     'profile-name': summaryName,
-    'profile-member-id': memberLabel,
     'profile-year-of-birth': summaryBirth,
     'profile-uid': firebaseUser.uid,
     'profile-email': firebaseUser.email || '--',
@@ -2196,14 +2303,21 @@ async function loadStudentProfile(): Promise<void> {
   const editName = document.getElementById('profile-self-display-name') as HTMLInputElement | null;
   const editPhone = document.getElementById('profile-self-phone') as HTMLInputElement | null;
   const editBirth = document.getElementById('profile-self-birth-year') as HTMLInputElement | null;
+  const editMemberId = document.getElementById('profile-self-member-id') as HTMLInputElement | null;
   if (editName) editName.value = selfDisplay;
   if (editPhone) editPhone.value = selfPhone;
-  if (editBirth) editBirth.value = selfBirthYearStr;
+  if (editBirth) {
+    editBirth.value =
+      selfBirthYearStr ||
+      (role === 'student' && student?.yearOfBirth != null ? String(student.yearOfBirth) : '') ||
+      (role !== 'student' ? docYearOfBirth : '');
+  }
+  if (editMemberId) editMemberId.value = memberIdCombined;
 
   const profileNotes = document.getElementById('profile-notes');
   const profileNotesSection = document.getElementById('profile-notes-section');
   if (profileNotes && profileNotesSection) {
-    if (student?.notes?.trim()) {
+    if (role === 'student' && student?.notes?.trim()) {
       profileNotes.textContent = student.notes;
       profileNotesSection.classList.remove('hide');
     } else {
@@ -2211,28 +2325,63 @@ async function loadStudentProfile(): Promise<void> {
     }
   }
 
-  const passwordInput = document.getElementById('profile-password') as HTMLInputElement;
-  const togglePasswordBtn = document.getElementById('toggle-password-visibility');
-  const passwordEyeIcon = document.getElementById('password-eye-icon');
+  setupProfilePasswordStrengthMeter();
 
-  if (passwordInput && togglePasswordBtn && passwordEyeIcon && !passwordToggleInitialized) {
-    let passwordVisible = false;
-    togglePasswordBtn.addEventListener('click', () => {
-      passwordVisible = !passwordVisible;
-      if (passwordVisible) {
-        passwordInput.type = 'text';
-        passwordInput.value = 'Password cannot be displayed';
-        passwordInput.classList.add('text-yellow-400');
-        passwordEyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>';
-      } else {
-        passwordInput.type = 'password';
-        passwordInput.value = '••••••••••••';
-        passwordInput.classList.remove('text-yellow-400');
-        passwordEyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
-      }
-    });
-    passwordToggleInitialized = true;
-  }
+  const curPw = document.getElementById('profile-current-password') as HTMLInputElement | null;
+  const newPw = document.getElementById('profile-new-password') as HTMLInputElement | null;
+  const cfPw = document.getElementById('profile-confirm-password') as HTMLInputElement | null;
+  if (curPw) curPw.value = '';
+  if (newPw) newPw.value = '';
+  if (cfPw) cfPw.value = '';
+}
+
+function wireProfilePasswordUpdate(): void {
+  if (profilePasswordUpdateWired) return;
+  const btn = document.getElementById('profile-update-password-btn');
+  if (!btn) return;
+  profilePasswordUpdateWired = true;
+  btn.addEventListener('click', async () => {
+    const currentEl = document.getElementById('profile-current-password') as HTMLInputElement | null;
+    const nextEl = document.getElementById('profile-new-password') as HTMLInputElement | null;
+    const confirmEl = document.getElementById('profile-confirm-password') as HTMLInputElement | null;
+    const current = currentEl?.value ?? '';
+    const next = nextEl?.value ?? '';
+    const confirm = confirmEl?.value ?? '';
+    if (!current || !next || !confirm) {
+      showAppToast('Please fill in all password fields.', 'info');
+      return;
+    }
+    if (next !== confirm) {
+      showAppToast('New password and confirmation do not match.', 'error');
+      return;
+    }
+    if (next.length < 6) {
+      showAppToast('New password must be at least 6 characters.', 'error');
+      return;
+    }
+    const strength = evaluatePasswordStrength(next);
+    if (strength.tier < 2) {
+      showAppToast('Choose a stronger password (longer mix of letters, numbers, and symbols).', 'info');
+      return;
+    }
+    const u = auth.currentUser;
+    const email = u?.email;
+    if (!u || !email) {
+      showAppToast('This account has no email address; password cannot be updated here.', 'error');
+      return;
+    }
+    try {
+      const cred = EmailAuthProvider.credential(email, current);
+      await reauthenticateWithCredential(u, cred);
+      await updatePassword(u, next);
+      showAppToast('Password updated successfully.', 'success');
+      if (currentEl) currentEl.value = '';
+      if (nextEl) nextEl.value = '';
+      if (confirmEl) confirmEl.value = '';
+    } catch (e: unknown) {
+      showAppToast(formatErrorForUserToast(e, 'Could not update your password.'), 'error');
+    }
+  });
 }
 
 /** Keeps legacy hidden `#navbar-uid-display` in sync (e.g. mobile menu delegates to `#show-uid-btn`). */
@@ -2262,7 +2411,7 @@ function openAccountIdModal(): void {
   const user = auth.currentUser;
   if (!user) return;
   const uid = user.uid;
-  const safeUid = escapeHtml(uid);
+  const safeUid = escapeHtmlText(uid);
   const modalHtml = `
     <div class="space-y-4">
       <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
@@ -2294,13 +2443,13 @@ function showUidModal(uid: string, email: string): void {
     <div class="space-y-4">
       <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
         <p class="text-green-400 font-semibold mb-2">Account Created Successfully!</p>
-        <p class="text-dark-300 text-sm">Welcome, <strong class="text-white">${escapeHtml(email)}</strong></p>
+        <p class="text-dark-300 text-sm">Welcome, <strong class="text-white">${escapeHtmlText(email)}</strong></p>
       </div>
       <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p class="text-blue-400 font-semibold mb-2">Your Account ID (UID)</p>
         <p class="text-dark-300 text-sm mb-3">You MUST share this ID with your teacher/admin so they can register you in the system.</p>
         <div class="relative">
-          <input type="text" id="uid-display" value="${escapeHtml(uid)}" readonly class="w-full px-4 py-3 pr-24 rounded-lg bg-dark-800 border border-dark-600 text-white font-mono text-sm focus:outline-none focus:border-primary-500">
+          <input type="text" id="uid-display" value="${escapeHtmlText(uid)}" readonly class="w-full px-4 py-3 pr-24 rounded-lg bg-dark-800 border border-dark-600 text-white font-mono text-sm focus:outline-none focus:border-primary-500">
           <button type="button" id="copy-uid-btn" class="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded text-sm font-semibold transition-all">Copy</button>
         </div>
         <p class="text-xs text-dark-400 mt-2">Click "Copy" and send this ID to your teacher via email or message.</p>
@@ -2338,6 +2487,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
         await new Promise<void>((resolve) => {
           window.setTimeout(() => resolve(), 40 + attempt * 35);
         });
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
         user = await reloadCurrentUserFromFirestore();
       }
     }
@@ -2361,7 +2511,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
       } catch {
         /* dashboard load error */
       }
-      void loadStudentProfile();
+      void loadUserProfile();
       return;
     }
 
@@ -2369,10 +2519,9 @@ function refreshAppShellAfterSignupModalDismiss(): void {
       showAppContainer();
       configureUIForRole(user!);
       const userRole = getCurrentUserRole();
-      if (typeof (window as any).updateSidebarUserInfo === 'function') {
-        const sidebarLabel = (user!.displayName && user!.displayName.trim()) || user!.email || '';
-        (window as any).updateSidebarUserInfo(sidebarLabel, userRole);
-      }
+      const gw = window as LmsGlobalWindow;
+      const sidebarLabel = userProfileDisplayLabel(user!);
+      gw.updateSidebarUserInfo?.(sidebarLabel === '—' ? user!.email || '' : sidebarLabel, userRole ?? 'student');
 
       document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
       document.getElementById('dashboard-content')?.classList.remove('hide');
@@ -2406,9 +2555,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
     } catch {
       /* dashboard load error */
     }
-    if (user!.role === 'student') {
-      void loadStudentProfile();
-    }
+    void loadUserProfile();
   })();
 }
 

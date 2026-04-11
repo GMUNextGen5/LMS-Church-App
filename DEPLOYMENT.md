@@ -12,19 +12,19 @@ This document is the operational contract for shipping the LMS: what to configur
 
 ### Cloud Functions (runtime)
 
-- `GEMINI_API_KEY` must be available to the Functions runtime (`functions/.env` locally; [Firebase environment configuration](https://firebase.google.com/docs/functions/config-env) or Secret Manager in production).
-- Never embed API keys in `functions/src` or client source.
+- `GEMINI_API_KEY` must be available to the Functions runtime (`firebase-functions/.env` locally; [Firebase environment configuration](https://firebase.google.com/docs/functions/config-env) or Secret Manager in production).
+- Never embed API keys in `firebase-functions/src` or client source.
 
 ### Git hygiene
 
-Root `.gitignore` excludes `dist/`, `.env*`, `functions/lib/`, and `.wrangler/`. Do not commit build output or local secrets.
+Root `.gitignore` excludes `dist/`, `.env*`, `firebase-functions/lib/`, and `.wrangler/`. Do not commit build output or local secrets.
 
 ## 2. Pre-flight checklist
 
 - [ ] Firebase project: Authentication (Email/Password) and Firestore enabled.
 - [ ] `firestore.rules` and `firestore.indexes.json` deployed at least once.
 - [ ] `npm run build` succeeds at repo root with production env vars (or CI with injected secrets).
-- [ ] `npm --prefix functions run build` succeeds.
+- [ ] `npm --prefix firebase-functions run build` succeeds.
 - [ ] `npm run deploy:backend` (or equivalent `firebase deploy`) has been run for this project ID.
 - [ ] First admin exists (`users/{uid}.role == 'admin'`).
 

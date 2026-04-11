@@ -3,7 +3,8 @@
  */
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchAllUsers, fetchAllStudentProfiles } from '../data/data';
-import { showLoading, hideLoading, showAppToast } from './ui';
+import { showLoading, hideLoading, showAppToast, formatErrorForUserToast } from './ui';
+import { escapeHtmlText as esc, renderTemplate, renderErrorPanel } from './dom-render';
 import {
   fetchStudentClasses,
   fetchTeacherClasses,
@@ -17,6 +18,7 @@ import {
   removeStudentsFromClass,
   assignTeacherToClass,
   getUserDisplayName,
+  userProfileDisplayLabel,
 } from '../data/classes-data';
 import type { Course, Student, User } from '../types';
 
@@ -29,12 +31,6 @@ let cachedAllStudents: Student[] = [];
 let cachedTeacherCourses: Course[] = [];
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-
-const _escEl = document.createElement('div');
-function esc(s: string): string {
-  _escEl.textContent = s;
-  return _escEl.innerHTML;
-}
 
 function sectionHeader(title: string, rightHtml?: string): string {
   return `
@@ -53,14 +49,6 @@ function emptyState(title: string, subtitle?: string): string {
     </div>`;
 }
 
-function errorHtml(msg: string): string {
-  return `
-    <div class="text-center py-16">
-      <div class="text-4xl mb-3 opacity-30">⚠️</div>
-      <h3 class="text-red-400 font-semibold">${esc(msg)}</h3>
-    </div>`;
-}
-
 // ─── Custom student checkbox-dropdown helpers ────────────────────────────────
 
 /**
@@ -76,14 +64,18 @@ function populateStudentDropdown(owner: 'admin' | 'teacher', students: { id: str
   if (!dd) return;
 
   const menu = dd.querySelector('.student-dropdown-menu') as HTMLElement;
-  menu.innerHTML = students.length === 0
-    ? '<p class="px-3 py-2 text-dark-500 text-sm">No students available</p>'
-    : students.map(s => {
-        const checked = preselected?.has(s.id) ? 'checked' : '';
-        return `<label class="student-dropdown-item flex items-center gap-2 px-3 py-1.5 hover:bg-dark-600/60 cursor-pointer text-sm text-white">
+  const menuHtml =
+    students.length === 0
+      ? '<p class="px-3 py-2 text-dark-500 text-sm">No students available</p>'
+      : students
+          .map((s) => {
+            const checked = preselected?.has(s.id) ? 'checked' : '';
+            return `<label class="student-dropdown-item flex items-center gap-2 px-3 py-1.5 hover:bg-dark-600/60 cursor-pointer text-sm text-white">
           <input type="checkbox" value="${s.id}" ${checked} class="accent-primary-500" /> ${esc(s.name)}
         </label>`;
-      }).join('');
+          })
+          .join('');
+  renderTemplate(menu, menuHtml);
 
   updateDropdownLabel(dd, preselected?.size ?? 0);
 
@@ -141,7 +133,9 @@ function getAdminModal(): HTMLElement {
   adminModalEl = document.createElement('div');
   adminModalEl.id = 'class-form-modal';
   adminModalEl.className = 'classes-modal-overlay is-hidden';
-  adminModalEl.innerHTML = `
+  renderTemplate(
+    adminModalEl,
+    `
     <div class="classes-modal-box">
       <h3 id="class-form-title" class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="class-form" data-course-id="">
@@ -195,7 +189,8 @@ function getAdminModal(): HTMLElement {
             class="px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600">Save</button>
         </div>
       </form>
-    </div>`;
+    </div>`
+  );
   document.body.appendChild(adminModalEl);
 
   // Backdrop click → close
@@ -220,7 +215,9 @@ function getTeacherModal(): HTMLElement {
   teacherModalEl = document.createElement('div');
   teacherModalEl.id = 'teacher-class-form-modal';
   teacherModalEl.className = 'classes-modal-overlay is-hidden';
-  teacherModalEl.innerHTML = `
+  renderTemplate(
+    teacherModalEl,
+    `
     <div class="classes-modal-box">
       <h3 class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="teacher-class-form" data-course-id="">
@@ -267,7 +264,8 @@ function getTeacherModal(): HTMLElement {
             class="px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600">Save</button>
         </div>
       </form>
-    </div>`;
+    </div>`
+  );
   document.body.appendChild(teacherModalEl);
 
   teacherModalEl.addEventListener('click', (ev) => {
@@ -292,8 +290,17 @@ function openClassFormModal(editCourseId?: string): void {
 
   // Refresh teacher dropdown
   const sel = form.querySelector('[name="teacherId"]') as HTMLSelectElement;
-  sel.innerHTML = '<option value="">— Select —</option>' +
-    cachedTeachers.map(t => `<option value="${t.uid}">${esc((t as User & { name?: string }).name || t.email)}</option>`).join('');
+  sel.replaceChildren();
+  const optNone = document.createElement('option');
+  optNone.value = '';
+  optNone.textContent = '— Select —';
+  sel.appendChild(optNone);
+  for (const t of cachedTeachers) {
+    const o = document.createElement('option');
+    o.value = t.uid;
+    o.textContent = userProfileDisplayLabel(t);
+    sel.appendChild(o);
+  }
 
   form.setAttribute('data-course-id', editCourseId || '');
   titleEl.textContent = editCourseId ? 'Edit Class' : 'Create Class';
@@ -402,7 +409,7 @@ export async function loadClasses(): Promise<void> {
   if (!container) return;
   const user = getCurrentUser();
   if (!user) {
-    container.innerHTML = errorHtml('Not authenticated');
+    renderErrorPanel(container, 'Not authenticated');
     return;
   }
   showLoading();
@@ -410,10 +417,10 @@ export async function loadClasses(): Promise<void> {
     if (user.role === 'student') await renderStudentView();
     else if (user.role === 'teacher') await renderTeacherView();
     else if (user.role === 'admin') await renderAdminView();
-    else container.innerHTML = emptyState('No access', 'Your role cannot view classes.');
+    else renderTemplate(container, emptyState('No access', 'Your role cannot view classes.'));
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    container.innerHTML = errorHtml(msg);
+    renderErrorPanel(container, msg);
   } finally {
     hideLoading();
   }
@@ -428,28 +435,35 @@ async function renderStudentView(): Promise<void> {
 
   const teacherNames: Record<string, string> = {};
   await Promise.all(
-    [...new Set(courses.map(c => c.teacherId))].map(async uid => {
+    [...new Set(courses.map(c => c.teacherId).filter(Boolean))].map(async uid => {
       teacherNames[uid] = await getUserDisplayName(uid);
     })
   );
 
-  const cards = courses.map(c => `
+  const cards = courses.map(c => {
+    const t = teacherNames[c.teacherId];
+    const teacherLine = t && t !== '—' ? t : 'Teacher';
+    return `
     <div class="bg-dark-800 rounded-xl border border-dark-700 p-5 hover:border-dark-500 transition-all">
       <h3 class="text-white font-semibold text-lg">${esc(c.courseName)}</h3>
-      <p class="text-dark-400 text-sm mt-1">${esc(teacherNames[c.teacherId] || 'Teacher')}</p>
+      <p class="text-dark-400 text-sm mt-1">${esc(teacherLine)}</p>
       ${c.schedule ? `<p class="text-dark-300 text-sm mt-2">${esc(c.schedule)}</p>` : ''}
       ${c.description ? `<p class="text-dark-300 text-sm mt-2 line-clamp-2">${esc(c.description)}</p>` : ''}
       <div class="mt-4 flex gap-2">
         <a href="#" data-tab="assessments" class="classes-quick-link px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Assessments</a>
         <a href="#" data-tab="grades" class="classes-quick-link px-3 py-1.5 rounded-lg text-xs font-medium bg-dark-600 text-dark-300 hover:bg-dark-500">Grades</a>
       </div>
-    </div>`);
+    </div>`;
+  });
 
-  container!.innerHTML = `
+  renderTemplate(
+    container!,
+    `
     <div class="space-y-6">
       ${sectionHeader('My Classes')}
       ${courses.length === 0 ? emptyState('No classes', 'You are not enrolled in any classes yet.') : `<div class="grid gap-4">${cards.join('')}</div>`}
-    </div>`;
+    </div>`
+  );
 }
 
 // ─── Teacher view ───────────────────────────────────────────────────────────
@@ -458,18 +472,12 @@ async function renderTeacherView(): Promise<void> {
   const [courses, students] = await Promise.all([fetchTeacherClasses(), fetchAllStudentProfiles()]);
   cachedTeacherCourses = courses;
   cachedAllStudents = students;
-  const teacherNames: Record<string, string> = {};
-  await Promise.all(
-    [...new Set(courses.map(c => c.teacherId))].map(async uid => {
-      teacherNames[uid] = await getUserDisplayName(uid);
-    })
-  );
 
   const rows = courses.map(c => `
     <tr class="border-b border-dark-700 hover:bg-dark-800/50">
       <td class="py-3 px-4 text-white font-medium">${esc(c.courseName)}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm">${esc(teacherNames[c.teacherId] || c.teacherId)}</td>
+      <td class="py-3 px-4 text-dark-300 text-sm"><span class="text-dark-500" data-teacher-cell="${c.id}">Loading…</span></td>
       <td class="py-3 px-4 text-dark-300 text-sm">${c.studentIds?.length ?? 0}</td>
       <td class="py-3 px-4 flex gap-1">
         <button data-action="teacher-edit-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
@@ -483,7 +491,9 @@ async function renderTeacherView(): Promise<void> {
       </td>
     </tr>`);
 
-  container!.innerHTML = `
+  renderTemplate(
+    container!,
+    `
     <div class="space-y-6">
       ${sectionHeader('My Classes', `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
       ${courses.length === 0 ? emptyState('No classes yet', 'Create a class or ask an admin to assign you one.') : `
@@ -502,7 +512,25 @@ async function renderTeacherView(): Promise<void> {
           </table>
         </div>
       `}
-    </div>`;
+    </div>`
+  );
+
+  const teacherIds = [...new Set(courses.map(c => c.teacherId).filter(Boolean))];
+  const teacherNames: Record<string, string> = {};
+  await Promise.all(
+    teacherIds.map(async uid => {
+      teacherNames[uid] = await getUserDisplayName(uid);
+    })
+  );
+  if (container) {
+    for (const c of courses) {
+      const cell = container.querySelector(`[data-teacher-cell="${c.id}"]`);
+      if (cell) {
+        cell.textContent = teacherNames[c.teacherId] ?? '—';
+        cell.classList.remove('text-dark-500');
+      }
+    }
+  }
 }
 
 // ─── Admin view ─────────────────────────────────────────────────────────────
@@ -518,14 +546,23 @@ async function renderAdminView(): Promise<void> {
 
   const teacherNames: Record<string, string> = {};
   teachers.forEach(t => {
-    teacherNames[t.uid] = (t as User & { name?: string }).name || t.email || t.uid;
+    const label = userProfileDisplayLabel(t);
+    if (label !== '—') teacherNames[t.uid] = label;
   });
+  const orphanTeacherIds = [...new Set(courses.map(c => c.teacherId).filter(Boolean))].filter(
+    tid => !teacherNames[tid]
+  );
+  await Promise.all(
+    orphanTeacherIds.map(async tid => {
+      teacherNames[tid] = await getUserDisplayName(tid);
+    })
+  );
 
   const rows = courses.map(c => `
     <tr class="border-b border-dark-700 hover:bg-dark-800/50">
       <td class="py-3 px-4 text-white font-medium">${esc(c.courseName)}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm">${esc(teacherNames[c.teacherId] || c.teacherId)}</td>
+      <td class="py-3 px-4 text-dark-300 text-sm">${esc(teacherNames[c.teacherId] ?? '—')}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${c.studentIds?.length ?? 0}</td>
       <td class="py-3 px-4 flex gap-1">
         <button data-action="admin-edit-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
@@ -539,7 +576,9 @@ async function renderAdminView(): Promise<void> {
       </td>
     </tr>`);
 
-  container!.innerHTML = `
+  renderTemplate(
+    container!,
+    `
     <div class="space-y-6">
       ${sectionHeader('Classes', `<button type="button" data-action="admin-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
       ${courses.length === 0 ? emptyState('No classes', 'Create a class to get started.') : `
@@ -558,7 +597,8 @@ async function renderAdminView(): Promise<void> {
           </table>
         </div>
       `}
-    </div>`;
+    </div>`
+  );
 }
 
 // ─── Roster helpers ─────────────────────────────────────────────────────────
@@ -572,7 +612,9 @@ async function loadTeacherRoster(courseId: string): Promise<void> {
     const roster = await fetchClassRoster(courseId);
     const enrolledIds = new Set(course.studentIds ?? []);
     const available = cachedAllStudents.filter(s => !enrolledIds.has(s.id));
-    el.innerHTML = `
+    renderTemplate(
+      el,
+      `
       <div class="space-y-3">
         <p class="text-dark-300 font-medium">Enrolled (${roster.length})</p>
         ${roster.length === 0
@@ -585,9 +627,13 @@ async function loadTeacherRoster(courseId: string): Promise<void> {
             ${available.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}
           </select>
         </div>
-      </div>`;
+      </div>`
+    );
   } catch {
-    el.innerHTML = '<p class="text-red-400 text-sm">Failed to load roster.</p>';
+    const p = document.createElement('p');
+    p.className = 'text-red-400 text-sm';
+    p.textContent = 'Failed to load roster.';
+    el.replaceChildren(p);
   }
 }
 
@@ -600,7 +646,9 @@ async function loadAdminRoster(courseId: string): Promise<void> {
 
   const el = document.getElementById(`admin-roster-${courseId}`);
   if (!el) return;
-  el.innerHTML = `
+  renderTemplate(
+    el,
+    `
     <div class="space-y-3">
       <p class="text-dark-300 font-medium">Enrolled (${roster.length})</p>
       ${roster.length === 0
@@ -613,7 +661,8 @@ async function loadAdminRoster(courseId: string): Promise<void> {
           ${available.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}
         </select>
       </div>
-    </div>`;
+    </div>`
+  );
 }
 
 // ─── Event delegation (container only – no modals here) ─────────────────────
@@ -648,7 +697,12 @@ function handleClick(e: Event): void {
     case 'teacher-delete-class':
       if (!confirm('Delete this class? This does not delete students.')) return;
       showLoading();
-      deleteClass(courseId).then(() => loadClasses()).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
+      deleteClass(courseId)
+        .then(() => loadClasses())
+        .catch((err: unknown) =>
+          showAppToast(formatErrorForUserToast(err, 'Could not delete the class.'), 'error')
+        )
+        .finally(hideLoading);
       return;
     case 'admin-toggle-roster': {
       const row = document.getElementById(`admin-roster-row-${courseId}`);
@@ -666,7 +720,12 @@ function handleClick(e: Event): void {
     case 'admin-delete-class':
       if (!confirm('Delete this class? This does not delete students.')) return;
       showLoading();
-      deleteClass(courseId).then(() => loadClasses()).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
+      deleteClass(courseId)
+        .then(() => loadClasses())
+        .catch((err: unknown) =>
+          showAppToast(formatErrorForUserToast(err, 'Could not delete the class.'), 'error')
+        )
+        .finally(hideLoading);
       return;
     case 'teacher-create-class':
       openTeacherClassFormModal();
@@ -675,14 +734,24 @@ function handleClick(e: Event): void {
       const studentId = target.getAttribute('data-student-id');
       if (!studentId) return;
       showLoading();
-      removeStudentsFromClass(courseId, [studentId]).then(() => loadTeacherRoster(courseId)).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
+      removeStudentsFromClass(courseId, [studentId])
+        .then(() => loadTeacherRoster(courseId))
+        .catch((err: unknown) =>
+          showAppToast(formatErrorForUserToast(err, 'Could not remove the student from this class.'), 'error')
+        )
+        .finally(hideLoading);
       return;
     }
     case 'admin-remove-student': {
       const studentId = target.getAttribute('data-student-id');
       if (!studentId) return;
       showLoading();
-      removeStudentsFromClass(courseId, [studentId]).then(() => loadAdminRoster(courseId)).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
+      removeStudentsFromClass(courseId, [studentId])
+        .then(() => loadAdminRoster(courseId))
+        .catch((err: unknown) =>
+          showAppToast(formatErrorForUserToast(err, 'Could not remove the student from this class.'), 'error')
+        )
+        .finally(hideLoading);
       return;
     }
   }
@@ -698,7 +767,9 @@ function handleChange(e: Event): void {
     showLoading();
     addStudentsToClass(courseId, [value])
       .then(() => { target.value = ''; return loadAdminRoster(courseId); })
-      .catch(err => showAppToast(err.message, 'error'))
+      .catch((err: unknown) =>
+        showAppToast(formatErrorForUserToast(err, 'Could not add the student to this class.'), 'error')
+      )
       .finally(hideLoading);
   } else if (action === 'teacher-add-student-select') {
     const value = target.value;
@@ -707,7 +778,9 @@ function handleChange(e: Event): void {
     showLoading();
     addStudentsToClass(courseId, [value])
       .then(() => { target.value = ''; return loadTeacherRoster(courseId); })
-      .catch(err => showAppToast(err.message, 'error'))
+      .catch((err: unknown) =>
+        showAppToast(formatErrorForUserToast(err, 'Could not add the student to this class.'), 'error')
+      )
       .finally(hideLoading);
   }
 }
@@ -753,8 +826,8 @@ async function handleAdminFormSubmit(e: Event): Promise<void> {
     }
     closeClassFormModal();
     await loadClasses();
-  } catch (err) {
-    showAppToast(err instanceof Error ? err.message : String(err), 'error');
+  } catch (err: unknown) {
+    showAppToast(formatErrorForUserToast(err, 'Could not save the class.'), 'error');
   } finally {
     hideLoading();
   }
@@ -796,8 +869,8 @@ async function handleTeacherFormSubmit(e: Event): Promise<void> {
     }
     closeTeacherClassFormModal();
     await loadClasses();
-  } catch (err) {
-    showAppToast(err instanceof Error ? err.message : String(err), 'error');
+  } catch (err: unknown) {
+    showAppToast(formatErrorForUserToast(err, 'Could not save the class.'), 'error');
   } finally {
     hideLoading();
   }

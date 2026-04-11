@@ -23,7 +23,7 @@ src/
   data/             # Firestore and callable wrappers
   types/            # Shared TypeScript models (mirrored in functions for role parity)
   ui/               # Views, modals, tab modules
-functions/          # Standalone npm project: own package.json, tsconfig, compiled to lib/
+firebase-functions/ # Standalone npm project (not named `functions/` — reserved by Cloudflare Pages)
 public/             # Production static assets copied into dist (_redirects, _headers, favicon.svg)
 index.html          # Main app shell (large inline critical CSS for first paint)
 privacy.html, terms.html   # Legal pages (Tailwind via Vite entry under src/assets/)
@@ -40,7 +40,7 @@ privacy.html, terms.html   # Legal pages (Tailwind via Vite entry under src/asse
 
 ```bash
 npm install
-npm --prefix functions install
+npm --prefix firebase-functions install
 ```
 
 ### Environment variables
@@ -48,7 +48,7 @@ npm --prefix functions install
 | Location | Purpose |
 |----------|---------|
 | Root `.env` (from `.env.example`) | `VITE_FIREBASE_*` for the Vite client |
-| `functions/.env` (from `functions/.env.example`) | `GEMINI_API_KEY` for local Functions / emulator |
+| `firebase-functions/.env` (from `firebase-functions/.env.example`) | `GEMINI_API_KEY` for local Functions / emulator |
 
 Never commit `.env` files. On Cloudflare Pages, define the same `VITE_FIREBASE_*` names for production builds.
 
@@ -67,7 +67,7 @@ Never commit `.env` files. On Cloudflare Pages, define the same `VITE_FIREBASE_*
 | `npm run preview` | Local preview of `dist/` |
 | `npm run deploy:backend` | Deploy Firestore rules/indexes + Cloud Functions |
 
-Functions package: `npm --prefix functions run build` / `test`.
+Functions package: `npm --prefix firebase-functions run build` / `test`.
 
 ## Deploying
 

@@ -3,7 +3,13 @@
  */
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchCourses } from '../data/data';
-import { showLoading, hideLoading, showAppToast } from './ui';
+import { showLoading, hideLoading, showAppToast, formatErrorForUserToast } from './ui';
+import {
+  escapeHtmlText as esc,
+  renderTemplate,
+  renderErrorPanel,
+  appendParsedHtml,
+} from './dom-render';
 import {
   fetchTeacherAssessments,
   fetchStudentAssessments,
@@ -44,6 +50,13 @@ let container: HTMLElement | null = null;
 // Cached data for current view
 let cachedCourses: Course[] = [];
 let cachedStudentProfiles: Student[] = [];
+
+function submissionStudentDisplayName(sub: { studentName?: string; studentProfileId: string }): string {
+  const n = sub.studentName?.trim();
+  if (n) return n;
+  const fromCache = cachedStudentProfiles.find(s => s.id === sub.studentProfileId)?.name?.trim();
+  return fromCache || 'Student';
+}
 // Builder questions are collected from DOM at save time via collectQuestionsFromDOM()
 
 type TeacherAssessmentRow = Assessment & { courseName: string };
@@ -102,8 +115,9 @@ async function renderCurrentView(): Promise<void> {
       case 'grade': await renderGradeView(); break;
       case 'results': await renderResultsView(); break;
     }
-  } catch (err: any) {
-    container.innerHTML = errorHtml(err.message);
+  } catch (err: unknown) {
+    renderErrorPanel(container, 'This assessments view could not be loaded.', { showBackToList: true });
+    showAppToast(formatErrorForUserToast(err, 'Could not load assessments.'), 'error');
   } finally {
     hideLoading();
   }
@@ -121,7 +135,10 @@ function navigate(next: ViewState) {
 async function renderList(): Promise<void> {
   if (!container) return;
   const user = getCurrentUser();
-  if (!user) { container.innerHTML = errorHtml('Not authenticated'); return; }
+  if (!user) {
+    renderErrorPanel(container, 'Not authenticated', { showBackToList: true });
+    return;
+  }
 
   if (user.role === 'student') {
     await renderStudentList(user.uid);
@@ -131,8 +148,7 @@ async function renderList(): Promise<void> {
 }
 
 async function renderTeacherList(_role: UserRole): Promise<void> {
-  const isMobile = window.matchMedia?.('(max-width: 767px)')?.matches ?? false;
-  container!.innerHTML = teacherListSkeletonHtml(isMobile);
+  renderTemplate(container!, teacherListSkeletonHtml());
 
   const allAssessments = await fetchTeacherAssessmentsCached();
   const hasMore = allAssessments.length > teacherListLimit;
@@ -203,7 +219,9 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
       </div>`;
   }).join('');
 
-  container!.innerHTML = `
+  renderTemplate(
+    container!,
+    `
     <div class="space-y-6">
       ${sectionHeader('Assessments', `
         <button data-action="create-assessment"
@@ -213,9 +231,8 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
       `)}
       ${assessments.length === 0
         ? emptyState('No assessments yet', 'Create your first assessment to get started.')
-        : isMobile
-          ? `<div class="grid gap-4">${cards}</div>`
-          : `<div class="overflow-x-auto rounded-xl border border-dark-700">
+        : `<div class="md:hidden grid gap-4">${cards}</div>
+          <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
             <table class="w-full text-sm">
               <thead class="bg-dark-800/80">
                 <tr class="text-dark-300 text-xs uppercase tracking-wider">
@@ -240,12 +257,13 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
           </button>
         </div>
       ` : ''}
-    </div>`;
+    </div>`
+  );
 }
 
 async function renderStudentList(_uid: string): Promise<void> {
   // Get student profiles
-  container!.innerHTML = studentListSkeletonHtml();
+  renderTemplate(container!, studentListSkeletonHtml());
   cachedStudentProfiles = await fetchStudents();
   const profileIds = cachedStudentProfiles.map(s => s.id);
   const allRows = await fetchStudentAssessmentsCached(profileIds);
@@ -282,7 +300,9 @@ async function renderStudentList(_uid: string): Promise<void> {
       </div>`;
   }).join('');
 
-  container!.innerHTML = `
+  renderTemplate(
+    container!,
+    `
     <div class="space-y-6">
       ${sectionHeader('My Assessments')}
       ${rows.length === 0
@@ -297,7 +317,8 @@ async function renderStudentList(_uid: string): Promise<void> {
           </button>
         </div>
       ` : ''}
-    </div>`;
+    </div>`
+  );
 }
 
 function getStudentStatus(_a: Assessment, sub: Submission | undefined, isPast: boolean): string {
@@ -353,7 +374,9 @@ async function renderBuilder(): Promise<void> {
   // Load courses for dropdown
   cachedCourses = await fetchCourses();
   if (cachedCourses.length === 0) {
-    container.innerHTML = errorHtml('No classes found. Create a class/course first before building assessments.');
+    renderErrorPanel(container, 'No classes found. Create a class/course first before building assessments.', {
+      showBackToList: true,
+    });
     return;
   }
 
@@ -378,7 +401,9 @@ async function renderBuilder(): Promise<void> {
     ? new Date(existing.dueDateTime).toISOString().slice(0, 16)
     : '';
 
-  container.innerHTML = `
+  renderTemplate(
+    container,
+    `
     <div class="space-y-6 max-w-4xl">
       ${sectionHeader(title, `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
 
@@ -450,7 +475,7 @@ async function renderBuilder(): Promise<void> {
             <div id="individual-students-wrapper" class="${existing?.assignedMode !== 'individual' ? 'hide' : ''}">
               <label class="block text-dark-300 text-sm mb-1">Student IDs (comma-separated)</label>
               <input name="assignedStudentIds" type="text" placeholder="studentId1, studentId2"
-                     value="${(existing?.assignedStudentIds || []).join(', ')}"
+                     value="${esc((existing?.assignedStudentIds || []).join(', '))}"
                      class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm focus:border-primary-500 focus:outline-none">
             </div>
           </div>
@@ -482,7 +507,8 @@ async function renderBuilder(): Promise<void> {
           </button>
         </div>
       </form>
-    </div>`;
+    </div>`
+  );
 }
 
 function questionCardHtml(q: Partial<AssessmentQuestion> & { id?: string }, index: number): string {
@@ -570,7 +596,10 @@ async function renderTake(): Promise<void> {
   const { classId, assessmentId, studentProfileId } = viewState;
 
   const assessment = await fetchAssessment(classId, assessmentId);
-  if (!assessment) { container.innerHTML = errorHtml('Assessment not found'); return; }
+  if (!assessment) {
+    renderErrorPanel(container, 'Assessment not found', { showBackToList: true });
+    return;
+  }
 
   const questions = await fetchQuestions(classId, assessmentId);
   const studentName = cachedStudentProfiles.find(s => s.id === studentProfileId)?.name || '';
@@ -579,8 +608,11 @@ async function renderTake(): Promise<void> {
   let submission: Submission;
   try {
     submission = await startSubmission(classId, assessmentId, studentProfileId, studentName);
-  } catch (err: any) {
-    container.innerHTML = errorHtml(err.message);
+  } catch (err: unknown) {
+    renderErrorPanel(container, 'Could not start this assessment. Return to the list and try again.', {
+      showBackToList: true,
+    });
+    showAppToast(formatErrorForUserToast(err, 'Could not open the assessment.'), 'error');
     return;
   }
 
@@ -599,7 +631,9 @@ async function renderTake(): Promise<void> {
       </div>`;
   }).join('');
 
-  container.innerHTML = `
+  renderTemplate(
+    container,
+    `
     <div class="max-w-3xl space-y-6">
       ${sectionHeader(assessment.title, `
         <button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>
@@ -627,7 +661,8 @@ async function renderTake(): Promise<void> {
           </button>
         </div>
       </form>
-    </div>`;
+    </div>`
+  );
 }
 
 function renderAnswerInput(q: AssessmentQuestion, _qi: number, ans?: QuestionAnswer): string {
@@ -671,7 +706,18 @@ async function renderSubmissionsList(): Promise<void> {
   const { classId, assessmentId } = viewState;
 
   const assessment = await fetchAssessment(classId, assessmentId);
-  if (!assessment) { container.innerHTML = errorHtml('Assessment not found'); return; }
+  if (!assessment) {
+    renderErrorPanel(container, 'Assessment not found', { showBackToList: true });
+    return;
+  }
+
+  if (cachedStudentProfiles.length === 0) {
+    try {
+      cachedStudentProfiles = await fetchStudents();
+    } catch {
+      /* roster names fall back to "Student" */
+    }
+  }
 
   const submissions = await fetchSubmissions(classId, assessmentId);
 
@@ -686,7 +732,7 @@ async function renderSubmissionsList(): Promise<void> {
     return `
       <tr class="border-b border-dark-700 hover:bg-dark-800/50"
           style="content-visibility:auto; contain: content; contain-intrinsic-size: 56px;">
-        <td class="py-3 px-4 text-white">${esc(sub.studentName || sub.studentProfileId)}</td>
+        <td class="py-3 px-4 text-white">${esc(submissionStudentDisplayName(sub))}</td>
         <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${sub.status.replace('_', ' ')}</span></td>
         <td class="py-3 px-4 text-center text-dark-300 text-xs">${sub.submittedAt ? formatDate(sub.submittedAt) : '—'}</td>
         <td class="py-3 px-4 text-center text-dark-300">${sub.autoScore}/${sub.totalPoints}</td>
@@ -706,7 +752,9 @@ async function renderSubmissionsList(): Promise<void> {
       </tr>`;
   }).join('');
 
-  container.innerHTML = `
+  renderTemplate(
+    container,
+    `
     <div class="space-y-6">
       ${sectionHeader(`Submissions: ${assessment.title}`, `
         <div class="flex gap-2">
@@ -735,7 +783,8 @@ async function renderSubmissionsList(): Promise<void> {
             </table>
           </div>`
       }
-    </div>`;
+    </div>`
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -746,10 +795,21 @@ async function renderGradeView(): Promise<void> {
   if (!container || viewState.view !== 'grade') return;
   const { classId, assessmentId, studentProfileId } = viewState;
 
+  if (cachedStudentProfiles.length === 0) {
+    try {
+      cachedStudentProfiles = await fetchStudents();
+    } catch {
+      /* display name falls back to submission.studentName or "Student" */
+    }
+  }
+
   const assessment = await fetchAssessment(classId, assessmentId);
   const questions = await fetchQuestions(classId, assessmentId);
   const submission = await fetchSubmission(classId, assessmentId, studentProfileId);
-  if (!assessment || !submission) { container.innerHTML = errorHtml('Data not found'); return; }
+  if (!assessment || !submission) {
+    renderErrorPanel(container, 'Data not found', { showBackToList: true });
+    return;
+  }
 
   const questionsHtml = questions.map((q, i) => {
     const ans = submission.answers[q.id];
@@ -803,9 +863,11 @@ async function renderGradeView(): Promise<void> {
       </div>`;
   }).join('');
 
-  container.innerHTML = `
+  renderTemplate(
+    container,
+    `
     <div class="max-w-4xl space-y-6">
-      ${sectionHeader(`Grade: ${submission.studentName || studentProfileId}`, `
+      ${sectionHeader(`Grade: ${submissionStudentDisplayName(submission)}`, `
         <button data-action="view-submissions" data-class-id="${classId}" data-id="${assessmentId}"
                 class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back to Submissions</button>
       `)}
@@ -836,7 +898,8 @@ async function renderGradeView(): Promise<void> {
           Save & Release
         </button>
       </div>
-    </div>`;
+    </div>`
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -850,14 +913,20 @@ async function renderResultsView(): Promise<void> {
   const assessment = await fetchAssessment(classId, assessmentId);
   const questions = await fetchQuestions(classId, assessmentId);
   const submission = await fetchSubmission(classId, assessmentId, studentProfileId);
-  if (!assessment || !submission) { container.innerHTML = errorHtml('Data not found'); return; }
+  if (!assessment || !submission) {
+    renderErrorPanel(container, 'Data not found', { showBackToList: true });
+    return;
+  }
 
   if (!submission.released) {
-    container.innerHTML = `
+    renderTemplate(
+      container,
+      `
       <div class="space-y-6">
         ${sectionHeader(assessment.title, `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
         ${emptyState('Grades not yet released', 'Your teacher has not released the grades for this assessment yet.')}
-      </div>`;
+      </div>`
+    );
     return;
   }
 
@@ -899,7 +968,9 @@ async function renderResultsView(): Promise<void> {
       </div>`;
   }).join('');
 
-  container.innerHTML = `
+  renderTemplate(
+    container,
+    `
     <div class="max-w-3xl space-y-6">
       ${sectionHeader(assessment.title, `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
 
@@ -916,7 +987,8 @@ async function renderResultsView(): Promise<void> {
       <div class="space-y-4">
         ${questionsHtml}
       </div>
-    </div>`;
+    </div>`
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1026,9 +1098,9 @@ async function handleClick(e: Event): Promise<void> {
         }
         break;
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     hideLoading();
-    showAppToast('Error: ' + err.message, 'error');
+    showAppToast(formatErrorForUserToast(err, 'That assessment action could not be completed.'), 'error');
   }
 }
 
@@ -1098,9 +1170,7 @@ function addQuestionToBuilder(): void {
     order: index + 1,
     shuffleOptions: false,
   };
-  const div = document.createElement('div');
-  div.innerHTML = questionCardHtml(newQ, index);
-  qc.appendChild(div.firstElementChild!);
+  appendParsedHtml(qc, questionCardHtml(newQ, index));
 }
 
 function removeQuestionFromBuilder(qi: number): void {
@@ -1121,15 +1191,29 @@ function addOptionToBuilder(qi: number): void {
   const typeSelect = document.querySelector(`[data-role="q-type"][data-qi="${qi}"]`) as HTMLSelectElement;
   const inputType = typeSelect?.value === 'checkbox' ? 'checkbox' : 'radio';
 
-  const div = document.createElement('div');
-  div.className = 'flex items-center gap-2 mb-1.5';
-  div.innerHTML = `
-    <input type="${inputType}" name="q${qi}_correct" value="${oi}" class="accent-primary-500">
-    <input type="text" placeholder="Option ${oi + 1}" data-role="option-text" data-qi="${qi}" data-oi="${oi}"
-           class="flex-1 px-2 py-1 rounded bg-dark-900 border border-dark-600 text-white text-sm">
-    <button type="button" data-action="remove-option" data-qi="${qi}" data-oi="${oi}"
-            class="text-red-400 hover:text-red-300 text-xs">✕</button>`;
-  list.appendChild(div);
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-2 mb-1.5';
+  const marker = document.createElement('input');
+  marker.type = inputType;
+  marker.setAttribute('name', `q${qi}_correct`);
+  marker.value = String(oi);
+  marker.className = 'accent-primary-500';
+  const textInput = document.createElement('input');
+  textInput.type = 'text';
+  textInput.placeholder = `Option ${oi + 1}`;
+  textInput.setAttribute('data-role', 'option-text');
+  textInput.setAttribute('data-qi', String(qi));
+  textInput.setAttribute('data-oi', String(oi));
+  textInput.className = 'flex-1 px-2 py-1 rounded bg-dark-900 border border-dark-600 text-white text-sm';
+  const rm = document.createElement('button');
+  rm.type = 'button';
+  rm.setAttribute('data-action', 'remove-option');
+  rm.setAttribute('data-qi', String(qi));
+  rm.setAttribute('data-oi', String(oi));
+  rm.className = 'text-red-400 hover:text-red-300 text-xs';
+  rm.textContent = '✕';
+  row.append(marker, textInput, rm);
+  list.appendChild(row);
 }
 
 function removeOptionFromBuilder(qi: number, oi: number): void {
@@ -1260,9 +1344,9 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
 
     hideLoading();
     navigate({ view: 'list' });
-  } catch (err: any) {
+  } catch (err: unknown) {
     hideLoading();
-    showAppToast('Save failed: ' + err.message, 'error');
+    showAppToast(formatErrorForUserToast(err, 'Could not save the assessment.'), 'error');
   }
 }
 
@@ -1299,9 +1383,9 @@ async function handleSaveProgress(classId: string, assessmentId: string, student
     await saveProgress(classId, assessmentId, studentProfileId, answers);
     hideLoading();
     showAppToast('Progress saved!', 'success');
-  } catch (err: any) {
+  } catch (err: unknown) {
     hideLoading();
-    showAppToast('Save failed: ' + err.message, 'error');
+    showAppToast(formatErrorForUserToast(err, 'Could not save your progress.'), 'error');
   }
 }
 
@@ -1326,9 +1410,9 @@ async function handleSubmitAssessment(form: HTMLFormElement): Promise<void> {
       showAppToast('Assessment submitted successfully!', 'success');
       navigate({ view: 'list' });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     hideLoading();
-    showAppToast('Submit failed: ' + err.message, 'error');
+    showAppToast(formatErrorForUserToast(err, 'Could not submit the assessment.'), 'error');
   }
 }
 
@@ -1365,21 +1449,15 @@ async function handleSaveGrades(classId: string, assessmentId: string, studentPr
 
     hideLoading();
     navigate({ view: 'submissions', classId, assessmentId });
-  } catch (err: any) {
+  } catch (err: unknown) {
     hideLoading();
-    showAppToast('Grading failed: ' + err.message, 'error');
+    showAppToast(formatErrorForUserToast(err, 'Could not save grades.'), 'error');
   }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 //  UI HELPERS
 // ────────────────────────────────────────────────────────────────────────────
-
-const _escEl = document.createElement('div');
-function esc(s: string): string {
-  _escEl.textContent = s;
-  return _escEl.innerHTML;
-}
 
 function formatDate(isoStr: string): string {
   try {
@@ -1402,15 +1480,6 @@ function emptyState(title: string, subtitle?: string): string {
       <div class="text-4xl mb-3 opacity-30">📋</div>
       <h3 class="text-white font-semibold text-lg">${esc(title)}</h3>
       ${subtitle ? `<p class="text-dark-400 text-sm mt-1">${esc(subtitle)}</p>` : ''}
-    </div>`;
-}
-
-function errorHtml(msg: string): string {
-  return `
-    <div class="text-center py-16">
-      <div class="text-4xl mb-3 opacity-30">⚠️</div>
-      <h3 class="text-red-400 font-semibold">${esc(msg)}</h3>
-      <button data-action="back-to-list" class="mt-4 px-4 py-2 rounded-lg bg-dark-700 text-dark-300 text-sm hover:bg-dark-600">&larr; Back to List</button>
     </div>`;
 }
 
@@ -1444,9 +1513,8 @@ async function fetchStudentAssessmentsCached(profileIds: string[]): Promise<Stud
   return studentAssessmentsInFlight;
 }
 
-function teacherListSkeletonHtml(isMobile: boolean): string {
-  if (isMobile) {
-    const card = `
+function teacherListSkeletonHtml(): string {
+  const card = `
       <div class="bg-dark-800 rounded-xl border border-dark-700 p-5">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div class="min-w-0 flex-1">
@@ -1466,17 +1534,6 @@ function teacherListSkeletonHtml(isMobile: boolean): string {
           <div class="skeleton skeleton-btn !w-24 !h-9"></div>
         </div>
       </div>`;
-    return `
-      <div class="space-y-6">
-        ${sectionHeader('Assessments', `
-          <button data-action="create-assessment"
-                  class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">
-            + Create Assessment
-          </button>
-        `)}
-        <div class="grid gap-4">${card.repeat(6)}</div>
-      </div>`;
-  }
   const row = `
     <tr class="border-b border-dark-700">
       <td class="py-3 px-4"><div class="skeleton skeleton-text !w-[65%]"></div></td>
@@ -1495,7 +1552,8 @@ function teacherListSkeletonHtml(isMobile: boolean): string {
           + Create Assessment
         </button>
       `)}
-      <div class="overflow-x-auto rounded-xl border border-dark-700">
+      <div class="md:hidden grid gap-4">${card.repeat(6)}</div>
+      <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
         <table class="w-full text-sm">
           <thead class="bg-dark-800/80">
             <tr class="text-dark-300 text-xs uppercase tracking-wider">

@@ -17,7 +17,7 @@ import {
   arrayRemove,
 } from '../core/firebase';
 import { getCurrentUser } from '../core/auth';
-import type { Course, Student } from '../types';
+import type { Course, Student, User } from '../types';
 
 const COURSES = 'courses';
 const STUDENTS = 'students';
@@ -221,13 +221,50 @@ export async function assignTeacherToClass(courseId: string, teacherUid: string)
   await reconcileRosterTeacherIds(oldT, S, teacherUid, S);
 }
 
+/** In-memory cache: Firebase UID → resolved display label (never a raw UID). */
+const userDisplayNameCache = new Map<string, string>();
+/** Coalesces concurrent lookups for the same uid (single in-flight Firestore read). */
+const userDisplayNameInFlight = new Map<string, Promise<string>>();
+
+/** Single source of truth for human-readable account labels (never a raw Firebase UID). */
+export function userProfileDisplayLabel(profile: User | Record<string, unknown>): string {
+  const d = profile as Record<string, unknown>;
+  const label =
+    (typeof d.displayName === 'string' && d.displayName.trim()) ||
+    (typeof d.fullName === 'string' && d.fullName.trim()) ||
+    (typeof d.name === 'string' && d.name.trim()) ||
+    (typeof d.email === 'string' && d.email.trim()) ||
+    '';
+  return label || '—';
+}
+
+/** Resolves a user id to a human-readable name for tables and class cards (cached). */
 export async function getUserDisplayName(uid: string): Promise<string> {
-  try {
-    const snap = await getDoc(doc(db, 'users', uid));
-    if (!snap.exists()) return 'Teacher';
-    const d = snap.data();
-    return (d?.name as string) || (d?.email as string) || 'Teacher';
-  } catch {
-    return 'Teacher';
-  }
+  const id = (uid || '').trim();
+  if (!id) return '—';
+  const cached = userDisplayNameCache.get(id);
+  if (cached !== undefined) return cached;
+  const existing = userDisplayNameInFlight.get(id);
+  if (existing) return existing;
+
+  const pending = (async (): Promise<string> => {
+    try {
+      const snap = await getDoc(doc(db, 'users', id));
+      if (!snap.exists()) {
+        userDisplayNameCache.set(id, '—');
+        return '—';
+      }
+      const label = userProfileDisplayLabel(snap.data() as Record<string, unknown>);
+      userDisplayNameCache.set(id, label);
+      return label;
+    } catch {
+      userDisplayNameCache.set(id, '—');
+      return '—';
+    } finally {
+      userDisplayNameInFlight.delete(id);
+    }
+  })();
+
+  userDisplayNameInFlight.set(id, pending);
+  return pending;
 }

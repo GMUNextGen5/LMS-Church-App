@@ -9,7 +9,6 @@
     "deploy:backend": "firebase deploy --only functions,firestore:rules,firestore:indexes"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.17.1",
     "chart.js": "^4.5.1",
     "dompurify": "^3.3.2",
     "firebase": "^10.13.0",

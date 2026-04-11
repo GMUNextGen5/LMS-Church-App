@@ -53,15 +53,19 @@ service cloud.firestore {
       return a.status == 'published';
     }
 
-    // Teacher may only add/update studentProfileId on existing student accounts (registration link)
-    function isTeacherLinkingStudentProfile() {
-      return isTeacher() &&
-        resource.data.role == 'student' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentProfileId']);
-    }
-
     function studentTeacherIdsDoc(studentId) {
       return get(/databases/$(database)/documents/students/$(studentId)).data;
+    }
+
+    /**
+     * Teacher link writes: `students/{id}` must list the caller and `studentUid` must match `users/{uid}`
+     * so a teacher cannot attach another learner's profile to an arbitrary auth account.
+     */
+    function studentProfileDocAuthorizesTeacher(studentProfileId, userDocUid) {
+      let sdata = get(/databases/$(database)/documents/students/$(studentProfileId)).data;
+      return sdata.keys().hasAll(['teacherIds', 'studentUid']) &&
+        sdata.studentUid == userDocUid &&
+        sdata.teacherIds.hasAny([request.auth.uid]);
     }
 
     function teacherLinkedToStudent(studentId) {
@@ -81,25 +85,61 @@ service cloud.firestore {
     // ==================== USER PROFILE RULES ====================
 
     match /users/{uid} {
+
+      /** Shared schema for self-service and teacher-led student `users/{uid}` creates (no extra top-level or nested keys). */
+      function validNewStudentUserFields() {
+        return request.resource.data.role == 'student' &&
+          request.resource.data.keys().hasOnly(['email', 'role', 'createdAt', 'legalAcceptance']) &&
+          request.resource.data.legalAcceptance.keys().hasOnly(['termsVersion', 'privacyVersion', 'userAgent', 'acceptedAt']) &&
+          request.resource.data.legalAcceptance.acceptedAt == request.time;
+      }
+
+      /** Teacher creates another account's student profile (e.g. merge-create before link, or full onboarding write). */
+      function teacherCreatesStudentUser() {
+        return isTeacher() &&
+          request.auth.uid != uid &&
+          validNewStudentUserFields();
+      }
+
+      /**
+       * Teacher may only set `studentProfileId` on an existing student user, for a `students` doc that lists them.
+       * Blocks role changes and cross-teacher profile hijacking.
+       */
+      function teacherLinksStudentProfile() {
+        return isTeacher() &&
+          request.auth.uid != uid &&
+          resource.data.role == 'student' &&
+          request.resource.data.role == 'student' &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentProfileId']) &&
+          request.resource.data.keys().hasAll(['studentProfileId']) &&
+          studentProfileDocAuthorizesTeacher(request.resource.data.studentProfileId, uid);
+      }
+
+      /** Owner updates: never `role` or `studentProfileId` (students get `studentProfileId` from staff). */
+      function selfServiceUserUpdate() {
+        return request.auth.uid == uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentProfileId']) &&
+          studentLegalAcceptanceAcceptedAtUnchanged();
+      }
+
       allow read: if isAuthenticated() && (
         request.auth.uid == uid ||
         isAdmin() ||
         (isTeacher() && resource.data.role == 'student')
       );
 
-      allow create: if isAuthenticated() && request.auth.uid == uid &&
-        request.resource.data.role == 'student' &&
-        request.resource.data.keys().hasAll(['email', 'role', 'createdAt', 'legalAcceptance']) &&
-        request.resource.data.legalAcceptance.keys().hasAll(['termsVersion', 'privacyVersion', 'userAgent', 'acceptedAt']) &&
-        request.resource.data.legalAcceptance.acceptedAt == request.time;
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.uid == uid && validNewStudentUserFields()) ||
+        teacherCreatesStudentUser()
+      );
 
       allow update: if isAuthenticated() && (
-        (request.auth.uid == uid &&
-          !('role' in request.resource.data.diff(resource.data).affectedKeys()) &&
-          !('studentProfileId' in request.resource.data.diff(resource.data).affectedKeys()) &&
-          studentLegalAcceptanceAcceptedAtUnchanged()) ||
         isAdmin() ||
-        isTeacherLinkingStudentProfile()
+        teacherLinksStudentProfile() ||
+        selfServiceUserUpdate()
       );
 
       allow delete: if isAdmin();

@@ -7,10 +7,9 @@ import { LMS_SEARCH_DEBOUNCE_MS } from '../core/input-timing';
 type NonZeroTier = Exclude<PasswordStrengthTier, 0>;
 
 const SEG_BASE =
-  'signup-pw-seg h-2 flex-1 min-w-0 rounded-[10px] transition-colors duration-150 ease-out';
+  'profile-pw-seg h-2 flex-1 min-w-0 rounded-[10px] transition-colors duration-150 ease-out';
 const SEG_INACTIVE = 'bg-slate-400/35 dark:bg-slate-500/40';
 
-/** Filled segments: higher contrast vs track (non-text UI ~3:1 on slate track). */
 const SEG_ACTIVE: Record<NonZeroTier, string> = {
   1: 'bg-rose-600 dark:bg-rose-500',
   2: 'bg-amber-600 dark:bg-amber-500',
@@ -18,7 +17,6 @@ const SEG_ACTIVE: Record<NonZeroTier, string> = {
   4: 'bg-teal-600 dark:bg-teal-400',
 };
 
-/** Label text: WCAG AA–oriented on #f9fafb / #111827 card backgrounds. */
 const LABEL_TONE: Record<NonZeroTier, string> = {
   1: 'text-rose-700 dark:text-rose-400',
   2: 'text-amber-800 dark:text-amber-400',
@@ -39,22 +37,26 @@ function paintSegments(
   });
 }
 
+let profilePwStrengthWired = false;
+
 /**
- * Wires the signup password strength meter (expects matching ids in `index.html`).
- * Uses rAF scheduling; `aria-live` updates only when the strength tier changes.
+ * Wires the profile "new password" strength meter (`#profile-new-password` and related ids in `index.html`).
  */
-export function setupSignupPasswordStrengthMeter(form: HTMLFormElement): void {
-  const input = form.querySelector<HTMLInputElement>('#signup-password');
-  const wrap = document.getElementById('signup-password-strength-wrap');
-  const inner = document.getElementById('signup-password-strength-inner');
-  const bar = document.getElementById('signup-password-strength-bar');
-  const labelEl = document.getElementById('signup-password-strength-label');
-  const liveEl = document.getElementById('signup-password-strength-live');
+export function setupProfilePasswordStrengthMeter(): void {
+  if (profilePwStrengthWired) return;
+  const input = document.getElementById('profile-new-password') as HTMLInputElement | null;
+  const wrap = document.getElementById('profile-password-strength-wrap');
+  const inner = document.getElementById('profile-password-strength-inner');
+  const bar = document.getElementById('profile-password-strength-bar');
+  const labelEl = document.getElementById('profile-password-strength-label');
+  const liveEl = document.getElementById('profile-password-strength-live');
 
   if (!input || !wrap || !inner || !bar || !labelEl) return;
 
-  const segments = wrap.querySelectorAll('.signup-pw-seg');
+  const segments = wrap.querySelectorAll('.profile-pw-seg');
   if (segments.length !== 4) return;
+
+  profilePwStrengthWired = true;
 
   let rafId = 0;
   let debounceTimer = 0;
@@ -109,52 +111,10 @@ export function setupSignupPasswordStrengthMeter(form: HTMLFormElement): void {
     }, LMS_SEARCH_DEBOUNCE_MS);
   };
 
-  const syncSoon = (): void => {
-    schedule();
-    window.setTimeout(() => apply(input.value), 0);
-    window.setTimeout(() => apply(input.value), 120);
-    window.setTimeout(() => apply(input.value), 500);
-  };
-
   for (const ev of ['input', 'change', 'paste', 'cut', 'keyup'] as const) {
     input.addEventListener(ev, schedule, { passive: true });
   }
-  input.addEventListener('focus', syncSoon, { passive: true });
   input.addEventListener('compositionend', schedule, { passive: true });
 
-  document.getElementById('signup-tab-btn')?.addEventListener('click', () => {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => apply(input.value));
-    });
-    window.setTimeout(() => apply(input.value), 80);
-    window.setTimeout(() => apply(input.value), 400);
-  });
-
-  const signupShell = document.getElementById('signup-form-container');
-  if (signupShell) {
-    let moTimer = 0;
-    const mo = new MutationObserver(() => {
-      if (!signupShell.classList.contains('hide')) {
-        if (moTimer) window.clearTimeout(moTimer);
-        moTimer = window.setTimeout(() => {
-          moTimer = 0;
-          syncSoon();
-        }, LMS_SEARCH_DEBOUNCE_MS);
-      }
-    });
-    mo.observe(signupShell, { attributes: true, attributeFilter: ['class'] });
-  }
-
-  form.addEventListener('reset', () => {
-    if (debounceTimer) window.clearTimeout(debounceTimer);
-    debounceTimer = 0;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = 0;
-    lastAnnouncedTier = null;
-    queueMicrotask(() => apply(input.value));
-  });
-
-  lastAnnouncedTier = null;
   apply(input.value);
-  syncSoon();
 }
