@@ -103,14 +103,14 @@ function switchAuthTab(tab: 'login' | 'signup'): void {
 }
 
 export function showAuthContainer(): void {
-  authContainer?.classList.remove('hide');
-  appContainer?.classList.add('hide');
+  authContainer?.classList.remove('hide', 'hidden');
+  appContainer?.classList.add('hide', 'hidden');
   clearForms();
 }
 
 export function showAppContainer(): void {
-  authContainer?.classList.add('hide');
-  appContainer?.classList.remove('hide');
+  authContainer?.classList.add('hide', 'hidden');
+  appContainer?.classList.remove('hide', 'hidden');
 }
 
 /**

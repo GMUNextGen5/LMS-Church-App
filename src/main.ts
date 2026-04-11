@@ -228,6 +228,11 @@ function startParticleSystemWhenReady(): void {
 
 // --- Auth state & form handlers ---
 
+/** Main LMS entry URL (avoids staying on static legal pages after a successful session). */
+function getDashboardUrl(_role: User['role']): string {
+  return new URL('/', window.location.origin).href;
+}
+
 /** Routes Firebase auth changes into UI visibility, role configuration, and data loads. */
 async function handleAuthStateChange(user: User | null): Promise<void> {
   const isValidProfile =
@@ -240,7 +245,8 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 
   // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
   if (isValidProfile) {
-    if (userLegalAcceptanceIncomplete(user)) {
+    const incomplete = userLegalAcceptanceIncomplete(user);
+    if (incomplete) {
       showBootstrapError(
         'Your account must acknowledge the current Terms of Service (version ' +
           LEGAL_TERMS_VERSION +
@@ -253,6 +259,13 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       }
       showAuthContainer();
       resetAppState();
+      return;
+    }
+    const dashboardUrl = getDashboardUrl(user.role);
+    const here = window.location.href.split('#')[0];
+    const there = dashboardUrl.split('#')[0];
+    if (here !== there) {
+      window.location.href = dashboardUrl;
       return;
     }
     showAppContainer();

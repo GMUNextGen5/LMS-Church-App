@@ -13,7 +13,7 @@ import {
   FirebaseUser
 } from './firebase';
 import { User, UserRole } from './types';
-import { LEGAL_TERMS_VERSION } from './legal-versions';
+import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './legal-versions';
 import { showLoading, hideLoading, showBootstrapError } from '../ui/ui';
 
 let currentUser: User | null = null;
@@ -37,12 +37,11 @@ function normalizeProfileCreatedAt(createdAt: unknown): string {
 
 /**
  * True when the account must acknowledge the current in-app Terms version (`LEGAL_TERMS_VERSION`).
- * Admin profiles and teacher profiles without a `legalAcceptance` block are exempt (manual provisioning).
+ * Teacher profiles without a `legalAcceptance` block are exempt (manual provisioning).
  */
 export function userLegalAcceptanceIncomplete(user: User): boolean {
   const la = user?.legalAcceptance;
   const terms = la?.termsVersion?.trim() ?? '';
-  if (user?.role === 'admin') return false;
   if (user?.role === 'teacher' && !la) return false;
   return terms !== LEGAL_TERMS_VERSION;
 }
@@ -163,8 +162,8 @@ export async function signUp(
       role: 'student',
       createdAt: new Date().toISOString(),
       legalAcceptance: {
-        termsVersion: String(legalAcceptance.termsVersion || '').trim(),
-        privacyVersion: String(legalAcceptance.privacyVersion || '').trim(),
+        termsVersion: LEGAL_TERMS_VERSION,
+        privacyVersion: LEGAL_PRIVACY_VERSION,
         userAgent: String(legalAcceptance.userAgent || '').slice(0, 300),
         acceptedAt: serverTimestamp(),
       },
