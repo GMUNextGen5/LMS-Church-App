@@ -7,6 +7,9 @@ import {
   signOut,
   deleteUser,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  inMemoryPersistence,
   User as FirebaseUser
 } from 'firebase/auth';
 import {
@@ -83,6 +86,23 @@ export function ensureFirebaseClient(): Error | null {
         : new Error(`Firebase failed to initialize (${String(err)}). Check .env and reload.`);
     clientInitResult = e;
     return e;
+  }
+}
+
+/**
+ * Prefer IndexedDB-backed local persistence; fall back to in-memory when storage is denied
+ * (common in locked-down or InPrivate profiles). Call once after {@link ensureFirebaseClient} succeeds.
+ */
+export async function ensureAuthPersistence(): Promise<void> {
+  if (!auth) return;
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch {
+    try {
+      await setPersistence(auth, inMemoryPersistence);
+    } catch {
+      /* Auth still functions with default persistence where supported */
+    }
   }
 }
 

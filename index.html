@@ -12,10 +12,58 @@
     <link rel="icon" href="data:,">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script>
+        function safeGetStorage(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch (e) {
+                return null;
+            }
+        }
+        function safeSetStorage(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        function safeRemoveStorage(key) {
+            try {
+                localStorage.removeItem(key);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        function safeGetSessionStorage(key) {
+            try {
+                return sessionStorage.getItem(key);
+            } catch (e) {
+                return null;
+            }
+        }
+        function safeSetSessionStorage(key, value) {
+            try {
+                sessionStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        function safeRemoveSessionStorage(key) {
+            try {
+                sessionStorage.removeItem(key);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+    </script>
+    <script>
         // Prevent theme "white flash" by applying stored theme ASAP (before paint).
         (function () {
             try {
-                const t = localStorage.getItem('theme');
+                const t = safeGetStorage('theme');
                 const theme = t === 'light' || t === 'dark' ? t : null;
                 if (theme) {
                     document.documentElement.setAttribute('data-theme', theme);
@@ -7108,9 +7156,9 @@
         function initTheme() {
             let stored = null;
             try {
-                const raw = localStorage.getItem(LMS_THEME_STORAGE_KEY);
+                const raw = safeGetStorage(LMS_THEME_STORAGE_KEY);
                 if (raw && LMS_ALLOWED_THEMES.has(raw)) stored = raw;
-                else if (raw) localStorage.removeItem(LMS_THEME_STORAGE_KEY);
+                else if (raw) safeRemoveStorage(LMS_THEME_STORAGE_KEY);
             } catch (e) {
                 stored = null;
             }
@@ -7123,7 +7171,7 @@
 
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
                 try {
-                    if (localStorage.getItem(LMS_THEME_STORAGE_KEY)) return;
+                    if (safeGetStorage(LMS_THEME_STORAGE_KEY)) return;
                 } catch (err) {
                     return;
                 }
@@ -7148,11 +7196,9 @@
             // Update document attribute
             document.documentElement.setAttribute('data-theme', theme);
 
-            try {
-                if (LMS_ALLOWED_THEMES.has(theme)) {
-                    localStorage.setItem(LMS_THEME_STORAGE_KEY, theme);
-                }
-            } catch (e) { /* private mode / quota */ }
+            if (LMS_ALLOWED_THEMES.has(theme)) {
+                safeSetStorage(LMS_THEME_STORAGE_KEY, theme);
+            }
 
             // Update all toggle buttons
             updateThemeToggles(theme);
@@ -9043,7 +9089,7 @@
     <!-- Style: always Classic -->
     <script>
         document.documentElement.setAttribute('data-style', 'classic');
-        localStorage.setItem('lms-style', 'classic');
+        safeSetStorage('lms-style', 'classic');
     </script>
 
     <script type="module" src="/src/main.ts"></script>

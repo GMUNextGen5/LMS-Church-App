@@ -9,6 +9,7 @@ import {
   functions,
   httpsCallable,
   ensureFirebaseClient,
+  ensureAuthPersistence,
   signOut,
 } from './core/firebase';
 import {
@@ -66,6 +67,31 @@ let currentAttendance: Attendance[] = [];
 let selectedStudentId: string | null = null;
 let gradesUnsubscribe: (() => void) | null = null;
 let particleSystem: ParticleSystem | null = null;
+
+/** True after the first auth-driven shell update finishes (or bootstrap gave up / config failed). */
+let authShellReady = false;
+let bootstrapWatchdogId: number | undefined;
+
+function markAuthShellReady(): void {
+  authShellReady = true;
+  if (bootstrapWatchdogId !== undefined) {
+    window.clearTimeout(bootstrapWatchdogId);
+    bootstrapWatchdogId = undefined;
+  }
+}
+
+/** Defers DOM writes until after the next paint so layout exists (reduces DevTools-only race symptoms). */
+function scheduleDomPaint(fn: () => void): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        fn();
+      } catch {
+        /* host DOM not ready */
+      }
+    });
+  });
+}
 
 // Reused for HTML escaping to avoid XSS when rendering user/AI content
 const escapeEl = document.createElement('div');
@@ -144,37 +170,77 @@ async function init(): Promise<void> {
 
   const firebaseErr = ensureFirebaseClient();
   if (firebaseErr) {
-    showFirebaseConfigurationError(firebaseErr.message);
-    try { hideLoading(); } catch { /* ignore */ }
+    scheduleDomPaint(() => {
+      showFirebaseConfigurationError(firebaseErr.message);
+      try {
+        hideLoading();
+      } catch {
+        /* ignore */
+      }
+    });
+    markAuthShellReady();
     return;
   }
 
+  try {
+    await ensureAuthPersistence();
+  } catch {
+    /* IndexedDB / persistence denied: in-memory fallback attempted in ensureAuthPersistence */
+  }
+
   /**
-   * Watchdog: if auth state hasn't been observed within 15s, clear the overlay and display a
-   * user-visible connection error banner instead of hanging indefinitely.
+   * Watchdog: if `onAuthStateChanged` never delivers a callback, clear the overlay and show an error
+   * (distinct from the 5s entry-point spinner guard in `runInit`).
    */
   let authSettled = false;
+  /** Secondary guard if `onAuthStateChanged` never fires (blocked third-party scripts, etc.). */
   const authWatchdog = window.setTimeout(() => {
     if (authSettled) return;
     authSettled = true;
-    try { hideLoading(); } catch { /* ignore */ }
+    scheduleDomPaint(() => {
+      try {
+        hideLoading();
+      } catch {
+        /* ignore */
+      }
+    });
     showBootstrapError(
       'Connection error: the app could not confirm your sign-in state. Please refresh. ' +
         'If this keeps happening, verify your Firebase config and Firestore rules.'
     );
-  }, 15_000);
+    markAuthShellReady();
+  }, 12_000);
 
-  const handleAuthStateChangeBootstrap = async (user: User | null): Promise<void> => {
+  async function handleAuthStateChangeBootstrapCore(user: User | null): Promise<void> {
     if (!authSettled) {
       authSettled = true;
       window.clearTimeout(authWatchdog);
     }
     try {
       await handleAuthStateChange(user);
+    } catch {
+      scheduleDomPaint(() => {
+        showBootstrapError(
+          'Something went wrong while loading the dashboard. Please refresh the page. ' +
+            'If the problem continues, check your network connection.'
+        );
+      });
     } finally {
-      // Ensure the initial boot overlay always clears after the first auth resolution path.
-      try { hideLoading(); } catch { /* ignore */ }
+      scheduleDomPaint(() => {
+        try {
+          hideLoading();
+        } catch {
+          /* ignore */
+        }
+      });
+      markAuthShellReady();
     }
+  }
+
+  const handleAuthStateChangeBootstrap = (user: User | null): void => {
+    scheduleDomPaint(() => {
+      void handleAuthStateChangeBootstrapCore(user);
+    });
   };
 
   try { initAuth(handleAuthStateChangeBootstrap); } catch { /* auth listener init */ }
@@ -237,51 +303,65 @@ function getDashboardUrl(_role: User['role']): string {
 
 /** Routes Firebase auth changes into UI visibility, role configuration, and data loads. */
 async function handleAuthStateChange(user: User | null): Promise<void> {
-  try {
-    const isValidProfile =
-      !!user &&
-      typeof user.uid === 'string' &&
-      !!user.uid &&
-      typeof user.email === 'string' &&
-      typeof user.role === 'string' &&
-      (user.role === 'admin' || user.role === 'teacher' || user.role === 'student');
+  const isValidProfile =
+    !!user &&
+    typeof user.uid === 'string' &&
+    !!user.uid &&
+    typeof user.email === 'string' &&
+    typeof user.role === 'string' &&
+    (user.role === 'admin' || user.role === 'teacher' || user.role === 'student');
 
-    // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
-    if (isValidProfile) {
-      const incomplete = userLegalAcceptanceIncomplete(user);
-      if (incomplete) {
+  // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
+  if (isValidProfile) {
+    const incomplete = userLegalAcceptanceIncomplete(user);
+    if (incomplete) {
+      scheduleDomPaint(() => {
+        try {
+          hideLoading();
+        } catch {
+          /* ignore */
+        }
+        showAuthContainer();
+        resetAppState();
         showBootstrapError(
           'Your account must acknowledge the current Terms of Service (version ' +
             LEGAL_TERMS_VERSION +
             '). Please contact an administrator to update your profile, or create a new student account through signup.'
         );
-        try {
-          await logout();
-        } catch {
-          /* sign-out best-effort */
-        }
-        showAuthContainer();
-        resetAppState();
-        return;
-      }
-      const dashboardUrl = getDashboardUrl(user.role);
-      const here = window.location.href.split('#')[0];
-      const there = dashboardUrl.split('#')[0];
-      if (here !== there) {
-        window.location.href = dashboardUrl;
-        return;
-      }
+      });
+      markAuthShellReady();
+      void Promise.race([
+        signOut(auth),
+        new Promise<void>((resolve) => {
+          window.setTimeout(() => resolve(), 5000);
+        }),
+      ]).catch(() => {
+        /* sign-out best-effort; InPrivate must not block the shell */
+      });
+      return;
+    }
+    const dashboardUrl = getDashboardUrl(user.role);
+    const here = window.location.href.split('#')[0];
+    const there = dashboardUrl.split('#')[0];
+    if (here !== there) {
+      markAuthShellReady();
+      window.location.href = dashboardUrl;
+      return;
+    }
+    scheduleDomPaint(() => {
       showAppContainer();
       configureUIForRole(user);
-
       const userRole = getCurrentUserRole();
       if (typeof (window as any).updateSidebarUserInfo === 'function') {
         const sidebarLabel = (user.displayName && user.displayName.trim()) || user.email || '';
         (window as any).updateSidebarUserInfo(sidebarLabel, userRole);
       }
+    });
+    markAuthShellReady();
 
-      await loadDashboardData();
+    await loadDashboardData();
 
+    scheduleDomPaint(() => {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
       document.getElementById('dashboard-content')?.classList.remove('hide');
 
@@ -307,16 +387,13 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
             'so they can finish enrollment; you can still use the dashboard meanwhile.'
         );
       }
-    } else {
+    });
+  } else {
+    scheduleDomPaint(() => {
       showAuthContainer();
       resetAppState();
-    }
-  } finally {
-    try {
-      hideLoading();
-    } catch {
-      /* overlay may be absent in tests */
-    }
+    });
+    markAuthShellReady();
   }
 }
 
@@ -2061,7 +2138,13 @@ function openAccountIdModal(): void {
 }
 
 function showUidModal(uid: string, email: string): void {
-  hideLoading();
+  scheduleDomPaint(() => {
+    try {
+      hideLoading();
+    } catch {
+      /* ignore */
+    }
+  });
   const modalHtml = `
     <div class="space-y-4">
       <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
@@ -2132,8 +2215,32 @@ function showUidModal(uid: string, email: string): void {
 }
 
 function runInit(): void {
-  void init().catch(() => {
-    showBootstrapError('The app failed to finish loading. Please refresh the page or try again later.');
+  authShellReady = false;
+  if (bootstrapWatchdogId !== undefined) {
+    window.clearTimeout(bootstrapWatchdogId);
+  }
+  bootstrapWatchdogId = window.setTimeout(() => {
+    bootstrapWatchdogId = undefined;
+    if (authShellReady) return;
+    // Dead-man's switch: never leave the boot spinner up if the auth handshake never completes.
+    scheduleDomPaint(() => {
+      try {
+        hideLoading();
+      } catch {
+        /* ignore */
+      }
+    });
+    markAuthShellReady();
+  }, 5000);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void init()
+        .catch(() => {
+          showBootstrapError('The app failed to finish loading. Please refresh the page or try again later.');
+          markAuthShellReady();
+        });
+    });
   });
 }
 

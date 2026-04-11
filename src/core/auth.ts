@@ -18,9 +18,33 @@ import {
 } from './firebase';
 import { User, UserRole, Student } from './types';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './legal-versions';
-import { showLoading, hideLoading, showBootstrapError } from '../ui/ui';
+import { showLoading, hideLoading, showBootstrapError, showAuthContainer } from '../ui/ui';
 
 let currentUser: User | null = null;
+
+/**
+ * Defers auth-driven DOM updates until after the next paint (strict / InPrivate timing races).
+ * Double rAF aligns with layout so the shell is not manipulated before the browser paints.
+ */
+function scheduleAuthUi(fn: () => void): void {
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        try {
+          fn();
+        } catch {
+          /* DOM not ready */
+        }
+      });
+    });
+  } else {
+    try {
+      fn();
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 type TimestampLike = { toDate?: () => Date; seconds?: unknown; nanoseconds?: unknown };
 
@@ -252,72 +276,158 @@ export type LegalAcceptanceRecord = {
  * If the profile is missing/invalid or reads are denied, the app shows a clear message and signs out
  * instead of crashing during post-login UI boot.
  */
-export function initAuth(onUserChanged: (user: User | null) => void): void {
-  onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-    void (async () => {
-      if (firebaseUser) {
-        try {
-          showLoading();
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
+const AUTH_HANDSHAKE_TIMEOUT_MS = 3000;
 
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as Record<string, unknown>;
-            const role = userData?.role;
-            const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
-            const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
-            if (!isValidRole) {
+export function initAuth(onUserChanged: (user: User | null) => void): void {
+  try {
+    onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      void (async () => {
+      try {
+      if (firebaseUser) {
+        let handshakeTimer: number | undefined;
+        try {
+          scheduleAuthUi(() => {
+            showLoading();
+          });
+          const work = (async (): Promise<void> => {
+            const userDocRef = doc(db, 'users', firebaseUser.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+              const userData = userDoc.data() as Record<string, unknown>;
+              const role = userData?.role;
+              const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+              const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+              if (!isValidRole) {
+                throw new Error(
+                  'Your account profile is incomplete (missing role). ' +
+                    'Please contact an administrator to finish account setup.'
+                );
+              }
+              const roleTyped = role as UserRole;
+              try {
+                currentUser = await mapFirestoreUserDocumentToUser(firebaseUser, userData, roleTyped);
+              } catch {
+                currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, userData);
+              }
+              onUserChanged(currentUser);
+            } else {
               throw new Error(
-                'Your account profile is incomplete (missing role). ' +
-                  'Please contact an administrator to finish account setup.'
+                'Your account profile was not found. Please contact an administrator to finish account setup.'
               );
             }
-            const roleTyped = role as UserRole;
-            try {
-              currentUser = await mapFirestoreUserDocumentToUser(firebaseUser, userData, roleTyped);
-            } catch {
-              currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, userData);
-            }
-            onUserChanged(currentUser);
-          } else {
-            throw new Error(
-              'Your account profile was not found. Please contact an administrator to finish account setup.'
-            );
+          })();
+
+          const timeoutPromise = new Promise<'timeout'>((resolve) => {
+            handshakeTimer = window.setTimeout(() => resolve('timeout'), AUTH_HANDSHAKE_TIMEOUT_MS);
+          });
+          const first = await Promise.race([work.then(() => 'profile' as const), timeoutPromise]);
+          if (first === 'timeout') {
+            scheduleAuthUi(() => {
+              try {
+                hideLoading();
+              } catch {
+                /* ignore */
+              }
+              try {
+                showAuthContainer();
+              } catch {
+                /* ignore */
+              }
+            });
           }
+
+          await work;
         } catch (error: unknown) {
           const code = (error as { code?: string })?.code ?? '';
           if (code === 'permission-denied') {
-            showBootstrapError(
-              'Permission denied while loading your profile. This usually means Firestore rules are ' +
-                'blocking access to `users/{uid}`. Please contact support or try again shortly.'
-            );
+            scheduleAuthUi(() => {
+              showBootstrapError(
+                'Permission denied while loading your profile. This usually means Firestore rules are ' +
+                  'blocking access to `users/{uid}`. Please contact support or try again shortly.'
+              );
+            });
           } else {
             const msg = error instanceof Error ? error.message : '';
-            showBootstrapError(msg || 'We could not load your account profile. Please try again.');
+            scheduleAuthUi(() => {
+              showBootstrapError(msg || 'We could not load your account profile. Please try again.');
+            });
           }
           currentUser = null;
           onUserChanged(null);
           try {
-            await signOut(auth);
+            await Promise.race([
+              signOut(auth),
+              new Promise<void>((resolve) => {
+                window.setTimeout(() => resolve(), 5000);
+              }),
+            ]);
           } catch {
             /* ignore */
           }
         } finally {
-          hideLoading();
+          if (handshakeTimer !== undefined) {
+            window.clearTimeout(handshakeTimer);
+          }
+          scheduleAuthUi(() => {
+            hideLoading();
+          });
         }
       } else {
         currentUser = null;
         onUserChanged(null);
       }
-    })().catch((err) => {
-      console.error('Auth state handler failed', err);
+      } catch {
+        scheduleAuthUi(() => {
+          try {
+            hideLoading();
+          } catch {
+            /* ignore */
+          }
+        });
+        try {
+          onUserChanged(null);
+        } catch {
+          /* host may be torn down */
+        }
+      }
+    })().catch(() => {
+      scheduleAuthUi(() => {
+        try {
+          hideLoading();
+        } catch {
+          /* ignore */
+        }
+      });
+      try {
+        onUserChanged(null);
+      } catch {
+        /* host may be torn down */
+      }
+    });
+  });
+  } catch {
+    scheduleAuthUi(() => {
       try {
         hideLoading();
       } catch {
         /* ignore */
       }
+      try {
+        showAuthContainer();
+      } catch {
+        /* ignore */
+      }
+      showBootstrapError(
+        'Sign-in could not start in this browser (site data may be blocked). Use a normal window or allow storage for this site, then refresh.'
+      );
     });
-  });
+    try {
+      onUserChanged(null);
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 /**
@@ -345,6 +455,7 @@ export async function signUp(
         termsVersion: LEGAL_TERMS_VERSION,
         privacyVersion: LEGAL_PRIVACY_VERSION,
         userAgent: String(legalAcceptance.userAgent || '').slice(0, 300),
+        // Rules tie acceptedAt to request.time; a client Date causes permission-denied / hung signup.
         acceptedAt: serverTimestamp(),
       },
     });
@@ -391,12 +502,24 @@ export async function signIn(email: string, password: string): Promise<void> {
 
 export async function logout(): Promise<void> {
   try {
-    showLoading();
-    await signOut(auth);
+    scheduleAuthUi(() => {
+      showLoading();
+    });
+    const outcome = await Promise.race([
+      signOut(auth).then(() => 'ok' as const),
+      new Promise<'timeout'>((resolve) => {
+        window.setTimeout(() => resolve('timeout'), 8000);
+      }),
+    ]);
+    if (outcome === 'timeout') {
+      return;
+    }
   } catch {
     throw new Error('Failed to sign out. Please try again.');
   } finally {
-    hideLoading();
+    scheduleAuthUi(() => {
+      hideLoading();
+    });
   }
 }
 

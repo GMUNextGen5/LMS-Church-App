@@ -191,21 +191,28 @@ function switchTab(tabName: string): void {
   document.dispatchEvent(new CustomEvent('tab-switched', { detail: { tab: tabName } }));
 }
 
+function resetLoadingOverlayImportantStyles(el: HTMLElement): void {
+  el.style.removeProperty('display');
+  el.style.removeProperty('visibility');
+  el.style.removeProperty('pointer-events');
+}
+
 export function showLoading(): void {
   const el = loadingOverlay;
   if (el instanceof HTMLElement) {
-    el.style.removeProperty('pointer-events');
-    el.style.removeProperty('display');
+    resetLoadingOverlayImportantStyles(el);
     el.classList.remove('hide', 'hidden');
   }
 }
 
+/** Forces the overlay off the interactive plane even if CSS transitions or classes fail. */
 export function hideLoading(): void {
   const el = loadingOverlay;
   if (el instanceof HTMLElement) {
     el.classList.add('hide', 'hidden');
-    el.style.setProperty('pointer-events', 'none');
-    el.style.setProperty('display', 'none');
+    el.style.setProperty('display', 'none', 'important');
+    el.style.setProperty('visibility', 'hidden', 'important');
+    el.style.setProperty('pointer-events', 'none', 'important');
   }
 }
 
@@ -274,26 +281,48 @@ function clearForms(): void {
 /** Opens the AI results modal with a sanitized HTML body. */
 export function showModal(title: string, content: string, options?: ShowModalOptions): void {
   modalOnDismiss = options?.onDismiss ?? null;
-  if (aiModalTitle) aiModalTitle.textContent = title ?? '';
-  if (aiModalContent) aiModalContent.innerHTML = sanitizeHTML(typeof content === 'string' ? content : '');
-  aiModal?.classList.remove('hide');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        if (aiModal instanceof HTMLElement) {
+          aiModal.style.removeProperty('display');
+          aiModal.style.removeProperty('pointer-events');
+        }
+        if (aiModalTitle) aiModalTitle.textContent = title ?? '';
+        if (aiModalContent) {
+          aiModalContent.innerHTML = sanitizeHTML(typeof content === 'string' ? content : '');
+        }
+        aiModal?.classList.remove('hide');
+      } catch {
+        /* DOM not ready */
+      }
+    });
+  });
 }
 
 function runModalDismissPipeline(): void {
+  // Hide immediately; never await auth or other async work before this (InPrivate can stall promises).
   aiModal?.classList.add('hide');
+  const modalEl = aiModal;
+  if (modalEl instanceof HTMLElement) {
+    modalEl.style.setProperty('display', 'none', 'important');
+    modalEl.style.setProperty('pointer-events', 'none', 'important');
+  }
   const cb = modalOnDismiss;
   modalOnDismiss = null;
   if (!cb) return;
-  try {
-    const out = cb();
-    if (out != null && typeof (out as Promise<unknown>).then === 'function') {
-      void (out as Promise<unknown>).catch(() => {
-        /* InPrivate / auth: never block UI after modal is hidden */
-      });
+  queueMicrotask(() => {
+    try {
+      const out = cb();
+      if (out != null && typeof (out as Promise<unknown>).then === 'function') {
+        void (out as Promise<unknown>).catch(() => {
+          /* InPrivate / auth: never block UI after modal is hidden */
+        });
+      }
+    } catch {
+      /* dismiss callbacks must not trap the close path */
     }
-  } catch {
-    /* localStorage, sanitization, etc. must not trap the dismiss path */
-  }
+  });
 }
 
 export function closeModal(): void {
