@@ -5,27 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terms of Service - NG5 LMS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0a0f1a',
-                        secondary: '#111827',
-                        accent: '#8B2942',
-                        'accent-light': '#C44569',
-                        text: '#f1f5f9',
-                        muted: '#94a3b8'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         body {
             background-color: #0a0f1a;
@@ -40,16 +20,16 @@
     </style>
 </head>
 
-<body class="min-h-screen font-sans antialiased selection:bg-accent selection:text-white">
+<body class="min-h-screen font-sans antialiased selection:bg-burgundy selection:text-white">
 
     <div class="max-w-4xl mx-auto px-6 py-12">
         <!-- Header -->
         <header class="mb-12 text-center">
             <h1
-                class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent mb-4">
+                class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-burgundy to-burgundy-light bg-clip-text text-transparent mb-4">
                 Terms of Service
             </h1>
-            <p class="text-muted text-lg">
+            <p class="text-slate-400 text-lg">
                 Last Updated: February 2026
             </p>
         </header>
@@ -90,7 +70,7 @@
                 <div class="space-y-4 text-gray-300 leading-relaxed">
                     <p class="font-semibold text-white">PLEASE READ THIS SECTION CAREFULLY.</p>
 
-                    <h3 class="text-xl text-accent-light mt-4 mb-2">3.1 "As Is" and "As Available" Disclaimer</h3>
+                    <h3 class="text-xl text-burgundy-light mt-4 mb-2">3.1 "As Is" and "As Available" Disclaimer</h3>
                     <p>
                         The Service is provided on an "AS IS" and "AS AVAILABLE" basis. [Church Name] makes no
                         representations or warranties of any kind,
@@ -99,7 +79,7 @@
                         <strong>You expressly agree that your use of the Service is at your sole risk.</strong>
                     </p>
 
-                    <h3 class="text-xl text-accent-light mt-4 mb-2">3.2 Limitation of Liability</h3>
+                    <h3 class="text-xl text-burgundy-light mt-4 mb-2">3.2 Limitation of Liability</h3>
                     <p>
                         To the fullest extent permitted by law, [Church Name], its officers, directors, employees, and
                         agents shall NOT be liable for any
@@ -114,7 +94,7 @@
                             stored therein.</li>
                     </ul>
 
-                    <h3 class="text-xl text-accent-light mt-4 mb-2">3.3 Risk Transfer</h3>
+                    <h3 class="text-xl text-burgundy-light mt-4 mb-2">3.3 Risk Transfer</h3>
                     <p>
                         You acknowledge that the transmission of data over the internet carries inherent risks. By using
                         this Service, you assume full responsibility
@@ -123,7 +103,7 @@
                         that we have taken reasonable industry-standard precautions.
                     </p>
 
-                    <h3 class="text-xl text-accent-light mt-4 mb-2">3.4 Indemnification</h3>
+                    <h3 class="text-xl text-burgundy-light mt-4 mb-2">3.4 Indemnification</h3>
                     <p>
                         You agree to indemnify, defend, and hold harmless [Church Name] and its affiliates from and
                         against any and all claims, damages,
@@ -148,16 +128,17 @@
         </main>
 
         <!-- Footer -->
-        <footer class="mt-16 text-center text-muted text-sm pb-8">
+        <footer class="mt-16 text-center text-slate-400 text-sm pb-8">
             <p>&copy; 2026 NG5 LMS. All rights reserved.</p>
             <div class="mt-4 space-x-4">
-                <a href="index.html" class="hover:text-accent transition-colors">Return to Login</a>
+                <a href="index.html" class="hover:text-burgundy transition-colors">Return to Login</a>
                 <span>|</span>
-                <a href="privacy.html" class="hover:text-accent transition-colors">Privacy Policy</a>
+                <a href="privacy.html" class="hover:text-burgundy transition-colors">Privacy Policy</a>
             </div>
         </footer>
     </div>
 
+    <script type="module" src="/src/legal-tailwind.ts"></script>
 </body>
 
 </html>

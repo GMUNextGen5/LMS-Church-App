@@ -3,11 +3,13 @@
  * Holds LMS shell state (students, grades, attendance, selection) and wires Firebase listeners.
  */
 
+import './tailwind.css';
 import {
   auth,
   functions,
   httpsCallable,
   ensureFirebaseClient,
+  signOut,
 } from './core/firebase';
 import {
   getAppTheme,
@@ -1348,14 +1350,18 @@ function renderGradeCharts(grades: Grade[]): void {
     }
     const ctx = trendCanvas.getContext('2d');
     if (ctx) {
-      gradeTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: trendLabels,
-          datasets: [{ label: 'Grade %', data: trendData, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointBackgroundColor: '#06b6d4', pointBorderColor: pointBorder, pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 }],
-        },
-        options: chartOptions,
-      });
+      try {
+        gradeTrendChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: trendLabels,
+            datasets: [{ label: 'Grade %', data: trendData, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointBackgroundColor: '#06b6d4', pointBorderColor: pointBorder, pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 }],
+          },
+          options: chartOptions,
+        });
+      } catch {
+        gradeTrendChart = null;
+      }
     }
   }
 
@@ -1367,14 +1373,18 @@ function renderGradeCharts(grades: Grade[]): void {
     }
     const ctx = categoryCanvas.getContext('2d');
     if (ctx) {
-      categoryChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: categoryLabels,
-          datasets: [{ label: 'Average %', data: categoryAverages, backgroundColor: categoryLabels.map((_, i) => categoryColors[i % categoryColors.length]), borderRadius: 8, barThickness: 40 }],
-        },
-        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: (ctx: any) => `Average: ${ctx.raw}%` } } } },
-      });
+      try {
+        categoryChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: categoryLabels,
+            datasets: [{ label: 'Average %', data: categoryAverages, backgroundColor: categoryLabels.map((_, i) => categoryColors[i % categoryColors.length]), borderRadius: 8, barThickness: 40 }],
+          },
+          options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: (ctx: any) => `Average: ${ctx.raw}%` } } } },
+        });
+      } catch {
+        categoryChart = null;
+      }
     }
   }
 }
@@ -2051,6 +2061,7 @@ function openAccountIdModal(): void {
 }
 
 function showUidModal(uid: string, email: string): void {
+  hideLoading();
   const modalHtml = `
     <div class="space-y-4">
       <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
@@ -2080,7 +2091,16 @@ function showUidModal(uid: string, email: string): void {
       </div>
     </div>`;
 
-  showModal('Account Created!', modalHtml);
+  showModal('Account Created!', modalHtml, {
+    onDismiss: async () => {
+      try {
+        await signOut(auth);
+      } catch {
+        /* best-effort sign-out */
+      }
+      showAuthContainer();
+    },
+  });
 
   setTimeout(() => {
     const cpBtn = document.getElementById('copy-uid-btn');

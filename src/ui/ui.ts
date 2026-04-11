@@ -64,6 +64,13 @@ const aiModalClose = document.getElementById('ai-modal-close');
 
 let currentUserRole: UserRole | null = null;
 
+/** Optional hook invoked after the AI modal is hidden (e.g. sign-out after "Account Created"). */
+let modalOnDismiss: (() => void | Promise<void>) | null = null;
+
+export type ShowModalOptions = {
+  onDismiss?: () => void | Promise<void>;
+};
+
 /** Binds auth tab buttons, main tab buttons, and AI modal dismiss controls. */
 export function initUI(): void {
   loginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
@@ -255,14 +262,27 @@ function clearForms(): void {
 }
 
 /** Opens the AI results modal with a sanitized HTML body. */
-export function showModal(title: string, content: string): void {
+export function showModal(title: string, content: string, options?: ShowModalOptions): void {
+  modalOnDismiss = options?.onDismiss ?? null;
   if (aiModalTitle) aiModalTitle.textContent = title ?? '';
   if (aiModalContent) aiModalContent.innerHTML = sanitizeHTML(typeof content === 'string' ? content : '');
   aiModal?.classList.remove('hide');
 }
 
-export function closeModal(): void {
+async function runModalDismissPipeline(): Promise<void> {
+  const cb = modalOnDismiss;
+  modalOnDismiss = null;
   aiModal?.classList.add('hide');
+  if (!cb) return;
+  try {
+    await cb();
+  } catch {
+    /* caller handles user messaging; never block modal teardown */
+  }
+}
+
+export function closeModal(): void {
+  void runModalDismissPipeline();
 }
 
 export {
