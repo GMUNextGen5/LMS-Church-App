@@ -7098,28 +7098,44 @@
             }
 
             // Sync user info between desktop and mobile
+            let syncingUserInfo = false;
             function syncUserInfo() {
                 const userEmail = document.getElementById('user-email');
                 const mobileUserEmail = document.getElementById('mobile-user-email');
                 const userRoleBadge = document.getElementById('user-role-badge');
                 const mobileUserRoleBadge = document.getElementById('mobile-user-role-badge');
 
-                if (userEmail && mobileUserEmail) {
-                    mobileUserEmail.textContent = userEmail.textContent;
-                }
+                if (syncingUserInfo) return;
+                syncingUserInfo = true;
+                try {
+                    if (userEmail && mobileUserEmail) {
+                        const next = userEmail.textContent;
+                        if (mobileUserEmail.textContent !== next) {
+                            mobileUserEmail.textContent = next;
+                        }
+                    }
 
-                if (userRoleBadge && mobileUserRoleBadge) {
-                    mobileUserRoleBadge.textContent = userRoleBadge.textContent;
+                    if (userRoleBadge && mobileUserRoleBadge) {
+                        const nextRole = userRoleBadge.textContent;
+                        if (mobileUserRoleBadge.textContent !== nextRole) {
+                            mobileUserRoleBadge.textContent = nextRole;
+                        }
+                    }
+                } finally {
+                    syncingUserInfo = false;
                 }
             }
 
-            // Sync user info when the source changes (avoid a 1s polling loop).
+            // Sync when desktop source nodes change only — do not observe #app-container, because
+            // updating the mobile mirror nodes lives under that subtree and would re-trigger forever.
             try {
-                const sourceRoot = document.getElementById('app-container');
-                if (sourceRoot) {
-                    const obs = new MutationObserver(() => syncUserInfo());
-                    obs.observe(sourceRoot, { subtree: true, characterData: true, childList: true });
-                }
+                const obs = new MutationObserver(() => syncUserInfo());
+                const opts = { subtree: true, characterData: true, childList: true };
+                const userEmailEl = document.getElementById('user-email');
+                const userRoleBadgeEl = document.getElementById('user-role-badge');
+                if (userEmailEl) obs.observe(userEmailEl, opts);
+                if (userRoleBadgeEl) obs.observe(userRoleBadgeEl, opts);
+                syncUserInfo();
             } catch (e) {
                 // fallback: one-time sync is fine
             }
@@ -8966,19 +8982,26 @@
 
         // Copy AI response to clipboard
         function copyAIResponse(button, text) {
-            navigator.clipboard.writeText(text).then(() => {
-                const originalHTML = button.innerHTML;
-                button.innerHTML = `
+            try {
+                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                    throw new Error('clipboard unavailable');
+                }
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalHTML = button.innerHTML;
+                    button.innerHTML = `
                     <svg class="w-4 h-4 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
                 `;
-                button.classList.add('text-accent-400');
-                setTimeout(() => {
-                    button.innerHTML = originalHTML;
-                    button.classList.remove('text-accent-400');
-                }, 2000);
-            });
+                    button.classList.add('text-accent-400');
+                    setTimeout(() => {
+                        button.innerHTML = originalHTML;
+                        button.classList.remove('text-accent-400');
+                    }, 2000);
+                }).catch(function () { /* restricted context / denied */ });
+            } catch (e) {
+                /* sync failure from missing API */
+            }
         }
 
         // Make copyAIResponse globally accessible

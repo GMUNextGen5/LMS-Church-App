@@ -81,7 +81,11 @@ function markAuthShellReady(): void {
   }
 }
 
-/** Defers DOM writes until after the next paint so layout exists (reduces DevTools-only race symptoms). */
+/**
+ * Defers DOM writes until after the next paint so layout exists (reduces DevTools-only race symptoms).
+ * Callbacks must not synchronously call `scheduleDomPaint` in a tight self-retriggering loop; current
+ * call sites only enqueue one paint batch per user/auth event.
+ */
 function scheduleDomPaint(fn: () => void): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -2154,18 +2158,8 @@ function showUidModal(uid: string, email: string): void {
   showModal('Account Created!', modalHtml, {
     onDismiss: () => {
       showAuthContainer();
-      const signOutLast = (): void => {
-        void signOut(auth).catch(() => {
-          /* best-effort; do not await — InPrivate can stall auth promises */
-        });
-      };
-      if (typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(signOutLast);
-        });
-      } else {
-        signOutLast();
-      }
+      // Fire-and-forget: InPrivate / blocked IndexedDB must not block the dismiss pipeline.
+      signOut(auth).catch(() => {});
     },
   });
 }
