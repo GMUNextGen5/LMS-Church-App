@@ -36,6 +36,9 @@ export interface User {
   notes?: string;
 }
 
+/**
+ * Learner roster record (`students/{id}`). Profile photos are not modeled or rendered — UI uses initials only.
+ */
 export interface Student {
   id: string;
   name: string;

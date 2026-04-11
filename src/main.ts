@@ -1,11 +1,9 @@
-/**
- * Main application entry. Orchestrates auth, UI, data loading, and tab behavior.
- * Holds LMS shell state (students, grades, attendance, selection) and wires Firebase listeners.
- */
+/** Application bootstrap: auth, shell state, and tab wiring. */
 
 import './assets/styles/tailwind.css';
 import './core/shims/chart-bridge';
 import './core/shims/jspdf-bridge';
+import { reportClientFault } from './core/client-errors';
 import {
   auth,
   db,
@@ -16,6 +14,8 @@ import {
   signOut,
   doc,
   getDoc,
+  collection,
+  getDocs,
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
@@ -60,6 +60,7 @@ import {
 import {
   fetchStudents,
   addGrade,
+  updateGrade,
   deleteGrade,
   listenToGrades,
   exportGradesToCSV,
@@ -72,29 +73,80 @@ import {
   updateUserRoleDirect,
   createTeacher,
   saveUserSelfServiceProfile,
+  fetchGradesForManyStudents,
+  calculateStudentCumulativeGPA,
+  invalidateStudentGpaSessionCache,
+  invalidateStudentGpaSessionCacheIfUserChanged,
+  seedStudentGpaSessionCache,
+  computeCumulativeGpaFromGrades,
+  studentHasCountableGradesForGpa,
+  assertLearnerMayAccessStudentProfile,
 } from './data/data';
-import { User, Student, Grade, Attendance } from './types';
-import { userProfileDisplayLabel } from './data/classes-data';
+import {
+  countPendingSubmissionsForTeacher,
+  fetchNextStudentDeadline,
+  fetchTeacherAssessmentDashboardRows,
+  fetchTeacherGradingQueueRows,
+  fetchStudentUpcomingAssessmentsMobile,
+  type NextStudentDeadlineResult,
+  type TeacherAssessmentDashboardRow,
+  type TeacherGradingQueueRow,
+  type StudentUpcomingAssessmentMobile,
+} from './data/assessment-data';
+import {
+  markAllStudentsPresent,
+  pickActiveSessionClassId,
+  localDateKey,
+} from './data/attendance-data';
+import { User, UserRole, Student, Grade, Attendance, Course } from './types';
+import { userProfileDisplayLabel, fetchTeacherClasses, fetchStudentClasses } from './data/classes-data';
 import { Chart } from 'chart.js';
 import type { ChartConfiguration, TooltipItem } from 'chart.js';
 
 type AnyChartInstance = InstanceType<typeof Chart>;
 import { initAssessments, loadAssessments } from './ui/assessment-ui';
 import { initClasses, loadClasses } from './ui/classes-ui';
+import {
+  initAttendanceBulkUI,
+  refreshAttendanceBulkRoster,
+  renderAttendanceHistoryRows,
+  attendanceHistoryEmptyRowHtml,
+} from './ui/attendance-ui';
+import { clearGradesMobilePending, initGradesMobileUI, renderGradesMobile } from './ui/grades-mobile-ui';
 import { initLegalModals } from './ui/legal';
 import { setupSignupPasswordStrengthMeter } from './ui/signup-password-strength';
 import { setupProfilePasswordStrengthMeter } from './ui/profile-password-strength';
 import { evaluatePasswordStrength } from './core/password-strength';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './core/legal-versions';
 import { LMS_SEARCH_DEBOUNCE_MS } from './core/input-timing';
-import { escapeHtmlText, renderTemplate } from './ui/dom-render';
+import {
+  finitePctForBar,
+  finiteToFixed,
+  initialsForAvatarLabel,
+  pickAvatarDiscPalette,
+  safeAssignmentTitle,
+  safeCourseChromeTitle,
+  safeCourseDisplayName,
+  safeCourseListLabel,
+  safeStudentDisplayName,
+} from './core/display-fallbacks';
+import {
+  emptyStateBlockHtml,
+  emptyStateTableRowHtml,
+  escapeHtmlText,
+  renderTemplate,
+} from './ui/dom-render';
 
 let currentStudents: Student[] = [];
 let currentGrades: Grade[] = [];
 let currentAttendance: Attendance[] = [];
 let selectedStudentId: string | null = null;
+let attendanceRollCourses: Course[] = [];
 let gradesUnsubscribe: (() => void) | null = null;
 let particleSystem: ParticleSystem | null = null;
+
+const LMS_LAST_ATTENDANCE_CLASS_KEY = 'lms-attendance-last-class-id';
+const GO_LIVE_BUTTON_LABEL = 'GO LIVE';
 
 type LmsGlobalWindow = Window & {
   handleEditStudent?: (id: string) => void;
@@ -102,11 +154,174 @@ type LmsGlobalWindow = Window & {
   handleDeleteTeacher?: (id: string) => Promise<void>;
   handleChangeRole?: (id: string, role: string) => Promise<void>;
   handleDeleteGrade?: (sid: string, gid: string) => Promise<void>;
-  updateSidebarUserInfo?: (label: string, role: string) => void;
+  updateSidebarUserInfo?: (label: string, role: string, email?: string) => void;
   askAISuggestion?: (q: string) => void;
+  /** Clears in-memory AI thread and restores the static welcome block (privacy on role change). */
+  resetLmsAiAdvisorSession?: () => void;
 };
 
 type TabSwitchedDetail = { tab?: string };
+
+type MobileBottomNavItem = { tab: string; label: string; icon: string };
+
+const MOBILE_NAV_TEACHER: MobileBottomNavItem[] = [
+  { tab: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { tab: 'attendance', label: 'Attendance', icon: 'check_circle' },
+  { tab: 'grades', label: 'Grades', icon: 'grading' },
+  { tab: 'student-profile', label: 'Profile', icon: 'person' },
+];
+
+const MOBILE_NAV_STUDENT: MobileBottomNavItem[] = [
+  { tab: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { tab: 'classes', label: 'Classes', icon: 'school' },
+  { tab: 'grades', label: 'Grades', icon: 'analytics' },
+  { tab: 'student-profile', label: 'Profile', icon: 'person' },
+];
+
+const MOBILE_NAV_ADMIN: MobileBottomNavItem[] = [
+  { tab: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { tab: 'users', label: 'Users', icon: 'manage_accounts' },
+  { tab: 'classes', label: 'Classes', icon: 'class' },
+  { tab: 'student-profile', label: 'Profile', icon: 'person' },
+];
+
+/** Theme-aware mobile bottom nav (light glass bar vs dark bar). */
+const LMS_MOBILE_NAV_INACTIVE_CLASSES = [
+  'text-slate-700',
+  'dark:text-slate-300',
+  'hover:text-slate-950',
+  'dark:hover:text-white',
+] as const;
+
+const LMS_MOBILE_NAV_ACTIVE_CLASSES = [
+  'bg-primary-100',
+  'dark:bg-primary-500/15',
+  'text-primary-900',
+  'dark:text-primary-300',
+  'ring-1',
+  'ring-primary-300/55',
+  'dark:ring-primary-400/35',
+] as const;
+
+function applyMobileNavBtnVisualState(btn: Element, active: boolean): void {
+  const el = btn as HTMLElement;
+  for (const c of LMS_MOBILE_NAV_INACTIVE_CLASSES) {
+    el.classList.toggle(c, !active);
+  }
+  for (const c of LMS_MOBILE_NAV_ACTIVE_CLASSES) {
+    el.classList.toggle(c, active);
+  }
+}
+
+let lastRenderedMobileNavRole: UserRole | null | undefined;
+
+function getActiveMainTabFromDom(): string {
+  const el = document.querySelector('#app-container .tab-content:not(.hide)');
+  if (!el?.id) return 'dashboard';
+  const m = el.id.match(/^(.+)-content$/);
+  return m?.[1] ?? 'dashboard';
+}
+
+/**
+ * Updates teal “pill” active styles on mobile bottom nav buttons (kept in sync with `switchToTab`).
+ */
+function syncMobileBottomNavActiveState(tabName: string): void {
+  document.querySelectorAll('.lms-mobile-nav-btn[data-tab]').forEach(btn => {
+    const id = btn.getAttribute('data-tab');
+    const on = id === tabName;
+    applyMobileNavBtnVisualState(btn, on);
+    btn.setAttribute('aria-current', on ? 'page' : 'false');
+  });
+}
+
+/**
+ * Rebuilds the fixed mobile bottom bar from `index.html`’s `#lms-mobile-bottom-nav-slot` via `replaceChildren`.
+ * Mapping: Teacher → Dashboard / Attendance / Grades / Profile; Student → Dashboard / Classes / Grades / Profile;
+ * Admin → Dashboard / Users / Classes / Profile.
+ */
+function renderRoleBasedBottomNav(role: UserRole | null): void {
+  const slot = document.getElementById('lms-mobile-bottom-nav-slot');
+  if (!slot) return;
+
+  if (role == null) {
+    lastRenderedMobileNavRole = undefined;
+    slot.replaceChildren();
+    return;
+  }
+
+  const items: MobileBottomNavItem[] =
+    role === 'teacher' ? MOBILE_NAV_TEACHER : role === 'student' ? MOBILE_NAV_STUDENT : role === 'admin' ? MOBILE_NAV_ADMIN : [];
+
+  if (items.length === 0) {
+    lastRenderedMobileNavRole = undefined;
+    slot.replaceChildren();
+    return;
+  }
+
+  const win = window as unknown as { switchToTab?: (t: string) => void };
+  let activeTab = getActiveMainTabFromDom();
+  if (!items.some(i => i.tab === activeTab)) {
+    activeTab = 'dashboard';
+    win.switchToTab?.('dashboard');
+  }
+
+  const sameRole = lastRenderedMobileNavRole === role;
+  lastRenderedMobileNavRole = role;
+
+  if (sameRole) {
+    syncMobileBottomNavActiveState(getActiveMainTabFromDom());
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const item of items) {
+    const on = item.tab === activeTab;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = [
+      'lms-mobile-nav-btn',
+      'flex flex-col items-center justify-center gap-1',
+      'flex-1 min-h-[48px] min-w-[48px]',
+      'rounded-2xl px-2 py-2 transition-colors touch-manipulation',
+      ...(on ? LMS_MOBILE_NAV_ACTIVE_CLASSES : LMS_MOBILE_NAV_INACTIVE_CLASSES),
+    ].join(' ');
+    btn.setAttribute('data-tab', item.tab);
+    btn.setAttribute('data-lms-action', 'switch-tab');
+    btn.setAttribute('data-lms-tab', item.tab);
+    btn.setAttribute('aria-label', item.label);
+    btn.setAttribute('aria-current', on ? 'page' : 'false');
+
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined text-[26px] leading-none shrink-0 select-none';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = item.icon;
+
+    const lab = document.createElement('span');
+    lab.className = 'text-[9px] font-bold uppercase tracking-wide truncate max-w-full text-center';
+    lab.textContent = item.label;
+
+    btn.append(icon, lab);
+    frag.appendChild(btn);
+  }
+
+  slot.replaceChildren(frag);
+  syncMobileBottomNavActiveState(activeTab);
+}
+
+function installRoleBasedMobileNavBridge(): void {
+  const w = window as unknown as {
+    syncMobileBottomNavActiveState?: (tab: string) => void;
+    renderRoleBasedBottomNav?: (role: UserRole | null) => void;
+  };
+  w.syncMobileBottomNavActiveState = syncMobileBottomNavActiveState;
+  w.renderRoleBasedBottomNav = renderRoleBasedBottomNav;
+
+  const onRole = (ev: Event): void => {
+    const role = (ev as CustomEvent<{ role: UserRole | null }>).detail?.role ?? null;
+    renderRoleBasedBottomNav(role);
+  };
+  document.addEventListener('lms-role-configured', onRole);
+}
 
 /** True after the first auth-driven shell update finishes (or bootstrap gave up / config failed). */
 let authShellReady = false;
@@ -182,6 +397,20 @@ function setupLmsDelegatedActions(): void {
       const sid = el.dataset.studentId;
       const gid = el.dataset.gradeId;
       if (sid && gid) await gw.handleDeleteGrade?.(sid, gid);
+      return;
+    }
+    if (action === 'dashboard-open-assessments') {
+      const w = window as unknown as { switchToTab?: (t: string) => void };
+      w.switchToTab?.('assessments');
+      return;
+    }
+    if (action === 'switch-tab') {
+      const tab = el.dataset.lmsTab?.trim();
+      if (tab) {
+        const w = window as unknown as { switchToTab?: (t: string) => void };
+        w.switchToTab?.(tab);
+      }
+      return;
     }
   });
 }
@@ -202,6 +431,12 @@ async function init(): Promise<void> {
     initUI();
   } catch {
     // UI boot should not block Firebase init; fall through to banner-based error handling if needed.
+  }
+
+  try {
+    installRoleBasedMobileNavBridge();
+  } catch {
+    /* mobile nav bridge */
   }
 
   (window as Window & { lmsShowToast?: (m: string, k?: 'success' | 'error' | 'info') => void }).lmsShowToast = (
@@ -247,6 +482,12 @@ async function init(): Promise<void> {
     /* IndexedDB / persistence denied: in-memory fallback attempted in ensureAuthPersistence */
   }
 
+  try {
+    setupAIAgentChat();
+  } catch {
+    /* AI advisor wiring */
+  }
+
   /**
    * Watchdog: if `onAuthStateChanged` never delivers a callback, clear the overlay and show an error
    * (distinct from the 5s entry-point spinner guard in `runInit`).
@@ -277,7 +518,8 @@ async function init(): Promise<void> {
     }
     try {
       await handleAuthStateChange(user);
-    } catch {
+    } catch (e) {
+      reportClientFault(e);
       scheduleDomPaint(() => {
         showBootstrapError(
           'Dashboard load was interrupted. Please refresh the page. ' +
@@ -327,8 +569,14 @@ async function init(): Promise<void> {
   document.addEventListener('tab-switched', async (e: Event) => {
     const tab = (e as CustomEvent<TabSwitchedDetail>).detail?.tab;
     if (tab === 'classes') await loadClasses();
-    else if (tab === 'attendance' && selectedStudentId) await loadStudentAttendance(selectedStudentId);
-    else if (tab === 'dashboard') await loadRecentActivity();
+    else if (tab === 'attendance') {
+      refreshAttendanceBulkRoster();
+      if (selectedStudentId) await loadStudentAttendance(selectedStudentId);
+    }
+    else if (tab === 'dashboard') {
+      await refreshInstitutionalDashboardMetrics();
+      await loadRecentActivity();
+    }
     else if (tab === 'assessments') await loadAssessments();
     else if (tab === 'users') await loadAllUsers();
     else if (tab === 'student-profile') void loadUserProfile();
@@ -364,6 +612,39 @@ function getDashboardUrl(_role: User['role']): string {
   return new URL('/', window.location.origin).href;
 }
 
+/**
+ * Removes privileged admin/teacher DOM and in-session AI transcript before student data loads
+ * (mitigates stale markup and memory from a prior session on shared devices).
+ */
+function purgePrivilegedDashboardDomForStudent(): void {
+  const mountIds = [
+    'dashboard-institutional-mount',
+    'dashboard-mobile-shell',
+    'recent-activity',
+    'student-gpa-metric-root',
+    'student-deadline-metric-root',
+    'dashboard-student-mastery-row',
+    'grades-table-body',
+    'grades-mobile-cards',
+    'grades-mobile-progress-inner',
+    'users-table-body',
+    'registered-teachers-table-body',
+    'registered-students-table-body',
+    'attendance-history-body',
+    'attendance-roster-table-body',
+    'attendance-roll-call-root',
+  ];
+  for (const id of mountIds) {
+    document.getElementById(id)?.replaceChildren();
+  }
+  const rollEmpty = document.getElementById('roll-call-filter-empty-mount');
+  if (rollEmpty) {
+    rollEmpty.replaceChildren();
+    rollEmpty.classList.add('hidden');
+  }
+  (window as LmsGlobalWindow).resetLmsAiAdvisorSession?.();
+}
+
 /** Routes Firebase auth changes into UI visibility, role configuration, and data loads. */
 async function handleAuthStateChange(user: User | null): Promise<void> {
   const isValidProfile =
@@ -376,6 +657,20 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 
   // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
   if (isValidProfile) {
+    if (user.role === 'student') {
+      if (gradesUnsubscribe) {
+        gradesUnsubscribe();
+        gradesUnsubscribe = null;
+      }
+      clearGradesMobilePending();
+      currentStudents = [];
+      currentGrades = [];
+      currentAttendance = [];
+      selectedStudentId = null;
+      attendanceRollCourses = [];
+      institutionalSnapshot = { role: 'student' };
+      purgePrivilegedDashboardDomForStudent();
+    }
     const incomplete = userLegalAcceptanceIncomplete(user);
     if (incomplete) {
       scheduleDomPaint(() => {
@@ -417,9 +712,15 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       const userRole = getCurrentUserRole();
       const gw = window as LmsGlobalWindow;
       const sidebarLabel = userProfileDisplayLabel(user);
-      gw.updateSidebarUserInfo?.(sidebarLabel === '—' ? user.email || '' : sidebarLabel, userRole ?? 'student');
+      gw.updateSidebarUserInfo?.(
+        sidebarLabel === '—' ? user.email || '' : sidebarLabel,
+        userRole ?? 'student',
+        user.email || ''
+      );
     });
     markAuthShellReady();
+
+    invalidateStudentGpaSessionCacheIfUserChanged(user.uid);
 
     await loadDashboardData();
     void loadUserProfile();
@@ -811,6 +1112,7 @@ function setupAppForms(): void {
         await addGrade(selectedStudentId, gradeData);
         gradeEntryForm.reset();
       } catch (error: unknown) {
+        reportClientFault(error);
         showAppToast(formatErrorForUserToast(error, 'Could not add this grade.'), 'error');
       }
     });
@@ -860,8 +1162,6 @@ function setupAppForms(): void {
     refreshAccountsBtn.addEventListener('click', () => populateStudentAccountDropdown());
   }
 
-  setupAIAgentChat();
-
   const useManualBtn = document.getElementById('use-manual-uid-btn');
   const useDropdownBtn = document.getElementById('use-dropdown-btn');
   const dropdownMethod = document.getElementById('dropdown-method');
@@ -888,6 +1188,7 @@ function setupAppForms(): void {
   if (markAttendanceForm) {
     const dateInput = document.getElementById('attendance-date') as HTMLInputElement;
     if (dateInput) dateInput.valueAsDate = new Date();
+    updateAttendanceClassChrome();
     markAttendanceForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const errorEl = document.getElementById('mark-attendance-error');
@@ -940,13 +1241,56 @@ function setupAppForms(): void {
     });
   }
 
+  initAttendanceBulkUI({
+    getStudents: () => getRosterStudentsForAttendance(),
+    markOne: (studentId, payload) => markAttendance(studentId, payload),
+    showLoading,
+    hideLoading,
+    showToast: (message, variant) => showAppToast(message, variant),
+    formatError: formatErrorForUserToast,
+    onBulkSaved: async () => {
+      const sel = document.getElementById('attendance-student-select') as HTMLSelectElement | null;
+      if (sel?.value) await loadStudentAttendance(sel.value);
+    },
+  });
+
+  const attendanceClassSelect = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+  attendanceClassSelect?.addEventListener('change', () => {
+    const v = attendanceClassSelect?.value?.trim();
+    if (v) {
+      try {
+        localStorage.setItem(LMS_LAST_ATTENDANCE_CLASS_KEY, v);
+      } catch {
+        /* storage unavailable */
+      }
+    }
+    updateAttendanceClassChrome();
+    refreshAttendanceBulkRoster();
+  });
+  const attendanceDateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
+  attendanceDateInput?.addEventListener('change', () => updateAttendanceClassChrome());
+
+  initGradesMobileUI({
+    getStudentId: () => selectedStudentId,
+    getGrades: () => currentGrades,
+    updateGrade,
+    markAttendance,
+    showLoading,
+    hideLoading,
+    showToast: showAppToast,
+    formatError: formatErrorForUserToast,
+    refreshDisplay: () => displayGrades(currentGrades),
+  });
+
   const dashboardStudentSelect = document.getElementById('dashboard-student-select') as HTMLSelectElement;
   const dashboardStudentSearch = document.getElementById('dashboard-student-search') as HTMLInputElement;
   const selectedStudentInfo = document.getElementById('selected-student-info');
   const selectedStudentNameEl = document.getElementById('selected-student-name');
   const selectedStudentIdEl = document.getElementById('selected-student-id');
   const clearStudentSelection = document.getElementById('clear-student-selection');
-  const dashboardAttendanceCard = document.getElementById('dashboard-attendance-card');
+  const dashboardFilterEmptyEl = document.getElementById('dashboard-student-filter-empty');
+  const gradesFilterEmptyEl = document.getElementById('grades-student-filter-empty');
+  const attendanceFilterEmptyEl = document.getElementById('attendance-student-filter-empty');
 
   if (dashboardStudentSelect) {
     dashboardStudentSelect.addEventListener('change', async (e) => {
@@ -955,7 +1299,7 @@ function setupAppForms(): void {
         const student = currentStudents.find(s => s.id === studentId);
         if (student) {
           if (selectedStudentInfo && selectedStudentNameEl && selectedStudentIdEl) {
-            selectedStudentNameEl.textContent = student.name;
+            selectedStudentNameEl.textContent = safeStudentDisplayName(student.name);
             selectedStudentIdEl.textContent = `Member ID: ${student.memberId || 'N/A'}`;
             selectedStudentInfo.classList.remove('hide');
           }
@@ -964,16 +1308,29 @@ function setupAppForms(): void {
         }
       } else {
         selectedStudentInfo?.classList.add('hide');
-        dashboardAttendanceCard?.classList.add('hide');
-        updateDashboardStats();
+        await refreshInstitutionalDashboardMetrics();
         await loadRecentActivity();
       }
     });
   }
 
+  const headerStudentSearch = document.getElementById('lms-header-search-input') as HTMLInputElement | null;
+
+  const syncHeaderToDashboardSearch = (v: string): void => {
+    if (dashboardStudentSearch && document.activeElement !== dashboardStudentSearch) {
+      dashboardStudentSearch.value = v;
+    }
+  };
+
+  const syncDashboardToHeaderSearch = (v: string): void => {
+    if (headerStudentSearch && document.activeElement !== headerStudentSearch) {
+      headerStudentSearch.value = v;
+    }
+  };
+
   if (dashboardStudentSearch && dashboardStudentSelect) {
     const doSearch = debounce((searchTerm: string) => {
-      filterStudentSelectOptions(dashboardStudentSelect, searchTerm);
+      filterStudentSelectOptions(dashboardStudentSelect, searchTerm, dashboardFilterEmptyEl);
       const visibleOptions = Array.from(dashboardStudentSelect.querySelectorAll('option')).filter(
         opt => opt.value !== '' && opt.style.display !== 'none'
       );
@@ -983,7 +1340,29 @@ function setupAppForms(): void {
       }
     }, LMS_SEARCH_DEBOUNCE_MS);
     dashboardStudentSearch.addEventListener('input', (e) => {
-      doSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
+      if (e.target !== dashboardStudentSearch) return;
+      const raw = (e.target as HTMLInputElement).value;
+      syncDashboardToHeaderSearch(raw);
+      doSearch(raw.toLowerCase().trim());
+    });
+  }
+
+  if (headerStudentSearch && dashboardStudentSelect) {
+    const doHeaderSearch = debounce((searchTerm: string) => {
+      filterStudentSelectOptions(dashboardStudentSelect, searchTerm, dashboardFilterEmptyEl);
+      const visibleOptions = Array.from(dashboardStudentSelect.querySelectorAll('option')).filter(
+        opt => opt.value !== '' && opt.style.display !== 'none'
+      );
+      if (visibleOptions.length === 1 && searchTerm) {
+        dashboardStudentSelect.value = visibleOptions[0].value;
+        dashboardStudentSelect.dispatchEvent(new Event('change'));
+      }
+    }, LMS_SEARCH_DEBOUNCE_MS);
+    headerStudentSearch.addEventListener('input', (e) => {
+      if (e.target !== headerStudentSearch) return;
+      const raw = (e.target as HTMLInputElement).value;
+      syncHeaderToDashboardSearch(raw);
+      doHeaderSearch(raw.toLowerCase().trim());
     });
   }
 
@@ -991,9 +1370,11 @@ function setupAppForms(): void {
     clearStudentSelection.addEventListener('click', () => {
       if (dashboardStudentSelect) {
         dashboardStudentSelect.value = '';
+        filterStudentSelectOptions(dashboardStudentSelect, '', dashboardFilterEmptyEl);
         dashboardStudentSelect.dispatchEvent(new Event('change'));
       }
       if (dashboardStudentSearch) dashboardStudentSearch.value = '';
+      if (headerStudentSearch) headerStudentSearch.value = '';
     });
   }
 
@@ -1001,9 +1382,10 @@ function setupAppForms(): void {
   const studentSelectGrades = document.getElementById('student-select') as HTMLSelectElement;
   if (gradesStudentSearch && studentSelectGrades) {
     const doGradesSearch = debounce((searchTerm: string) => {
-      filterStudentSelectOptions(studentSelectGrades, searchTerm);
+      filterStudentSelectOptions(studentSelectGrades, searchTerm, gradesFilterEmptyEl);
     }, LMS_SEARCH_DEBOUNCE_MS);
     gradesStudentSearch.addEventListener('input', (e) => {
+      if (e.target !== gradesStudentSearch) return;
       doGradesSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
     });
   }
@@ -1012,9 +1394,10 @@ function setupAppForms(): void {
   const attendanceSelectEl = document.getElementById('attendance-student-select') as HTMLSelectElement;
   if (attendanceStudentSearch && attendanceSelectEl) {
     const doAttendanceSearch = debounce((searchTerm: string) => {
-      filterStudentSelectOptions(attendanceSelectEl, searchTerm);
+      filterStudentSelectOptions(attendanceSelectEl, searchTerm, attendanceFilterEmptyEl);
     }, LMS_SEARCH_DEBOUNCE_MS);
     attendanceStudentSearch.addEventListener('input', (e) => {
+      if (e.target !== attendanceStudentSearch) return;
       doAttendanceSearch((e.target as HTMLInputElement).value.toLowerCase().trim());
     });
   }
@@ -1033,7 +1416,7 @@ function setupAppForms(): void {
     });
   }
 
-  const studentProfileSaveBtn = document.getElementById('student-profile-save-btn');
+  const studentProfileSaveBtn = document.getElementById('student-profile-save-btn') as HTMLButtonElement | null;
   const studentProfileSaveStatus = document.getElementById('student-profile-save-status');
   if (studentProfileSaveBtn && !studentProfileSaveWired) {
     studentProfileSaveWired = true;
@@ -1047,6 +1430,7 @@ function setupAppForms(): void {
         studentProfileSaveStatus.textContent = '';
         studentProfileSaveStatus.classList.remove('text-red-400', 'text-green-400');
       }
+      studentProfileSaveBtn.disabled = true;
       try {
         await saveUserSelfServiceProfile({
           displayName: nameEl.value,
@@ -1058,24 +1442,215 @@ function setupAppForms(): void {
         const u = refreshed ?? getCurrentUser();
         if (u) {
           configureUIForRole(u);
+          setDashboardWelcome(u);
           const gw = window as LmsGlobalWindow;
           const sideLabel = userProfileDisplayLabel(u);
-          gw.updateSidebarUserInfo?.(sideLabel === '—' ? u.email || '' : sideLabel, u.role);
+          gw.updateSidebarUserInfo?.(sideLabel === '—' ? u.email || '' : sideLabel, u.role, u.email || '');
         }
         await loadUserProfile();
         showAppToast('Profile saved.', 'success');
       } catch (err: unknown) {
+        reportClientFault(err);
         const msg = formatErrorForUserToast(err, 'Could not save your profile.');
         showAppToast(msg, 'error');
         if (studentProfileSaveStatus) {
           studentProfileSaveStatus.textContent = msg;
           studentProfileSaveStatus.classList.add('text-red-400');
         }
+      } finally {
+        studentProfileSaveBtn.disabled = false;
       }
     });
   }
 
   wireProfilePasswordUpdate();
+  setupGoLiveButton();
+}
+
+function setupGoLiveButton(): void {
+  const btn = document.getElementById('lms-go-live-btn') as HTMLButtonElement | null;
+  if (!btn || (btn as HTMLElement & { __lmsGoLive?: boolean }).__lmsGoLive) return;
+  (btn as HTMLElement & { __lmsGoLive?: boolean }).__lmsGoLive = true;
+
+  btn.addEventListener('click', async () => {
+    const role = getCurrentUserRole();
+    const win = window as unknown as {
+      switchToTab?: (t: string) => void;
+      closeSidebar?: () => void;
+    };
+
+    if (role === 'admin') {
+      win.switchToTab?.('assessments');
+      win.closeSidebar?.();
+      return;
+    }
+    if (role === 'student') {
+      win.switchToTab?.('classes');
+      win.closeSidebar?.();
+      return;
+    }
+    if (role !== 'teacher') {
+      showAppToast('Sign in as a teacher or administrator to use Go Live.', 'info');
+      return;
+    }
+
+    const textEl = btn.querySelector('.lms-go-live-text');
+    const spinEl = btn.querySelector('.lms-go-live-spinner');
+    const prevLabel = (textEl?.textContent || btn.textContent || GO_LIVE_BUTTON_LABEL).trim();
+
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    if (textEl && spinEl) {
+      textEl.textContent = 'Saving…';
+      spinEl.classList.remove('hide');
+    } else {
+      btn.textContent = 'Saving…';
+    }
+
+    try {
+      if (attendanceRollCourses.length === 0) {
+        await populateAttendanceClassSelect();
+      }
+
+      let classId = pickActiveSessionClassId(attendanceRollCourses, new Date());
+      if (!classId) {
+        try {
+          const raw = localStorage.getItem(LMS_LAST_ATTENDANCE_CLASS_KEY);
+          if (raw && attendanceRollCourses.some((c) => c.id === raw)) classId = raw;
+        } catch {
+          /* storage unavailable */
+        }
+      }
+      if (!classId) {
+        const sel = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+        const v = sel?.value?.trim() ?? '';
+        if (v && attendanceRollCourses.some((c) => c.id === v)) classId = v;
+      }
+      if (!classId) {
+        showAppToast('No active class found. Please select a class to go live.', 'info');
+        return;
+      }
+
+      const dateKey = localDateKey();
+      const { count, courseName } = await markAllStudentsPresent(classId, dateKey);
+
+      try {
+        localStorage.setItem(LMS_LAST_ATTENDANCE_CLASS_KEY, classId);
+      } catch {
+        /* ignore */
+      }
+
+      const dateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
+      if (dateInput) dateInput.value = dateKey;
+
+      const classSel = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+      if (classSel && attendanceRollCourses.some((c) => c.id === classId)) {
+        classSel.value = classId;
+        updateAttendanceClassChrome();
+      }
+      refreshAttendanceBulkRoster();
+
+      const histSel = document.getElementById('attendance-student-select') as HTMLSelectElement | null;
+      if (histSel?.value) await loadStudentAttendance(histSel.value);
+
+      win.closeSidebar?.();
+      win.switchToTab?.('attendance');
+
+      if (count === 0) {
+        showAppToast('No enrolled students in this class to mark present.', 'info');
+      } else {
+        showAppToast(
+          `Attendance recorded: All students marked Present for ${courseName}.`,
+          'success'
+        );
+      }
+    } catch (err: unknown) {
+      reportClientFault(err);
+      showAppToast(formatErrorForUserToast(err, 'Could not record attendance.'), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      if (textEl && spinEl) {
+        textEl.textContent = prevLabel || GO_LIVE_BUTTON_LABEL;
+        spinEl.classList.add('hide');
+      } else {
+        btn.textContent = prevLabel || GO_LIVE_BUTTON_LABEL;
+      }
+    }
+  });
+}
+
+function getRosterStudentsForAttendance(): Student[] {
+  const sel = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+  const courseId = sel?.value?.trim() ?? '';
+  if (!courseId) return currentStudents;
+  const c = attendanceRollCourses.find((x) => x.id === courseId);
+  if (!c?.studentIds?.length) return currentStudents;
+  const allowed = new Set(c.studentIds);
+  return currentStudents.filter((s) => allowed.has(s.id));
+}
+
+function updateAttendanceClassChrome(): void {
+  const sel = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+  const titleEl = document.getElementById('attendance-active-class-title');
+  const metaDate = document.getElementById('attendance-meta-date');
+  const dateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
+  if (metaDate && dateInput?.value) {
+    const d = new Date(`${dateInput.value}T12:00:00`);
+    metaDate.textContent = Number.isNaN(d.getTime())
+      ? dateInput.value
+      : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  const courseId = sel?.value?.trim() ?? '';
+  const metaExtra = document.getElementById('attendance-meta-extra');
+  if (!titleEl) return;
+  if (!courseId) {
+    titleEl.textContent = 'All students';
+    if (metaExtra) metaExtra.textContent = '';
+    return;
+  }
+  const c = attendanceRollCourses.find((x) => x.id === courseId);
+  titleEl.textContent = c ? safeCourseChromeTitle(c) : 'Active class';
+  if (metaExtra) {
+    if (c) {
+      const bits = [c.schedule, c.description].filter((x) => typeof x === 'string' && x.trim()) as string[];
+      metaExtra.textContent = bits.length ? ` · ${bits.join(' · ')}` : '';
+    } else {
+      metaExtra.textContent = '';
+    }
+  }
+}
+
+async function populateAttendanceClassSelect(): Promise<void> {
+  const sel = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+  if (!sel) return;
+  const role = getCurrentUserRole();
+  try {
+    if (role === 'teacher') {
+      attendanceRollCourses = await fetchTeacherClasses();
+    } else if (role === 'admin') {
+      const snap = await getDocs(collection(db, 'courses'));
+      attendanceRollCourses = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Course));
+    } else {
+      attendanceRollCourses = [];
+    }
+  } catch {
+    attendanceRollCourses = [];
+  }
+  const prev = sel.value;
+  sel.replaceChildren();
+  const optAll = document.createElement('option');
+  optAll.value = '';
+  optAll.textContent = 'All students';
+  sel.append(optAll);
+  for (const c of attendanceRollCourses) {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = safeCourseListLabel(c);
+    sel.append(o);
+  }
+  if (prev && attendanceRollCourses.some((x) => x.id === prev)) sel.value = prev;
+  updateAttendanceClassChrome();
 }
 
 // --- Dashboard data loading ---
@@ -1083,7 +1658,8 @@ async function loadDashboardData(): Promise<void> {
   try {
     currentStudents = await fetchStudents();
     updateStudentSelect();
-    updateDashboardStats();
+    setDashboardWelcome(getCurrentUser());
+    await refreshInstitutionalDashboardMetrics();
     syncNavbarUidField();
     await Promise.all([
       loadRecentActivity(),
@@ -1092,7 +1668,12 @@ async function loadDashboardData(): Promise<void> {
       loadAllUsers(),
       populateStudentAccountDropdown(),
     ]);
-  } catch { /* dashboard load error */ }
+    await populateAttendanceClassSelect();
+    refreshAttendanceBulkRoster();
+    updateAttendanceClassChrome();
+  } catch (e: unknown) {
+    reportClientFault(e);
+  }
 }
 
 async function loadRegisteredStudents(): Promise<void> {
@@ -1104,27 +1685,32 @@ async function loadRegisteredStudents(): Promise<void> {
     if (currentStudents.length === 0) {
       renderTemplate(
         tableBody,
-        '<tr><td colspan="5" class="text-center py-8 text-dark-300">No students registered yet</td></tr>'
+        emptyStateTableRowHtml(
+          5,
+          'No learners registered yet',
+          'Add a student from Registration to build your DSKM roster.',
+          ''
+        )
       );
       return;
     }
     const studentsRowsHtml = currentStudents.map(student => {
-      const memberId = (student.memberId || '').toLowerCase().replace(/"/g, '&quot;');
-      const name = (student.name || '').toLowerCase().replace(/"/g, '&quot;');
-      const email = (student.contactEmail || '').toLowerCase().replace(/"/g, '&quot;');
+      const memberId = escapeHtmlText((student.memberId || '').toLowerCase());
+      const name = escapeHtmlText((student.name || '').toLowerCase());
+      const email = escapeHtmlText((student.contactEmail || '').toLowerCase());
       return `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors registered-student-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
+      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors registered-student-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
         <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(student.memberId || 'N/A')}</td>
-        <td class="py-3 px-4 text-white">${escapeHtmlText(student.name)}</td>
+        <td class="py-3 px-4 text-white">${escapeHtmlText(safeStudentDisplayName(student.name))}</td>
         <td class="py-3 px-4 text-center text-dark-300">${student.yearOfBirth ?? 'N/A'}</td>
         <td class="py-3 px-4 text-dark-300 text-sm">
           ${escapeHtmlText(student.contactEmail || 'N/A')}<br>
           ${escapeHtmlText(student.contactPhone || '')}
         </td>
         <td class="py-3 px-4 text-center">
-          <button type="button" data-lms-action="edit-student" data-student-id="${student.id}"
+          <button type="button" data-lms-action="edit-student" data-student-id="${escapeHtmlText(student.id)}"
             class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm mr-2">Edit</button>
-          <button type="button" data-lms-action="delete-student" data-student-id="${student.id}"
+          <button type="button" data-lms-action="delete-student" data-student-id="${escapeHtmlText(student.id)}"
             class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
@@ -1144,17 +1730,22 @@ async function loadRegisteredTeachers(): Promise<void> {
     if (teachers.length === 0) {
       renderTemplate(
         tableBody,
-        '<tr><td colspan="5" class="text-center py-8 text-dark-300">No teachers registered yet</td></tr>'
+        emptyStateTableRowHtml(
+          5,
+          'No teachers registered yet',
+          'Register an instructor from Registration when you are ready to onboard staff.',
+          ''
+        )
       );
       return;
     }
     const teachersRowsHtml = teachers.map((t: User) => {
-      const memberId = (t.memberId || '').toLowerCase().replace(/"/g, '&quot;');
       const displayName = userProfileDisplayLabel(t);
-      const name = displayName.toLowerCase().replace(/"/g, '&quot;');
-      const email = (t.email || '').toLowerCase().replace(/"/g, '&quot;');
+      const memberId = escapeHtmlText((t.memberId || '').toLowerCase());
+      const name = escapeHtmlText(displayName.toLowerCase());
+      const email = escapeHtmlText((t.email || '').toLowerCase());
       return `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors registered-teacher-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
+      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors registered-teacher-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
         <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(t.memberId || 'N/A')}</td>
         <td class="py-3 px-4 text-white">${escapeHtmlText(displayName === '—' ? t.email || 'N/A' : displayName)}</td>
         <td class="py-3 px-4 text-center text-dark-300">${t.yearOfBirth ?? 'N/A'}</td>
@@ -1162,7 +1753,7 @@ async function loadRegisteredTeachers(): Promise<void> {
           ${escapeHtmlText(t.email || 'N/A')}<br>${escapeHtmlText(t.phone || t.phoneNumber || '')}
         </td>
         <td class="py-3 px-4 text-center">
-          <button type="button" data-lms-action="delete-teacher" data-user-id="${t.uid}"
+          <button type="button" data-lms-action="delete-teacher" data-user-id="${escapeHtmlText(t.uid)}"
             class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
@@ -1185,7 +1776,12 @@ async function loadAllUsers(): Promise<void> {
     if (users.length === 0) {
       renderTemplate(
         tableBody,
-        '<tr><td colspan="4" class="text-center py-8 text-dark-300">No users found</td></tr>'
+        emptyStateTableRowHtml(
+          4,
+          'No accounts in the directory',
+          'User records will appear here as administrators, teachers, and learners are provisioned.',
+          ''
+        )
       );
       return;
     }
@@ -1198,20 +1794,23 @@ async function loadAllUsers(): Promise<void> {
       }
     };
     const usersRowsHtml = users.map((user: User) => {
-      const email = (user.email || '').toLowerCase().replace(/"/g, '&quot;');
       const accountLabel = userProfileDisplayLabel(user);
-      const name = accountLabel.toLowerCase().replace(/"/g, '&quot;');
+      const emailAttr = escapeHtmlText((user.email || '').toLowerCase());
+      const nameAttr = escapeHtmlText(accountLabel.toLowerCase());
+      const uidAttr = escapeHtmlText(user.uid);
+      const roleAttr = escapeHtmlText(user.role);
+      const roleLabel = escapeHtmlText(user.role.charAt(0).toUpperCase() + user.role.slice(1));
       return `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors user-management-row" data-email="${email}" data-name="${name}">
+      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors user-management-row" data-email="${emailAttr}" data-name="${nameAttr}">
         <td class="py-3 px-4 text-white">${escapeHtmlText(user.email)}</td>
         <td class="py-3 px-4 text-center">
           <span class="px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeClass(user.role)}">
-            ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+            ${roleLabel}
           </span>
         </td>
         <td class="py-3 px-4 text-center text-dark-300 text-sm">${escapeHtmlText(accountLabel)}</td>
         <td class="py-3 px-4 text-center">
-          <button type="button" data-lms-action="change-role" data-user-id="${user.uid}" data-user-role="${user.role}"
+          <button type="button" data-lms-action="change-role" data-user-id="${uidAttr}" data-user-role="${roleAttr}"
             class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm">Change Role</button>
         </td>
       </tr>
@@ -1384,18 +1983,35 @@ async function populateTeacherAccountDropdown(): Promise<void> {
   }
 }
 
-function filterStudentSelectOptions(selectEl: HTMLSelectElement, searchTerm: string): void {
+function filterStudentSelectOptions(
+  selectEl: HTMLSelectElement,
+  searchTerm: string,
+  emptyHintEl?: HTMLElement | null
+): void {
   const q = searchTerm.toLowerCase();
   const options = selectEl.querySelectorAll('option');
+  let visible = 0;
   options.forEach(option => {
     if (option.value === '') return;
     const name = option.getAttribute('data-name') || '';
     const email = option.getAttribute('data-email') || '';
     const memberId = option.getAttribute('data-member-id') || '';
     const text = option.textContent?.toLowerCase() || '';
-    option.style.display =
-      !q || name.includes(q) || email.includes(q) || memberId.includes(q) || text.includes(q) ? '' : 'none';
+    const show =
+      !q || name.includes(q) || email.includes(q) || memberId.includes(q) || text.includes(q);
+    option.style.display = show ? '' : 'none';
+    if (show) visible++;
   });
+  if (emptyHintEl) {
+    if (searchTerm.trim() && visible === 0) {
+      emptyHintEl.textContent =
+        'No learners match this search. Try another name or clear the filter.';
+      emptyHintEl.classList.remove('hidden');
+    } else {
+      emptyHintEl.textContent = '';
+      emptyHintEl.classList.add('hidden');
+    }
+  }
 }
 
 // --- Student dropdowns (registration, dashboard, attendance) ---
@@ -1412,9 +2028,10 @@ function updateStudentSelect(): void {
     sel.appendChild(placeholder);
     currentStudents.forEach(student => {
       const option = document.createElement('option');
+      const label = safeStudentDisplayName(student.name);
       option.value = student.id;
-      option.textContent = student.name + (student.memberId ? ` (ID: ${student.memberId})` : '');
-      option.setAttribute('data-name', student.name.toLowerCase());
+      option.textContent = label + (student.memberId ? ` (ID: ${student.memberId})` : '');
+      option.setAttribute('data-name', label.toLowerCase());
       option.setAttribute('data-email', (student.contactEmail || '').toLowerCase());
       option.setAttribute('data-member-id', (student.memberId || '').toLowerCase());
       sel.appendChild(option);
@@ -1422,8 +2039,18 @@ function updateStudentSelect(): void {
   };
 
   fillStudentSelect(studentSelect);
-  if (attendanceStudentSelect) fillStudentSelect(attendanceStudentSelect);
+  if (attendanceStudentSelect)     fillStudentSelect(attendanceStudentSelect);
   if (dashboardStudentSelect) fillStudentSelect(dashboardStudentSelect);
+  if (studentSelect) {
+    filterStudentSelectOptions(studentSelect, '', document.getElementById('grades-student-filter-empty'));
+  }
+  if (attendanceStudentSelect) {
+    filterStudentSelectOptions(attendanceStudentSelect, '', document.getElementById('attendance-student-filter-empty'));
+  }
+  if (dashboardStudentSelect) {
+    filterStudentSelectOptions(dashboardStudentSelect, '', document.getElementById('dashboard-student-filter-empty'));
+  }
+  refreshAttendanceBulkRoster();
 
   const userRole = getCurrentUserRole();
   if (userRole === 'student' && currentStudents.length === 1) {
@@ -1457,14 +2084,22 @@ function showGradesSkeletonLoading(): void {
 async function loadStudentGrades(studentId: string): Promise<void> {
   try {
     showGradesSkeletonLoading();
+    await assertLearnerMayAccessStudentProfile(studentId);
     if (gradesUnsubscribe) gradesUnsubscribe();
     gradesUnsubscribe = listenToGrades(studentId, (grades) => {
       currentGrades = grades;
       displayGrades(grades);
       loadRecentActivity();
-      updateDashboardStats();
+      const u = getCurrentUser();
+      if (getCurrentUserRole() === 'student' && u) {
+        seedStudentGpaSessionCache(u.uid, grades);
+        const gpa = computeCumulativeGpaFromGrades(grades);
+        renderStudentGpaMetricReplaceChildren(gpa, grades);
+        updateStudentMobileGpaBentoFromMetrics(gpa, grades);
+      }
     });
-  } catch {
+  } catch (e) {
+    reportClientFault(e);
     displayGrades([]);
   }
 }
@@ -1473,34 +2108,57 @@ function displayGrades(grades: Grade[]): void {
   const gradesTableBody = document.getElementById('grades-table-body')!;
   const chartsSection = document.getElementById('grade-charts-section');
 
+  const userRole = getCurrentUserRole();
+  const showActions = userRole === 'teacher' || userRole === 'admin';
+
   if (grades.length === 0) {
-    renderTemplate(
-      gradesTableBody,
-      '<tr><td colspan="5" class="text-center py-8 text-dark-300">No grades recorded yet</td></tr>'
-    );
+    const colspan = showActions && selectedStudentId ? 5 : 4;
+    let title: string;
+    let subtitle: string;
+    let ctaHtml = '';
+    if (!selectedStudentId) {
+      title = 'Select a student';
+      subtitle = 'Choose someone from the roster to view or enter grades.';
+      ctaHtml = `<button type="button" id="grades-empty-focus-student-select" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">Open student picker</button>`;
+    } else if (userRole === 'student') {
+      title = 'No grades posted yet';
+      subtitle = 'Scores will appear here when your instructors publish them.';
+    } else {
+      title = 'No grades recorded yet';
+      subtitle = 'Add an entry for this learner, or check back after the next assessment.';
+      ctaHtml = `<button type="button" id="grades-empty-focus-add-grade" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">Add grade</button>`;
+    }
+    renderTemplate(gradesTableBody, emptyStateTableRowHtml(colspan, title, subtitle, ctaHtml));
+    document.getElementById('grades-empty-focus-student-select')?.addEventListener('click', () => {
+      document.getElementById('student-select')?.focus();
+    });
+    document.getElementById('grades-empty-focus-add-grade')?.addEventListener('click', () => {
+      document.getElementById('grade-entry-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
     chartsSection?.classList.add('hide');
+    renderGradesMobile(grades, selectedStudentId, userRole);
     return;
   }
   chartsSection?.classList.remove('hide');
 
-  const userRole = getCurrentUserRole();
-  const showActions = userRole === 'teacher' || userRole === 'admin';
-
   const gradesRowsHtml = grades.map(grade => {
-    const percentage = ((grade.score / grade.totalPoints) * 100).toFixed(1);
-    const percentageClass = parseFloat(percentage) >= 70 ? 'text-green-400' : 'text-red-400';
+    const pct = gradePercent100(grade);
+    const percentage = pct == null ? '—' : pct.toFixed(1);
+    const percentageClass =
+      pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
     return `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
-        <td class="py-3 px-4 text-white">${escapeHtmlText(grade.assignmentName)}</td>
+      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
+        <td class="py-3 px-4 text-white">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td>
         <td class="py-3 px-4 text-dark-300">${escapeHtmlText(grade.category)}</td>
-        <td class="py-3 px-4 text-center text-white">${grade.score} / ${grade.totalPoints}</td>
-        <td class="py-3 px-4 text-center font-semibold ${percentageClass}">${percentage}%</td>
-        ${showActions && selectedStudentId ? `<td class="py-3 px-4 text-center"><button type="button" data-lms-action="delete-grade" data-student-id="${selectedStudentId}" data-grade-id="${grade.id}" class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button></td>` : ''}
+        <td class="py-3 px-4 text-center text-white">${escapeHtmlText(String(grade.score))} / ${escapeHtmlText(String(grade.totalPoints))}</td>
+        <td class="py-3 px-4 text-center font-semibold ${percentageClass}">${percentage}${pct == null ? '' : '%'}</td>
+        ${showActions && selectedStudentId ? `<td class="py-3 px-4 text-center"><button type="button" data-lms-action="delete-grade" data-student-id="${escapeHtmlText(selectedStudentId)}" data-grade-id="${escapeHtmlText(grade.id)}" class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button></td>` : ''}
       </tr>`;
   }).join('');
   renderTemplate(gradesTableBody, gradesRowsHtml);
 
   renderGradeCharts(grades);
+  renderGradesMobile(grades, selectedStudentId, getCurrentUserRole());
 }
 
 let gradeTrendChart: AnyChartInstance | null = null;
@@ -1555,18 +2213,30 @@ function getGradeChartOptions(): Record<string, unknown> {
  */
 function renderGradeCharts(grades: Grade[]): void {
   const sortedGrades = [...grades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const trendLabels = sortedGrades.map(g => g.assignmentName.length > 12 ? g.assignmentName.substring(0, 12) + '...' : g.assignmentName);
-  const trendData = sortedGrades.map(g => ((g.score / g.totalPoints) * 100).toFixed(1));
+  const trendLabels = sortedGrades.map((g) => {
+    const nm = safeAssignmentTitle(g.assignmentName);
+    return nm.length > 12 ? `${nm.slice(0, 12)}…` : nm;
+  });
+  const trendData = sortedGrades.map(g => {
+    const p = gradePercent100(g);
+    return p == null ? null : Number(p.toFixed(1));
+  });
 
   const categoryData: Record<string, { total: number; count: number }> = {};
   for (const grade of grades) {
+    const p = gradePercent100(grade);
+    if (p == null) continue;
     const cat = grade.category;
     if (!categoryData[cat]) categoryData[cat] = { total: 0, count: 0 };
-    categoryData[cat].total += (grade.score / grade.totalPoints) * 100;
+    categoryData[cat].total += p;
     categoryData[cat].count += 1;
   }
   const categoryLabels = Object.keys(categoryData);
-  const categoryAverages = categoryLabels.map(cat => (categoryData[cat].total / categoryData[cat].count).toFixed(1));
+  const categoryAverages = categoryLabels.map((cat) => {
+    const { total, count } = categoryData[cat];
+    const avg = count > 0 ? total / count : 0;
+    return Number.isFinite(avg) ? avg.toFixed(1) : '0';
+  });
   const categoryColors = ['#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#3b82f6'];
 
   const chartOptions = getGradeChartOptions() as ChartConfiguration<'line' | 'bar'>['options'];
@@ -1712,84 +2382,912 @@ lmsWin.handleChangeRole = async (userId: string, currentRole: string) => {
 };
 
 // --- Dashboard stats & recent activity ---
-function getLetterGrade(percentage: number): string {
-  if (percentage >= 97) return 'A+';
-  if (percentage >= 93) return 'A';
-  if (percentage >= 90) return 'A-';
-  if (percentage >= 87) return 'B+';
-  if (percentage >= 83) return 'B';
-  if (percentage >= 80) return 'B-';
-  if (percentage >= 77) return 'C+';
-  if (percentage >= 73) return 'C';
-  if (percentage >= 70) return 'C-';
-  if (percentage >= 67) return 'D+';
-  if (percentage >= 63) return 'D';
-  if (percentage >= 60) return 'D-';
+type GradeDistributionBar = { label: string; count: number; heightPct: number };
+
+type InstitutionalSnapshot =
+  | { role: 'student' }
+  | {
+      role: 'admin';
+      enrollment: number;
+      systemAvg: string;
+      assignmentCount: number;
+      activeCourses: number;
+      gradeDistribution: GradeDistributionBar[];
+    }
+  | {
+      role: 'teacher';
+      myStudents: number;
+      gradingQueue: number;
+      rows: TeacherAssessmentDashboardRow[];
+      queueRows: TeacherGradingQueueRow[];
+    };
+
+let institutionalSnapshot: InstitutionalSnapshot = { role: 'student' };
+
+const ETHIOPIAN_ORTHODOX_PROVERBS = [
+  'Patience is a tree whose root is bitter, but its fruit is very sweet.',
+  'Do not forget the small, and do not fear the big.',
+  'One who has a teacher is a child; one who has no teacher is an old man.',
+] as const;
+
+let dashboardProverbRotateTimer: number | null = null;
+
+const LMS_CLASS_CARD_BG = [
+  'bg-violet-600',
+  'bg-teal-600',
+  'bg-amber-600',
+  'bg-sky-600',
+  'bg-rose-600',
+  'bg-emerald-700',
+] as const;
+
+function classCardBgClass(courseName: string): string {
+  let h = 0;
+  for (let i = 0; i < courseName.length; i++) h = (h + courseName.charCodeAt(i) * (i + 1)) % 997;
+  return LMS_CLASS_CARD_BG[h % LMS_CLASS_CARD_BG.length];
+}
+
+function initialsFromCourseName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function letterGradeFromPercent(pct: number): string {
+  if (!Number.isFinite(pct)) return '—';
+  if (pct >= 93) return 'A';
+  if (pct >= 90) return 'A-';
+  if (pct >= 87) return 'B+';
+  if (pct >= 83) return 'B';
+  if (pct >= 80) return 'B-';
+  if (pct >= 77) return 'C+';
+  if (pct >= 73) return 'C';
+  if (pct >= 70) return 'C-';
+  if (pct >= 67) return 'D+';
+  if (pct >= 63) return 'D';
   return 'F';
 }
 
-function getLetterGradeColor(letterGrade: string): string {
-  if (letterGrade.startsWith('A')) return 'text-green-400';
-  if (letterGrade.startsWith('B')) return 'text-blue-400';
-  if (letterGrade.startsWith('C')) return 'text-yellow-400';
-  if (letterGrade.startsWith('D')) return 'text-orange-400';
-  return 'text-red-400';
+function formatAssessmentDueMobileLabel(dueDateTime: string): string {
+  const ms = Date.parse(dueDateTime);
+  if (!Number.isFinite(ms)) return 'No due date on file';
+  const now = Date.now();
+  const diff = ms - now;
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (diff < 0) {
+    const hours = Math.round(Math.abs(diff) / (60 * 60 * 1000));
+    if (hours < 48) return `${hours}h ago`;
+    const days = Math.round(Math.abs(diff) / dayMs);
+    return `${days}d ago`;
+  }
+  const days = Math.round(diff / dayMs);
+  if (days <= 0) return 'Due today';
+  if (days === 1) return 'Due tomorrow';
+  return `Due in ${days} days`;
 }
 
-function updateDashboardStats(): void {
-  const totalStudentsEl = document.getElementById('stats-total-students');
-  const avgGradeEl = document.getElementById('stats-avg-grade');
-  const letterGradeEl = document.getElementById('stats-letter-grade');
-  const gradeCountEl = document.getElementById('stats-grade-count');
+function computeAdminGradeDistribution(grades: Grade[]): GradeDistributionBar[] {
+  const buckets: { label: string; min: number; max: number; count: number }[] = [
+    { label: 'BELOW AVG', min: 0, max: 64.99, count: 0 },
+    { label: 'AVERAGE', min: 65, max: 74.99, count: 0 },
+    { label: 'SUPERIOR', min: 75, max: 84.99, count: 0 },
+    { label: 'EXCELLENCE', min: 85, max: 92.99, count: 0 },
+    { label: 'ELITE', min: 93, max: 100, count: 0 },
+  ];
+  for (const g of grades) {
+    const p = gradePercent100(g);
+    if (p == null) continue;
+    const b = buckets.find(x => p >= x.min && p <= x.max);
+    if (b) b.count += 1;
+  }
+  const max = Math.max(1, ...buckets.map(b => b.count));
+  return buckets.map(b => ({ label: b.label, count: b.count, heightPct: (b.count / max) * 100 }));
+}
 
-  if (totalStudentsEl) totalStudentsEl.textContent = currentStudents.length.toString();
+function teacherCoursePerformanceFromRows(
+  rows: TeacherAssessmentDashboardRow[]
+): { name: string; pct: number }[] {
+  const map = new Map<string, { sum: number; n: number }>();
+  for (const r of rows) {
+    if (r.avgPercent == null || !Number.isFinite(r.avgPercent)) continue;
+    const cur = map.get(r.courseName) || { sum: 0, n: 0 };
+    cur.sum += r.avgPercent;
+    cur.n += 1;
+    map.set(r.courseName, cur);
+  }
+  return [...map.entries()]
+    .map(([name, v]) => ({ name, pct: v.sum / v.n }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 4);
+}
 
-  if (avgGradeEl && currentGrades.length > 0) {
-    const avgPercentage = currentGrades.reduce((sum, g) => sum + (g.score / g.totalPoints) * 100, 0) / currentGrades.length;
-    avgGradeEl.textContent = avgPercentage.toFixed(1) + '%';
-    if (gradeCountEl) gradeCountEl.textContent = `${currentGrades.length} assignment${currentGrades.length !== 1 ? 's' : ''}`;
-    if (letterGradeEl) {
-      const lg = getLetterGrade(avgPercentage);
-      letterGradeEl.textContent = lg;
-      letterGradeEl.className = `text-4xl font-bold ${getLetterGradeColor(lg)}`;
-    }
+function startDashboardProverbRotation(): void {
+  const el = document.getElementById('dashboard-mobile-proverb-text');
+  if (!el) return;
+  let i = 0;
+  el.textContent = ETHIOPIAN_ORTHODOX_PROVERBS[i];
+  if (dashboardProverbRotateTimer != null) window.clearInterval(dashboardProverbRotateTimer);
+  dashboardProverbRotateTimer = window.setInterval(() => {
+    i = (i + 1) % ETHIOPIAN_ORTHODOX_PROVERBS.length;
+    const node = document.getElementById('dashboard-mobile-proverb-text');
+    if (node) node.textContent = ETHIOPIAN_ORTHODOX_PROVERBS[i];
+  }, 12000);
+}
+
+function stopDashboardProverbRotation(): void {
+  if (dashboardProverbRotateTimer != null) {
+    window.clearInterval(dashboardProverbRotateTimer);
+    dashboardProverbRotateTimer = null;
+  }
+}
+
+function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grade[]): void {
+  const root = document.getElementById('dashboard-mobile-student-gpa-root');
+  if (!root || getCurrentUserRole() !== 'student') return;
+
+  const sorted = [...grades].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  const last = sorted[0];
+  let lastLine = '—';
+  if (last) {
+    const p = gradePercent100(last);
+    const letter = p == null ? '—' : letterGradeFromPercent(p);
+    lastLine = `${letter} · ${safeAssignmentTitle(last.assignmentName)}`;
+  }
+
+  const pres = getStudentGpaPresentation(gpa, grades);
+
+  const wrap = document.createElement('div');
+  wrap.className =
+    'rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-dark-900/80 p-5 shadow-lg shadow-slate-200/50 dark:shadow-black/20';
+
+  const top = document.createElement('div');
+  top.className = 'flex flex-wrap items-start justify-between gap-3 mb-4';
+
+  const left = document.createElement('div');
+  const lab = document.createElement('p');
+  lab.className =
+    'text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-primary-800 dark:text-primary-300/90';
+  lab.textContent = 'Recent grades';
+  const sub = document.createElement('p');
+  sub.className = 'text-xs text-on-surface-muted mt-1 uppercase tracking-wider';
+  sub.textContent = 'Overall GPA';
+  left.append(lab, sub);
+  if (pres.showNewLearnerBadge) {
+    const nb = document.createElement('p');
+    nb.className =
+      'text-[0.6rem] font-semibold uppercase tracking-wider text-on-surface-muted mt-1.5';
+    nb.textContent = 'New learner';
+    left.append(nb);
+  }
+
+  const right = document.createElement('div');
+  right.className = 'text-right min-w-0 max-w-[55%]';
+  const lg = document.createElement('p');
+  lg.className = 'text-[0.6rem] font-semibold uppercase tracking-wider text-on-surface-muted';
+  lg.textContent = 'Last grade';
+  const lv = document.createElement('p');
+  lv.className =
+    'text-sm font-semibold text-on-surface leading-snug break-words';
+  lv.textContent = lastLine;
+  right.append(lg, lv);
+
+  top.append(left, right);
+
+  const gpaEl = document.createElement('p');
+  gpaEl.className =
+    'text-4xl font-bold text-on-surface font-display tabular-nums tracking-tight mb-4';
+  gpaEl.textContent = pres.numericDisplay;
+  gpaEl.setAttribute('aria-label', pres.ariaLabel);
+
+  const barTrack = document.createElement('div');
+  barTrack.className = 'h-2 rounded-full bg-slate-200 dark:bg-dark-700 overflow-hidden';
+  const barFill = document.createElement('div');
+  barFill.className = 'h-full rounded-full bg-gradient-to-r from-primary-500 to-primary-300 transition-all duration-500';
+  barFill.style.width = `${pres.barFillPct}%`;
+  barTrack.appendChild(barFill);
+
+  wrap.append(top, gpaEl, barTrack);
+  root.replaceChildren(wrap);
+}
+
+function assessmentTagClasses(tag: StudentUpcomingAssessmentMobile['tag']): { icon: string; pill: string } {
+  if (tag === 'QUIZ') {
+    return {
+      icon: 'rounded-xl bg-amber-500/25 text-amber-200 ring-1 ring-amber-400/30',
+      pill: 'bg-dark-800 text-amber-100/95 border border-amber-500/25',
+    };
+  }
+  if (tag === 'ESSAY') {
+    return {
+      icon: 'rounded-xl bg-secondary-500/25 text-secondary-200 ring-1 ring-secondary-400/30',
+      pill: 'bg-dark-800 text-secondary-100/95 border border-secondary-500/25',
+    };
+  }
+  return {
+    icon: 'rounded-xl bg-primary-500/20 text-primary-200 ring-1 ring-primary-400/25',
+    pill: 'bg-dark-800 text-primary-100/90 border border-primary-500/20',
+  };
+}
+
+function gradePercent100(g: Grade): number | null {
+  const tp = Number(g.totalPoints);
+  const sc = Number(g.score);
+  if (!Number.isFinite(tp) || tp <= 0 || !Number.isFinite(sc)) return null;
+  const p = (sc / tp) * 100;
+  return Number.isFinite(p) ? p : null;
+}
+
+function computeAverageGradePercent(grades: Grade[]): { pctLabel: string; count: number } {
+  const pcts = grades.map(gradePercent100).filter((p): p is number => p != null && Number.isFinite(p));
+  if (pcts.length === 0) return { pctLabel: '—', count: 0 };
+  const sum = pcts.reduce((acc, p) => acc + p, 0);
+  const avgPercentage = sum / pcts.length;
+  return {
+    pctLabel: Number.isFinite(avgPercentage) ? `${avgPercentage.toFixed(1)}%` : '—',
+    count: pcts.length,
+  };
+}
+
+function adminKpiSvg(kind: 'users' | 'chart' | 'book'): string {
+  if (kind === 'users') {
+    return `<svg class="w-6 h-6 text-primary-800 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`;
+  }
+  if (kind === 'chart') {
+    return `<svg class="w-6 h-6 text-secondary-800 dark:text-secondary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>`;
+  }
+  return `<svg class="w-6 h-6 text-primary-800 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>`;
+}
+
+function buildAdminInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>): string {
+  const countNote =
+    snapshot.assignmentCount > 0
+      ? `Across <span class="text-primary-300 font-medium">${snapshot.assignmentCount}</span> graded item${snapshot.assignmentCount === 1 ? '' : 's'}`
+      : 'Awaiting grade book entries';
+  return `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Total enrollment</h3><div class="p-3 rounded-xl bg-primary-400/10">${adminKpiSvg('users')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.enrollment}</p><p class="text-dark-400 text-sm mt-2">Active learner profiles</p></div>
+<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">System average</h3><div class="p-3 rounded-xl bg-secondary-400/10">${adminKpiSvg('chart')}</div></div><p class="text-4xl font-bold text-primary-200 font-display tabular-nums">${escapeHtmlText(snapshot.systemAvg)}</p><p class="text-dark-400 text-sm mt-2">${countNote}</p></div>
+<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Active courses</h3><div class="p-3 rounded-xl bg-primary-400/10">${adminKpiSvg('book')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.activeCourses}</p><p class="text-dark-400 text-sm mt-2">Course shells in catalog</p></div>
+</div>`;
+}
+
+function buildTeacherInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>): string {
+  const tableRows =
+    snapshot.rows.length === 0
+      ? `<tr><td colspan="4" class="py-10 px-4 text-center">
+<p class="text-dark-400 text-sm mb-4">No assessments yet. Create or publish an assessment to see submission analytics here.</p>
+<button type="button" data-lms-action="dashboard-open-assessments" class="px-4 py-2 rounded-xl text-sm font-semibold bg-primary-500/20 text-primary-200 border border-primary-400/35 hover:bg-primary-500/30 transition-colors">Open assessments</button>
+</td></tr>`
+      : snapshot.rows
+          .map((r) => {
+            const avg =
+              r.avgPercent == null || !Number.isFinite(r.avgPercent)
+                ? '—'
+                : `${finiteToFixed(r.avgPercent, 1)}%`;
+            return `<tr class="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
+<td class="py-3 px-4 font-medium text-white min-w-[8rem]">${escapeHtmlText(r.title)}</td>
+<td class="py-3 px-4 text-dark-300">${escapeHtmlText(safeCourseDisplayName(r.courseName))}</td>
+<td class="py-3 px-4 text-dark-200 tabular-nums">${r.submissionCount}</td>
+<td class="py-3 px-4 text-primary-300 tabular-nums font-medium">${avg}</td>
+</tr>`;
+          })
+          .join('');
+  return `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">My students</h3><div class="p-3 rounded-xl bg-primary-400/10">${adminKpiSvg('users')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.myStudents}</p><p class="text-dark-400 text-sm mt-2">Across your assigned classes</p></div>
+<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Grading queue</h3><div class="p-3 rounded-xl bg-orange-500/15">${adminKpiSvg('chart')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.gradingQueue}</p><p class="text-dark-400 text-sm mt-2">Submissions awaiting your review</p></div>
+</div>
+<div class="mt-8 card-blur progress-bar-glow rounded-2xl overflow-hidden border border-white/10">
+<div class="px-5 py-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+<h3 class="text-lg font-semibold text-white font-display">Recent assessment results</h3>
+<button type="button" data-lms-action="dashboard-open-assessments" class="text-sm font-medium text-secondary-300 hover:text-secondary-200 transition-colors">Open assessments</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full min-w-[28rem] text-left text-sm">
+<thead><tr class="text-[0.65rem] uppercase tracking-wider text-dark-400 border-b border-white/10">
+<th class="py-3 px-4 font-semibold">Assessment</th><th class="py-3 px-4 font-semibold">Course</th><th class="py-3 px-4 font-semibold">Submissions</th><th class="py-3 px-4 font-semibold">Avg. score</th>
+</tr></thead>
+<tbody>${tableRows}</tbody>
+</table>
+</div>
+</div>`;
+}
+
+function buildContextAttendanceHtml(): string {
+  const role = getCurrentUserRole();
+  if (role === 'student' || !selectedStudentId || currentAttendance.length === 0) return '';
+  const present = currentAttendance.filter((a) => a.status === 'present').length;
+  const absent = currentAttendance.filter((a) => a.status === 'absent').length;
+  const late = currentAttendance.filter((a) => a.status === 'late').length;
+  const excused = currentAttendance.filter((a) => a.status === 'excused').length;
+  const total = currentAttendance.length;
+  const rateNum = total > 0 ? ((present + late + excused) / total) * 100 : 0;
+  const rate = total > 0 ? finiteToFixed(rateNum, 1, '0') : '0';
+  const rateColor = !Number.isFinite(rateNum)
+    ? 'text-dark-400'
+    : rateNum >= 90
+      ? 'text-green-400'
+      : rateNum >= 75
+        ? 'text-yellow-400'
+        : 'text-red-400';
+  return `<div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]">
+<div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Attendance rate</h3><div class="p-3 rounded-xl bg-primary-400/10"><svg class="w-6 h-6 text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div></div>
+<p class="text-4xl font-bold ${rateColor} font-display tabular-nums">${rate}%</p>
+<p class="text-dark-400 text-sm mt-3"><span class="text-green-400 font-medium">${present} present</span> · <span class="text-red-400 font-medium">${absent} absent</span></p>
+</div>
+</div>`;
+}
+
+function paintInstitutionalDashboard(): void {
+  const mount = document.getElementById('dashboard-institutional-mount');
+  if (!mount) return;
+  const role = getCurrentUserRole();
+  if (!role || role === 'student' || institutionalSnapshot.role === 'student') {
+    renderTemplate(mount, '');
+    return;
+  }
+  if (role !== institutionalSnapshot.role) {
+    renderTemplate(mount, '');
+    return;
+  }
+  let core = '';
+  if (institutionalSnapshot.role === 'admin') {
+    core = buildAdminInstitutionalHtml(institutionalSnapshot);
   } else {
-    if (avgGradeEl) avgGradeEl.textContent = '--';
-    if (gradeCountEl) gradeCountEl.textContent = '0 assignments';
-    if (letterGradeEl) {
-      letterGradeEl.textContent = '--';
-      letterGradeEl.className = 'text-4xl font-bold stats-letter-placeholder';
+    core = buildTeacherInstitutionalHtml(institutionalSnapshot);
+  }
+  renderTemplate(mount, core + buildContextAttendanceHtml());
+}
+
+function buildAdminMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>): string {
+  const bars = snapshot.gradeDistribution
+    .map(
+      b => `
+<div class="flex flex-col items-center gap-2 flex-1 min-w-0">
+<div class="w-full max-w-[3rem] mx-auto flex items-end justify-center h-28 rounded-t-lg bg-slate-200/95 dark:bg-dark-800/80 border border-slate-300/70 dark:border-white/5 overflow-hidden px-0.5 pb-0.5" aria-hidden="true">
+<div class="w-full rounded-t ${b.label === 'EXCELLENCE' ? 'bg-gradient-to-t from-amber-600 to-amber-400 dark:from-amber-500 dark:to-amber-400' : 'bg-slate-500/90 dark:bg-white/12'}" style="height:${Math.max(0.35, (b.heightPct / 100) * 6.5)}rem"></div>
+</div>
+<span class="text-[0.55rem] uppercase tracking-wider text-center leading-tight ${b.label === 'EXCELLENCE' ? 'text-amber-800 dark:text-amber-300 font-semibold' : 'text-slate-600 dark:text-dark-500'}">${escapeHtmlText(b.label)}</span>
+<span class="text-[0.65rem] tabular-nums text-slate-700 dark:text-dark-400">${b.count}</span>
+</div>`
+    )
+    .join('');
+
+  const countNote =
+    snapshot.assignmentCount > 0
+      ? `${snapshot.assignmentCount} graded item${snapshot.assignmentCount === 1 ? '' : 's'}`
+      : 'Awaiting grade book entries';
+
+  return `
+<div class="space-y-6">
+<div>
+<p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
+<p class="text-sm text-on-surface-muted mt-1">Nurturing the growth of our learning community.</p>
+</div>
+<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none">
+<div class="flex items-start justify-between gap-2">
+<div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div>
+</div>
+<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Class enrollment</p>
+<p class="text-3xl font-bold text-on-surface font-display tabular-nums">${snapshot.enrollment}</p>
+<p class="text-xs text-on-surface-muted">Active learner profiles</p>
+<p class="text-xs text-on-surface-muted pt-1">Snapshot only — figures refresh when you reload the dashboard.</p>
+</div>
+<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-3 shadow-sm shadow-slate-200/25 dark:shadow-none">
+<div class="flex items-start justify-between gap-2">
+<div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div>
+</div>
+<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Assessment rate</p>
+<p class="text-3xl font-bold text-on-surface font-display tabular-nums">${escapeHtmlText(snapshot.systemAvg)}</p>
+<p class="text-xs text-on-surface-muted">${escapeHtmlText(countNote)} system-wide</p>
+</div>
+<div class="rounded-2xl border-surface-default bg-surface-container p-5 shadow-sm shadow-slate-200/25 dark:shadow-none">
+<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle mb-4">Grade distribution</p>
+<div class="flex items-end justify-between gap-1 sm:gap-2">${bars}</div>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-3"><span class="w-0.5 h-5 rounded-full bg-primary-600 dark:bg-primary-400" aria-hidden="true"></span><h3 class="text-base font-bold text-on-surface font-display">Management tools</h3></div>
+<div class="grid grid-cols-2 gap-3">
+<button type="button" data-lms-action="switch-tab" data-lms-tab="registration" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
+<span class="p-2 rounded-xl bg-primary-500/20">${adminKpiSvg('users')}</span>
+<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">Register student</span>
+</button>
+<button type="button" data-lms-action="switch-tab" data-lms-tab="grades" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
+<span class="p-2 rounded-xl bg-secondary-500/20 text-secondary-800 dark:text-secondary-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></span>
+<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">Approve grades</span>
+</button>
+<button type="button" data-lms-action="switch-tab" data-lms-tab="classes" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
+<span class="p-2 rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></span>
+<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">Curriculum</span>
+</button>
+<button type="button" data-lms-action="switch-tab" data-lms-tab="users" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
+<span class="p-2 rounded-xl bg-secondary-300/20 text-secondary-800 dark:text-secondary-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></span>
+<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">System config</span>
+</button>
+</div>
+</div>
+<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
+<p id="dashboard-mobile-proverb-text" class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
+<p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
+</div>
+</div>`;
+}
+
+function buildTeacherMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>): string {
+  const perf = teacherCoursePerformanceFromRows(snapshot.rows);
+  const perfBars = perf
+    .map((row, i) => {
+      const w = finitePctForBar(row.pct);
+      const grad =
+        i % 2 === 0
+          ? 'linear-gradient(90deg, rgb(167, 139, 250), rgb(45, 212, 191))'
+          : 'linear-gradient(90deg, rgb(251, 146, 60), rgb(45, 212, 191))';
+      return `
+<div class="space-y-1.5">
+<div class="flex justify-between gap-2 text-[0.7rem] uppercase tracking-wide text-on-surface-muted">
+<span class="truncate min-w-0">${escapeHtmlText(row.name)}</span>
+<span class="tabular-nums text-on-surface shrink-0">${w}%</span>
+</div>
+<div class="h-2 rounded-full bg-slate-200 dark:bg-dark-700 overflow-hidden">
+<div class="h-full rounded-full" style="width:${w}%;background:${grad}"></div>
+</div>
+</div>`;
+    })
+    .join('');
+
+  const queueItems =
+    snapshot.queueRows.length === 0
+      ? `<p class="text-sm text-on-surface-muted py-4 text-center">No submissions awaiting grading.</p>`
+      : snapshot.queueRows
+          .slice(0, 5)
+          .map(q => {
+            const dueMs = Date.parse(q.dueDateTime);
+            const overdue = Number.isFinite(dueMs) && dueMs < Date.now();
+            const dueLabel = overdue
+              ? `${formatAssessmentDueMobileLabel(q.dueDateTime)} · Overdue`
+              : formatAssessmentDueMobileLabel(q.dueDateTime);
+            return `
+<button type="button" data-lms-action="switch-tab" data-lms-tab="assessments" class="w-full flex items-center gap-3 rounded-xl border-surface-default bg-surface-container p-3 text-left hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors shadow-sm shadow-slate-200/20 dark:shadow-none">
+<div class="shrink-0 w-11 h-11 rounded-xl bg-secondary-100 text-secondary-800 dark:bg-secondary-500/20 dark:text-secondary-200 flex items-center justify-center" aria-hidden="true">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-sm font-semibold text-on-surface truncate">${escapeHtmlText(q.title)}</p>
+<p class="text-xs text-on-surface-muted mt-0.5">${escapeHtmlText(dueLabel)} · ${q.pendingCount} submission${q.pendingCount === 1 ? '' : 's'}</p>
+<p class="text-[0.65rem] text-primary-800 dark:text-primary-400/90 truncate">${escapeHtmlText(q.courseName)}</p>
+</div>
+<span class="text-slate-400 dark:text-dark-500 shrink-0" aria-hidden="true">›</span>
+</button>`;
+          })
+          .join('');
+
+  const avgAcross =
+    perf.length > 0
+      ? finitePctForBar(perf.reduce((s, r) => s + r.pct, 0) / perf.length)
+      : null;
+
+  return `
+<div class="space-y-6">
+<div>
+<p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
+<p class="text-sm text-on-surface-muted mt-1">Track classes and prioritize grading.</p>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
+<div class="p-2 w-fit rounded-xl bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300 mb-2">${adminKpiSvg('users')}</div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white font-display tabular-nums">${snapshot.myStudents}</p>
+<p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">Total students</p>
+</div>
+<div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
+<div class="p-2 w-fit rounded-xl bg-primary-100 text-primary-900 dark:bg-teal-500/15 dark:text-teal-300 mb-2">${adminKpiSvg('chart')}</div>
+<p class="text-2xl font-bold text-slate-900 dark:text-primary-200 font-display tabular-nums">${snapshot.gradingQueue}</p>
+<p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">To grade</p>
+</div>
+</div>
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<h3 class="text-base font-bold text-on-surface font-display">Grading queue</h3>
+<span class="flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-wide text-red-600 dark:text-red-400"><span class="w-2 h-2 rounded-full bg-red-500 lms-urgent-dot" aria-hidden="true"></span>Urgent</span>
+</div>
+<div class="space-y-2">${queueItems}</div>
+</div>
+<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none">
+<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Average class performance</p>
+<div class="flex flex-wrap items-baseline gap-2">
+<span class="text-4xl font-bold text-on-surface font-display tabular-nums">${avgAcross == null ? '—' : `${avgAcross}%`}</span>
+${avgAcross == null ? '' : '<span class="text-xs text-primary-800 dark:text-primary-400">Across recent assessments</span>'}
+</div>
+<div class="space-y-4 pt-1">${perfBars || '<p class="text-sm text-on-surface-muted">Performance data will appear as learners submit work.</p>'}</div>
+<button type="button" data-lms-action="switch-tab" data-lms-tab="grades" class="w-full mt-2 py-3 rounded-xl bg-primary-600 text-white font-bold text-xs uppercase tracking-wider hover:bg-primary-700 dark:bg-primary-400 dark:text-dark-950 dark:hover:bg-primary-300 transition-colors">Download full report</button>
+</div>
+<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
+<p id="dashboard-mobile-proverb-text" class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
+<p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
+</div>
+</div>`;
+}
+
+async function paintMobileStudentDashboard(): Promise<void> {
+  const shell = document.getElementById('dashboard-mobile-shell');
+  if (!shell || getCurrentUserRole() !== 'student') return;
+
+  const u = getCurrentUser();
+  if (!u) return;
+
+  const displayUser = getCurrentUser();
+  if (!displayUser) return;
+  const name =
+    userProfileDisplayLabel(displayUser) !== '—'
+      ? userProfileDisplayLabel(displayUser)
+      : displayUser.email || 'there';
+
+  let courses: Course[] = [];
+  let upcoming: StudentUpcomingAssessmentMobile[] = [];
+  try {
+    const profiles = await fetchStudents();
+    const ids = profiles.map(p => p.id);
+    courses = ids.length ? await fetchStudentClasses(ids) : [];
+    upcoming = await fetchStudentUpcomingAssessmentsMobile(u.uid, 8);
+  } catch {
+    courses = [];
+    upcoming = [];
+  }
+
+  const carousel = courses
+    .map(c => {
+      const ini = initialsFromCourseName(c.courseName);
+      const bg = classCardBgClass(c.courseName);
+      return `
+<div class="snap-start shrink-0 w-[min(100%,18rem)] rounded-2xl overflow-hidden border border-white/10 shadow-lg">
+<div class="${bg} aspect-[4/3] flex flex-col justify-end p-4 relative">
+<span class="absolute top-3 right-3 text-[0.6rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-black/35 text-white/95 border border-white/20">In progress</span>
+<p class="text-lg font-bold text-white leading-tight drop-shadow-md">${escapeHtmlText(safeCourseDisplayName(c.courseName))}</p>
+<div class="mt-3 flex items-center justify-between gap-2">
+<span class="text-3xl font-black text-white/90 font-display tracking-tight" aria-hidden="true">${escapeHtmlText(ini)}</span>
+<button type="button" data-lms-action="switch-tab" data-lms-tab="classes" class="shrink-0 px-4 py-2 rounded-xl bg-primary-400 text-dark-950 text-xs font-bold uppercase tracking-wide hover:bg-primary-300 transition-colors">Enter class</button>
+</div>
+</div>
+</div>`;
+    })
+    .join('');
+
+  const assessBlocks = upcoming
+    .map(row => {
+      const { icon, pill } = assessmentTagClasses(row.tag);
+      const due = formatAssessmentDueMobileLabel(row.dueDateTime);
+      return `
+<div class="flex items-stretch gap-3 rounded-xl border border-white/10 bg-dark-900/60 p-3">
+<div class="shrink-0 w-12 h-12 flex items-center justify-center ${icon}" aria-hidden="true">
+${
+  row.tag === 'QUIZ'
+    ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>'
+    : row.tag === 'ESSAY'
+      ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>'
+      : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>'
+}
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-sm font-semibold text-white leading-snug">${escapeHtmlText(row.title)}</p>
+<p class="text-xs text-dark-400 mt-1"><span class="mr-1" aria-hidden="true">📅</span>${escapeHtmlText(due)}</p>
+</div>
+<span class="self-center shrink-0 text-[0.6rem] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${pill}">${row.tag}</span>
+</div>`;
+    })
+    .join('');
+
+  const html = `
+<div class="space-y-6">
+<div>
+<p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
+<p class="text-sm text-on-surface-muted mt-1">Your learning path continues today.</p>
+</div>
+<div id="dashboard-mobile-student-gpa-root"></div>
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<h3 class="text-base font-bold text-slate-900 dark:text-white font-display">Current classes</h3>
+<button type="button" data-lms-action="switch-tab" data-lms-tab="classes" class="text-xs font-semibold uppercase tracking-wide text-primary-800 dark:text-primary-400 hover:text-primary-950 dark:hover:text-primary-300">View all</button>
+</div>
+<div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">${carousel || '<p class="text-sm text-dark-400 py-4 w-full text-center">No enrolled classes yet.</p>'}</div>
+</div>
+<div>
+<h3 class="text-base font-bold text-slate-900 dark:text-white font-display mb-3">Upcoming assessments</h3>
+<div class="space-y-2">${assessBlocks || '<p class="text-sm text-dark-400">No upcoming assignments detected.</p>'}</div>
+</div>
+<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
+<p id="dashboard-mobile-proverb-text" class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
+<p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
+</div>
+</div>`;
+
+  renderTemplate(shell, html);
+  const greetEl = document.getElementById('dashboard-mobile-greeting');
+  if (greetEl) {
+    greetEl.textContent = `Hello, ${name}`;
+  }
+  startDashboardProverbRotation();
+}
+
+function paintMobileDashboardForRole(): void {
+  const shell = document.getElementById('dashboard-mobile-shell');
+  if (!shell) return;
+  const role = getCurrentUserRole();
+  stopDashboardProverbRotation();
+  if (!role) {
+    renderTemplate(shell, '');
+    return;
+  }
+  if (role === 'admin' && institutionalSnapshot.role === 'admin') {
+    renderTemplate(shell, buildAdminMobileDashboardHtml(institutionalSnapshot));
+    const greetEl = document.getElementById('dashboard-mobile-greeting');
+    const u = getCurrentUser();
+    if (greetEl && u) {
+      const label = userProfileDisplayLabel(u);
+      const name = label !== '—' ? label : u.email || 'there';
+      greetEl.textContent = `Hello, ${name}`;
+    }
+    startDashboardProverbRotation();
+    return;
+  }
+  if (role === 'teacher' && institutionalSnapshot.role === 'teacher') {
+    renderTemplate(shell, buildTeacherMobileDashboardHtml(institutionalSnapshot));
+    const greetEl = document.getElementById('dashboard-mobile-greeting');
+    const u = getCurrentUser();
+    if (greetEl && u) {
+      const label = userProfileDisplayLabel(u);
+      const name = label !== '—' ? label : u.email || 'there';
+      greetEl.textContent = `Hello, ${name}`;
+    }
+    startDashboardProverbRotation();
+    return;
+  }
+  renderTemplate(shell, '');
+}
+
+function setDashboardWelcome(user: User | null): void {
+  const heading = document.getElementById('dashboard-welcome-heading');
+  const sub = document.getElementById('dashboard-welcome-sub');
+  const kicker = document.getElementById('dashboard-welcome-kicker');
+  if (!heading) return;
+  if (!user) {
+    heading.textContent = '';
+    if (sub) sub.textContent = '';
+    return;
+  }
+  const label = userProfileDisplayLabel(user);
+  const name = label !== '—' ? label : user.email || 'there';
+  heading.textContent = `Hello, ${name}`;
+  if (kicker) {
+    kicker.textContent =
+      user.role === 'admin'
+        ? 'Institutional overview'
+        : user.role === 'teacher'
+          ? 'Instructional workspace'
+          : 'Learner dashboard';
+  }
+  if (sub) {
+    if (user.role === 'admin') {
+      sub.textContent =
+        'Monitor enrollment, course activity, and system-wide academic performance at a glance.';
+    } else if (user.role === 'teacher') {
+      sub.textContent =
+        'Track your classes, prioritize the grading queue, and review recent assessment outcomes.';
+    } else {
+      sub.textContent =
+        'Review your GPA, stay ahead of deadlines, and follow recent updates from your instructors.';
     }
   }
+}
+
+function gpaEncouragementLine(gpa: number): string {
+  if (gpa >= 3.7) return 'Excellent work — stay consistent with your study rhythm.';
+  if (gpa >= 3.0) return 'Solid standing — a little extra review goes a long way.';
+  if (gpa >= 2.0) return 'You are building momentum — focus on the next few assignments.';
+  return 'Every step counts — reach out if you need support.';
+}
+
+function getStudentGpaPresentation(gpa: number | null, grades: Grade[]): {
+  numericDisplay: string;
+  ariaLabel: string;
+  hint: string;
+  barFillPct: number;
+  showNewLearnerBadge: boolean;
+} {
+  const countable = studentHasCountableGradesForGpa(grades);
+  if (!countable) {
+    return {
+      numericDisplay: finiteToFixed(0, 2),
+      ariaLabel: 'New learner — no graded coursework yet',
+      hint: 'New learner — your cumulative GPA will appear after your first graded assignments are posted.',
+      barFillPct: 0,
+      showNewLearnerBadge: true,
+    };
+  }
+  if (gpa == null || !Number.isFinite(gpa)) {
+    return {
+      numericDisplay: finiteToFixed(0, 2),
+      ariaLabel: 'Grade records incomplete — GPA shown as zero until scores are valid',
+      hint: 'Some scores could not be included in your GPA. Contact your instructor if this seems wrong.',
+      barFillPct: 0,
+      showNewLearnerBadge: false,
+    };
+  }
+  return {
+    numericDisplay: finiteToFixed(gpa, 2),
+    ariaLabel: `Overall GPA ${finiteToFixed(gpa, 2)}`,
+    hint: gpaEncouragementLine(gpa),
+    barFillPct: Math.min(100, Math.max(0, (gpa / 4) * 100)),
+    showNewLearnerBadge: false,
+  };
+}
+
+function renderStudentGpaMetricReplaceChildren(gpa: number | null, grades: Grade[]): void {
+  const root = document.getElementById('student-gpa-metric-root');
+  if (!root) return;
+  const pres = getStudentGpaPresentation(gpa, grades);
+  const wrap = document.createElement('div');
+  wrap.className = 'space-y-3';
+  const value = document.createElement('p');
+  value.className =
+    'text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-white via-white to-dark-300 bg-clip-text text-transparent';
+  value.textContent = pres.numericDisplay;
+  value.setAttribute('aria-label', pres.ariaLabel);
+  const scale = document.createElement('p');
+  scale.className = 'text-[0.65rem] font-semibold uppercase tracking-widest text-dark-500';
+  scale.textContent = 'Cumulative · weighted · 4.0 scale';
+  const hint = document.createElement('p');
+  hint.className = 'text-sm text-dark-400 leading-relaxed';
+  hint.textContent = pres.hint;
+  wrap.append(value, scale, hint);
+  root.replaceChildren(wrap);
+}
+
+function renderStudentDeadlineMetricReplaceChildren(next: NextStudentDeadlineResult | null): void {
+  const root = document.getElementById('student-deadline-metric-root');
+  if (!root) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'space-y-3';
+  if (!next) {
+    const p = document.createElement('p');
+    p.className = 'text-lg font-medium text-dark-200';
+    p.textContent = "You are all caught up on upcoming due dates.";
+    const s = document.createElement('p');
+    s.className = 'text-sm text-dark-500 leading-relaxed';
+    s.textContent = 'Open Assessments when your teacher assigns new work.';
+    wrap.append(p, s);
+    root.replaceChildren(wrap);
+    return;
+  }
+  const title = document.createElement('p');
+  title.className = 'text-lg font-semibold text-white leading-snug break-words min-w-0';
+  title.textContent = safeAssignmentTitle(next.assessment.title);
+  const course = document.createElement('p');
+  course.className = 'text-sm font-medium text-primary-400/95';
+  course.textContent = safeCourseDisplayName(next.courseName);
+  const when = document.createElement('p');
+  when.className = 'text-sm text-dark-400';
+  const dt = new Date(next.dueDateTime);
+  when.textContent = `Due ${dt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`;
+  wrap.append(title, course, when);
+  root.replaceChildren(wrap);
+}
+
+async function refreshStudentMasteryDashboard(forceGpaRefresh: boolean): Promise<void> {
+  const u = getCurrentUser();
+  if (!u || u.role !== 'student') return;
+  try {
+    const gpa = await calculateStudentCumulativeGPA(u.uid, forceGpaRefresh);
+    const next = await fetchNextStudentDeadline(u.uid);
+    renderStudentGpaMetricReplaceChildren(gpa, currentGrades);
+    renderStudentDeadlineMetricReplaceChildren(next);
+    updateStudentMobileGpaBentoFromMetrics(gpa, currentGrades);
+  } catch {
+    renderStudentGpaMetricReplaceChildren(null, currentGrades);
+    renderStudentDeadlineMetricReplaceChildren(null);
+    updateStudentMobileGpaBentoFromMetrics(null, currentGrades);
+  }
+}
+
+async function refreshInstitutionalDashboardMetrics(): Promise<void> {
+  const role = getCurrentUserRole();
+
+  if (role === 'student') {
+    institutionalSnapshot = { role: 'student' };
+    paintInstitutionalDashboard();
+    await paintMobileStudentDashboard();
+    await refreshStudentMasteryDashboard(false);
+    return;
+  }
+
+  if (role === 'admin') {
+    const enrollment = currentStudents.length;
+    let activeCourses = 0;
+    try {
+      const coursesSnap = await getDocs(collection(db, 'courses'));
+      activeCourses = coursesSnap.size;
+    } catch {
+      activeCourses = 0;
+    }
+    let systemAvg = '—';
+    let assignmentCount = 0;
+    let gradeDistribution: GradeDistributionBar[] = [];
+    try {
+      const ids = currentStudents.map(s => s.id);
+      const allGrades = await fetchGradesForManyStudents(ids);
+      const st = computeAverageGradePercent(allGrades);
+      systemAvg = st.pctLabel;
+      assignmentCount = st.count;
+      gradeDistribution = computeAdminGradeDistribution(allGrades);
+    } catch {
+      gradeDistribution = [];
+    }
+    institutionalSnapshot = {
+      role: 'admin',
+      enrollment,
+      systemAvg,
+      assignmentCount,
+      activeCourses,
+      gradeDistribution,
+    };
+    paintInstitutionalDashboard();
+    paintMobileDashboardForRole();
+    return;
+  }
+
+  if (role === 'teacher') {
+    let myStudents = 0;
+    let gradingQueue = 0;
+    let rows: TeacherAssessmentDashboardRow[] = [];
+    let queueRows: TeacherGradingQueueRow[] = [];
+    try {
+      const courses = await fetchTeacherClasses();
+      const sidSet = new Set<string>();
+      for (const c of courses) {
+        for (const id of c.studentIds ?? []) sidSet.add(id);
+      }
+      myStudents = sidSet.size;
+    } catch {
+      myStudents = 0;
+    }
+    try {
+      gradingQueue = await countPendingSubmissionsForTeacher();
+    } catch {
+      gradingQueue = 0;
+    }
+    try {
+      rows = await fetchTeacherAssessmentDashboardRows(8);
+    } catch {
+      rows = [];
+    }
+    try {
+      queueRows = await fetchTeacherGradingQueueRows(8);
+    } catch {
+      queueRows = [];
+    }
+    institutionalSnapshot = { role: 'teacher', myStudents, gradingQueue, rows, queueRows };
+    paintInstitutionalDashboard();
+    paintMobileDashboardForRole();
+    return;
+  }
+
+  institutionalSnapshot = { role: 'student' };
+  paintInstitutionalDashboard();
+  paintMobileDashboardForRole();
 }
 
 async function updateDashboardStatsForStudent(_studentId: string): Promise<void> {
-  const dashboardAttendanceCard = document.getElementById('dashboard-attendance-card');
-  const dashboardAttendanceRate = document.getElementById('dashboard-attendance-rate');
-  const dashboardAttendancePresent = document.getElementById('dashboard-attendance-present');
-  const dashboardAttendanceAbsent = document.getElementById('dashboard-attendance-absent');
-
-  if (currentAttendance.length > 0) {
-    const present = currentAttendance.filter(a => a.status === 'present').length;
-    const absent = currentAttendance.filter(a => a.status === 'absent').length;
-    const late = currentAttendance.filter(a => a.status === 'late').length;
-    const excused = currentAttendance.filter(a => a.status === 'excused').length;
-    const total = currentAttendance.length;
-    const rate = total > 0 ? (((present + late + excused) / total) * 100).toFixed(1) : '0';
-
-    dashboardAttendanceCard?.classList.remove('hide');
-    if (dashboardAttendanceRate) {
-      dashboardAttendanceRate.textContent = rate + '%';
-      const rateNum = parseFloat(rate);
-      dashboardAttendanceRate.className = `text-4xl font-bold ${rateNum >= 90 ? 'text-green-400' : rateNum >= 75 ? 'text-yellow-400' : 'text-red-400'}`;
+  const r = getCurrentUserRole();
+  if (r === 'student') {
+    const u = getCurrentUser();
+    if (u) {
+      seedStudentGpaSessionCache(u.uid, currentGrades);
+      const gpa = computeCumulativeGpaFromGrades(currentGrades);
+      renderStudentGpaMetricReplaceChildren(gpa, currentGrades);
+      updateStudentMobileGpaBentoFromMetrics(gpa, currentGrades);
     }
-    if (dashboardAttendancePresent) dashboardAttendancePresent.textContent = `${present} Present`;
-    if (dashboardAttendanceAbsent) dashboardAttendanceAbsent.textContent = `${absent} Absent`;
-  } else {
-    dashboardAttendanceCard?.classList.add('hide');
   }
-
-  updateDashboardStats();
+  paintInstitutionalDashboard();
   await loadRecentActivity();
 }
 
@@ -1814,48 +3312,89 @@ async function loadRecentActivity(): Promise<void> {
     activities = activities.slice(0, 10);
 
     if (activities.length === 0) {
-      renderTemplate(
-        recentActivityEl,
-        '<div class="glass-effect rounded-xl p-4 text-dark-300">No recent activity</div>'
-      );
+      const emptyCopy =
+        hasStudent && userRole === 'student'
+          ? {
+              title: 'No recent activity yet',
+              subtitle: 'Grades and attendance will appear here as your instructors post them.',
+            }
+          : hasStudent
+            ? {
+                title: 'No recent activity for this learner',
+                subtitle: 'New grades and attendance will show up here after the next updates.',
+              }
+            : {
+                title: 'No recent activity to show',
+                subtitle: 'Select a student from the dashboard roster to combine grades and attendance in this feed.',
+              };
+      renderTemplate(recentActivityEl, emptyStateBlockHtml(emptyCopy.title, emptyCopy.subtitle));
       return;
     }
 
-    const activityHtml = activities.map(activity => {
+    const activityRows = activities.map(activity => {
       const dateStr = activity.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       if (activity.type === 'grade') {
         const grade = activity.data as Grade;
-        const percentage = ((grade.score / grade.totalPoints) * 100).toFixed(1);
-        const cls = parseFloat(percentage) >= 70 ? 'text-green-400' : 'text-red-400';
-        return `<div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors"><div class="flex items-start justify-between"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg><span class="text-white font-semibold">${escapeHtmlText(grade.assignmentName)}</span></div><p class="text-dark-300 text-sm">${escapeHtmlText(grade.category)} &bull; ${grade.score}/${grade.totalPoints} (<span class="${cls}">${percentage}%</span>)</p></div><span class="text-dark-400 text-xs whitespace-nowrap ml-4">${dateStr}</span></div></div>`;
-      } else {
-        const att = activity.data as Attendance;
-        const statusMap: Record<string, [string, string]> = {
-          present: ['✓ Present', 'text-green-400'], absent: ['✗ Absent', 'text-red-400'],
-          late: ['⏰ Late', 'text-yellow-400'], excused: ['📝 Excused', 'text-blue-400'],
-        };
-        const [badge, color] = statusMap[att.status] || ['Unknown', 'text-dark-300'];
-        return `<div class="glass-effect rounded-xl p-4 hover:bg-dark-800/50 transition-colors"><div class="flex items-start justify-between"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="${color} font-semibold">${badge}</span></div><p class="text-dark-300 text-sm">${escapeHtmlText(att.notes || 'No notes')}</p></div><span class="text-dark-400 text-xs whitespace-nowrap ml-4">${dateStr}</span></div></div>`;
+        const pct = gradePercent100(grade);
+        const percentage = pct == null ? '—' : pct.toFixed(1);
+        const cls = pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
+        return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td><td class="py-3 px-4 text-dark-300 text-sm">Grade posted</td><td class="py-3 px-4 text-sm ${cls} tabular-nums">${percentage}${pct == null ? '' : '%'}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
       }
+      const att = activity.data as Attendance;
+      const statusMap: Record<string, [string, string]> = {
+        present: ['Present', 'text-green-400'],
+        absent: ['Absent', 'text-red-400'],
+        late: ['Late', 'text-yellow-400'],
+        excused: ['Excused', 'text-blue-400'],
+      };
+      const [badge, color] = statusMap[att.status] || ['Recorded', 'text-dark-300'];
+      return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${badge}</td><td class="py-3 px-4 text-dark-300 text-sm">Attendance</td><td class="py-3 px-4 text-sm ${color}">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
     }).join('');
-    renderTemplate(recentActivityEl, activityHtml);
-  } catch (err: unknown) {
     renderTemplate(
       recentActivityEl,
-      '<div class="glass-effect rounded-xl p-4 text-dark-300">Recent activity is unavailable right now.</div>'
+      `<div class="card-blur progress-bar-glow rounded-2xl overflow-hidden border border-white/10">
+<div class="overflow-x-auto">
+<table class="w-full min-w-0 text-left text-sm">
+<thead><tr class="text-[0.65rem] uppercase tracking-wider text-dark-400 border-b border-white/10">
+<th class="py-3 px-4 font-semibold">Item</th><th class="py-3 px-4 font-semibold">Type</th><th class="py-3 px-4 font-semibold">Detail</th><th class="py-3 px-4 font-semibold text-right">When</th>
+</tr></thead>
+<tbody>${activityRows}</tbody>
+</table>
+</div>
+</div>`
+    );
+  } catch (err: unknown) {
+    reportClientFault(err);
+    renderTemplate(
+      recentActivityEl,
+      `<div class="card-blur progress-bar-glow rounded-xl p-6 text-secondary-200/90 text-sm text-center">Recent activity is unavailable right now.</div>`
     );
     showAppToast(formatErrorForUserToast(err, 'Could not load recent activity.'), 'error');
   }
 }
 
 function resetAppState(): void {
+  stopDashboardProverbRotation();
+  lastRenderedMobileNavRole = undefined;
+  renderRoleBasedBottomNav(null);
   currentStudents = [];
   currentGrades = [];
   selectedStudentId = null;
-  if (gradesUnsubscribe) { gradesUnsubscribe(); gradesUnsubscribe = null;   }
+  attendanceRollCourses = [];
+  institutionalSnapshot = { role: 'student' };
+  const instMount = document.getElementById('dashboard-institutional-mount');
+  if (instMount) renderTemplate(instMount, '');
+  const mobileShell = document.getElementById('dashboard-mobile-shell');
+  if (mobileShell) renderTemplate(mobileShell, '');
+  clearGradesMobilePending();
+  invalidateStudentGpaSessionCache();
+  if (gradesUnsubscribe) {
+    gradesUnsubscribe();
+    gradesUnsubscribe = null;
+  }
 }
 
-// --- AI: performance summary, study tips, agent chat ---
+// --- Callable helpers: performance summary, study tips, agent chat ---
 async function generatePerformanceSummary(studentId: string): Promise<void> {
   const btn = document.getElementById('ai-summary-btn') as HTMLButtonElement | null;
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
@@ -1867,6 +3406,7 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
     const data = result.data as { studentName?: string; summaryHtml?: string };
     showModal(`Performance Summary - ${data?.studentName ?? 'Student'}`, data?.summaryHtml ?? '<p>No summary generated.</p>');
   } catch (error: unknown) {
+    reportClientFault(error);
     showAppToast(formatErrorForUserToast(error, 'Could not generate the performance summary.'), 'error');
   } finally {
     hideLoading();
@@ -1885,6 +3425,7 @@ async function generateStudyTips(studentId: string): Promise<void> {
     const data = result.data as { studentName?: string; tipsHtml?: string };
     showModal(`Study Tips - ${data?.studentName ?? 'Student'}`, data?.tipsHtml ?? '<p>No study tips generated.</p>');
   } catch (error: unknown) {
+    reportClientFault(error);
     showAppToast(formatErrorForUserToast(error, 'Could not generate study tips.'), 'error');
   } finally {
     hideLoading();
@@ -1955,6 +3496,7 @@ function setupAIAgentChat(): void {
       conversationHistory.push({ user: message, assistant: assistantText });
       if (conversationHistory.length > 10) conversationHistory = conversationHistory.slice(-10);
     } catch (error: unknown) {
+      reportClientFault(error);
       removeTypingIndicator(typingId);
       addMessageToChat(
         'assistant',
@@ -2042,7 +3584,6 @@ function setupAIAgentChat(): void {
       );
       const contentDiv = messageDiv.querySelector(`#${msgId}`);
       if (contentDiv) {
-        // formatMarkdown ends with sanitizeHTML (DOMPurify); renderTemplate applies it without live-container innerHTML.
         renderTemplate(contentDiv, formatMarkdown(content));
       }
     }
@@ -2072,10 +3613,6 @@ function setupAIAgentChat(): void {
     document.getElementById(typingId)?.remove();
   }
 
-  /**
-   * Converts assistant plain text / light HTML into styled markup, then `sanitizeHTML` (DOMPurify).
-   * Insert the returned string with the module `renderTemplate` helper (detached `<template>` parse), not `innerHTML` on a live node.
-   */
   function formatMarkdown(text: string): string {
     let html = text.trim();
     const hasHtmlTags = /<\/?(?:ul|ol|li|p|div|h[1-6]|strong|em|b|i|code|pre|blockquote|br|hr|span|a)[>\s]/i.test(html);
@@ -2137,15 +3674,20 @@ function setupAIAgentChat(): void {
 
   sendBtn.addEventListener('click', sendMessage);
 
+  lmsWin.resetLmsAiAdvisorSession = () => {
+    conversationHistory = [];
+    const mc = document.getElementById('ai-agent-messages');
+    const welcome = mc?.querySelector<HTMLElement>('[data-lms-ai-welcome-root]');
+    if (mc && welcome) {
+      mc.replaceChildren();
+      mc.appendChild(welcome);
+    }
+  };
+
   if (clearChatBtn) {
     clearChatBtn.addEventListener('click', () => {
       if (confirm('Are you sure you want to clear the chat history?')) {
-        conversationHistory = [];
-        if (messagesContainer) {
-          const welcomeMsg = messagesContainer.querySelector('.flex.items-start.gap-3');
-          messagesContainer.replaceChildren();
-          if (welcomeMsg) messagesContainer.appendChild(welcomeMsg);
-        }
+        lmsWin.resetLmsAiAdvisorSession?.();
       }
     });
   }
@@ -2158,7 +3700,8 @@ async function loadStudentAttendance(studentId: string): Promise<void> {
     displayAttendance(currentAttendance);
     updateAttendanceStats(currentAttendance);
     loadRecentActivity();
-  } catch {
+  } catch (e) {
+    reportClientFault(e);
     displayAttendance([]);
     updateAttendanceStats([]);
   }
@@ -2166,32 +3709,34 @@ async function loadStudentAttendance(studentId: string): Promise<void> {
 
 function displayAttendance(attendance: Attendance[]): void {
   const attendanceTableBody = document.getElementById('attendance-history-body')!;
+  const sel = document.getElementById('attendance-student-select') as HTMLSelectElement | null;
+  const hasSelection = !!sel?.value;
   if (attendance.length === 0) {
-    renderTemplate(
-      attendanceTableBody,
-      '<tr><td colspan="4" class="text-center py-8 text-dark-300">No attendance records yet</td></tr>'
-    );
+    if (!hasSelection) {
+      renderTemplate(
+        attendanceTableBody,
+        attendanceHistoryEmptyRowHtml('Select a student to view attendance history.')
+      );
+    } else {
+      const role = getCurrentUserRole();
+      const cta =
+        role === 'teacher' || role === 'admin'
+          ? `<button type="button" id="attendance-empty-focus-mark" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">Mark attendance</button>`
+          : '';
+      const emptyMsg =
+        role === 'student'
+          ? 'No attendance history on file yet. Your instructors will record sessions here as they meet.'
+          : 'No attendance records yet for this student.';
+      renderTemplate(attendanceTableBody, attendanceHistoryEmptyRowHtml(emptyMsg, cta));
+      document.getElementById('attendance-empty-focus-mark')?.addEventListener('click', () => {
+        document.getElementById('mark-attendance-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
     return;
   }
-  const attendanceRowsHtml = attendance.map(record => {
-    const date = new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    const student = currentStudents.find(s => s.id === record.studentId);
-    const studentName = student ? student.name : 'Unknown';
-    const badges: Record<string, string> = {
-      present: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">✓ Present</span>',
-      absent: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">✗ Absent</span>',
-      late: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">⏰ Late</span>',
-      excused: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">📝 Excused</span>',
-    };
-    return `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors">
-        <td class="py-3 px-4 text-white">${date}</td>
-        <td class="py-3 px-4 text-dark-300">${escapeHtmlText(studentName)}</td>
-        <td class="py-3 px-4 text-center">${badges[record.status] || ''}</td>
-        <td class="py-3 px-4 text-dark-400 text-sm">${escapeHtmlText(record.notes || '-')}</td>
-      </tr>`;
-  }).join('');
-  renderTemplate(attendanceTableBody, attendanceRowsHtml);
+  const resolveName = (studentId: string) =>
+    safeStudentDisplayName(currentStudents.find((s) => s.id === studentId)?.name);
+  renderTemplate(attendanceTableBody, renderAttendanceHistoryRows(attendance, resolveName));
 }
 
 function updateAttendanceStats(attendance: Attendance[]): void {
@@ -2200,7 +3745,8 @@ function updateAttendanceStats(attendance: Attendance[]): void {
   const absent = attendance.filter(a => a.status === 'absent').length;
   const late = attendance.filter(a => a.status === 'late').length;
   const excused = attendance.filter(a => a.status === 'excused').length;
-  const rate = total > 0 ? (((present + late + excused) / total) * 100).toFixed(1) : '0';
+  const rate =
+    total > 0 ? finiteToFixed(((present + late + excused) / total) * 100, 1, '0') : '0';
 
   const totalEl = document.getElementById('attendance-total');
   const presentEl = document.getElementById('attendance-present');
@@ -2228,8 +3774,8 @@ async function loadUserProfile(): Promise<void> {
   try {
     const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
     if (snap.exists()) userDocData = snap.data() as Record<string, unknown>;
-  } catch {
-    /* ignore: offline / rules */
+  } catch (e) {
+    reportClientFault(e);
   }
 
   if (generation !== loadUserProfileGeneration) return;
@@ -2300,6 +3846,14 @@ async function loadUserProfile(): Promise<void> {
     if (el) el.textContent = val;
   }
 
+  const profileHdrAvatar = document.getElementById('profile-header-avatar');
+  if (profileHdrAvatar) {
+    const ini = initialsForAvatarLabel(summaryName);
+    const { bg, ring } = pickAvatarDiscPalette(firebaseUser.uid);
+    profileHdrAvatar.textContent = ini;
+    profileHdrAvatar.className = `flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white ring-2 font-display ${bg} ${ring}`;
+  }
+
   const editName = document.getElementById('profile-self-display-name') as HTMLInputElement | null;
   const editPhone = document.getElementById('profile-self-phone') as HTMLInputElement | null;
   const editBirth = document.getElementById('profile-self-birth-year') as HTMLInputElement | null;
@@ -2337,7 +3891,7 @@ async function loadUserProfile(): Promise<void> {
 
 function wireProfilePasswordUpdate(): void {
   if (profilePasswordUpdateWired) return;
-  const btn = document.getElementById('profile-update-password-btn');
+  const btn = document.getElementById('profile-update-password-btn') as HTMLButtonElement | null;
   if (!btn) return;
   profilePasswordUpdateWired = true;
   btn.addEventListener('click', async () => {
@@ -2370,6 +3924,7 @@ function wireProfilePasswordUpdate(): void {
       showAppToast('This account has no email address; password cannot be updated here.', 'error');
       return;
     }
+    btn.disabled = true;
     try {
       const cred = EmailAuthProvider.credential(email, current);
       await reauthenticateWithCredential(u, cred);
@@ -2379,7 +3934,10 @@ function wireProfilePasswordUpdate(): void {
       if (nextEl) nextEl.value = '';
       if (confirmEl) confirmEl.value = '';
     } catch (e: unknown) {
+      reportClientFault(e);
       showAppToast(formatErrorForUserToast(e, 'Could not update your password.'), 'error');
+    } finally {
+      btn.disabled = false;
     }
   });
 }
@@ -2503,7 +4061,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
       scheduleDomPaint(() => {
         showAppContainer();
         showBootstrapError(
-          'Still loading your account profile. You remain signed in; open My Profile in a moment if you still see placeholders.'
+          'Still loading your account profile. You remain signed in; open My Profile in a moment if labels still look incomplete.'
         );
       });
       try {
@@ -2521,7 +4079,11 @@ function refreshAppShellAfterSignupModalDismiss(): void {
       const userRole = getCurrentUserRole();
       const gw = window as LmsGlobalWindow;
       const sidebarLabel = userProfileDisplayLabel(user!);
-      gw.updateSidebarUserInfo?.(sidebarLabel === '—' ? user!.email || '' : sidebarLabel, userRole ?? 'student');
+      gw.updateSidebarUserInfo?.(
+        sidebarLabel === '—' ? user!.email || '' : sidebarLabel,
+        userRole ?? 'student',
+        user!.email || ''
+      );
 
       document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
       document.getElementById('dashboard-content')?.classList.remove('hide');

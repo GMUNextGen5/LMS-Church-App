@@ -20,6 +20,8 @@ import {
   getUserDisplayName,
   userProfileDisplayLabel,
 } from '../data/classes-data';
+import { fetchStudentAssessments } from '../data/assessment-data';
+import { safeCourseDisplayName, safeStudentDisplayName } from '../core/display-fallbacks';
 import type { Course, Student, User } from '../types';
 
 let container: HTMLElement | null = null;
@@ -40,12 +42,17 @@ function sectionHeader(title: string, rightHtml?: string): string {
     </div>`;
 }
 
-function emptyState(title: string, subtitle?: string): string {
+function emptyState(title: string, subtitle?: string, ctaHtml?: string): string {
+  const cta = ctaHtml
+    ? `<div class="mt-6 flex flex-wrap justify-center gap-3">${ctaHtml}</div>`
+    : '';
   return `
-    <div class="text-center py-16">
-      <div class="text-4xl mb-3 opacity-30">📚</div>
+    <div class="text-center py-16 px-4">
+      <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-dark-500 mb-2">DSKM LMS</p>
+      <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📚</div>
       <h3 class="text-white font-semibold text-lg">${esc(title)}</h3>
-      ${subtitle ? `<p class="text-dark-400 text-sm mt-1">${esc(subtitle)}</p>` : ''}
+      ${subtitle ? `<p class="text-dark-400 text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
+      ${cta}
     </div>`;
 }
 
@@ -71,7 +78,7 @@ function populateStudentDropdown(owner: 'admin' | 'teacher', students: { id: str
           .map((s) => {
             const checked = preselected?.has(s.id) ? 'checked' : '';
             return `<label class="student-dropdown-item flex items-center gap-2 px-3 py-1.5 hover:bg-dark-600/60 cursor-pointer text-sm text-white">
-          <input type="checkbox" value="${s.id}" ${checked} class="accent-primary-500" /> ${esc(s.name)}
+          <input type="checkbox" value="${esc(s.id)}" ${checked} class="accent-primary-500" /> ${esc(safeStudentDisplayName(s.name))}
         </label>`;
           })
           .join('');
@@ -136,7 +143,7 @@ function getAdminModal(): HTMLElement {
   renderTemplate(
     adminModalEl,
     `
-    <div class="classes-modal-box">
+    <div class="classes-modal-box w-full max-w-2xl">
       <h3 id="class-form-title" class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="class-form" data-course-id="">
         <div class="space-y-4">
@@ -218,7 +225,7 @@ function getTeacherModal(): HTMLElement {
   renderTemplate(
     teacherModalEl,
     `
-    <div class="classes-modal-box">
+    <div class="classes-modal-box w-full max-w-2xl">
       <h3 class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="teacher-class-form" data-course-id="">
         <div class="space-y-4">
@@ -431,7 +438,9 @@ export async function loadClasses(): Promise<void> {
 async function renderStudentView(): Promise<void> {
   const profiles = await fetchStudents();
   const profileIds = profiles.map(s => s.id);
-  const courses = await fetchStudentClasses(profileIds);
+  const courses = (await fetchStudentClasses(profileIds)).filter((c) =>
+    (c.studentIds ?? []).some((id) => profileIds.includes(id))
+  );
 
   const teacherNames: Record<string, string> = {};
   await Promise.all(
@@ -440,15 +449,45 @@ async function renderStudentView(): Promise<void> {
     })
   );
 
+  let progressByCourse: Record<string, { done: number; total: number }> = {};
+  try {
+    const assessRows = await fetchStudentAssessments(profileIds);
+    for (const row of assessRows) {
+      const cid = row.courseId;
+      if (!progressByCourse[cid]) progressByCourse[cid] = { done: 0, total: 0 };
+      progressByCourse[cid].total++;
+      const sub = row.submission;
+      const turnedIn =
+        sub &&
+        (sub.status === 'submitted' || sub.status === 'late_submitted' || sub.status === 'graded');
+      if (turnedIn) progressByCourse[cid].done++;
+    }
+  } catch {
+    progressByCourse = {};
+  }
+
   const cards = courses.map(c => {
     const t = teacherNames[c.teacherId];
     const teacherLine = t && t !== '—' ? t : 'Teacher';
+    const prog = progressByCourse[c.id];
+    const pct =
+      prog && prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
+    const progLabel =
+      prog && prog.total > 0
+        ? `${prog.done} / ${prog.total} assessments submitted`
+        : 'No published assessments yet';
     return `
     <div class="bg-dark-800 rounded-xl border border-dark-700 p-5 hover:border-dark-500 transition-all">
-      <h3 class="text-white font-semibold text-lg">${esc(c.courseName)}</h3>
+      <h3 class="text-white font-semibold text-lg">${esc(safeCourseDisplayName(c.courseName))}</h3>
       <p class="text-dark-400 text-sm mt-1">${esc(teacherLine)}</p>
       ${c.schedule ? `<p class="text-dark-300 text-sm mt-2">${esc(c.schedule)}</p>` : ''}
       ${c.description ? `<p class="text-dark-300 text-sm mt-2 line-clamp-2">${esc(c.description)}</p>` : ''}
+      <div class="mt-4" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prog && prog.total > 0 ? pct : 0}" aria-label="Assessment completion for this class">
+        <div class="h-2 w-full rounded-full bg-dark-700/90 overflow-hidden border border-dark-600/50">
+          <div class="assessment-progress-fill h-full rounded-full bg-gradient-to-r from-primary-600 to-cyan-400 transition-[width] duration-500 ease-out" style="width: ${prog && prog.total > 0 ? pct : 0}%"></div>
+        </div>
+        <p class="text-dark-500 text-xs mt-1.5">${esc(progLabel)}</p>
+      </div>
       <div class="mt-4 flex gap-2">
         <a href="#" data-tab="assessments" class="classes-quick-link px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Assessments</a>
         <a href="#" data-tab="grades" class="classes-quick-link px-3 py-1.5 rounded-lg text-xs font-medium bg-dark-600 text-dark-300 hover:bg-dark-500">Grades</a>
@@ -456,12 +495,18 @@ async function renderStudentView(): Promise<void> {
     </div>`;
   });
 
+  const emptyHtml = emptyState(
+    'Welcome to DSKM LMS!',
+    "You haven't been assigned to a class yet. Contact your teacher, or open Assessments to see your work.",
+    `<a href="#" data-tab="assessments" class="classes-quick-link inline-flex px-4 py-2 rounded-lg text-sm font-semibold bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">View assessments</a>`
+  );
+
   renderTemplate(
     container!,
     `
     <div class="space-y-6">
       ${sectionHeader('My Classes')}
-      ${courses.length === 0 ? emptyState('No classes', 'You are not enrolled in any classes yet.') : `<div class="grid gap-4">${cards.join('')}</div>`}
+      ${courses.length === 0 ? emptyHtml : `<div class="grid grid-cols-1 gap-4">${cards.join('')}</div>`}
     </div>`
   );
 }
@@ -474,20 +519,20 @@ async function renderTeacherView(): Promise<void> {
   cachedAllStudents = students;
 
   const rows = courses.map(c => `
-    <tr class="border-b border-dark-700 hover:bg-dark-800/50">
-      <td class="py-3 px-4 text-white font-medium">${esc(c.courseName)}</td>
+    <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
+      <td class="py-3 px-4 text-white font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm"><span class="text-dark-500" data-teacher-cell="${c.id}">Loading…</span></td>
+      <td class="py-3 px-4 text-dark-300 text-sm"><span class="text-on-surface-muted tabular-nums" data-teacher-cell="${esc(c.id)}" aria-hidden="true">—</span></td>
       <td class="py-3 px-4 text-dark-300 text-sm">${c.studentIds?.length ?? 0}</td>
       <td class="py-3 px-4 flex gap-1">
-        <button data-action="teacher-edit-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
-        <button data-action="teacher-delete-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
-        <button data-action="teacher-toggle-roster" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-dark-600 text-dark-300 hover:bg-dark-500">Roster</button>
+        <button data-action="teacher-edit-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
+        <button data-action="teacher-delete-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
+        <button data-action="teacher-toggle-roster" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-dark-600 text-dark-300 hover:bg-dark-500">Roster</button>
       </td>
     </tr>
     <tr id="teacher-roster-row-${c.id}" class="hidden border-b border-dark-700 bg-dark-900/30">
       <td colspan="5" class="py-4 px-4">
-        <div id="teacher-roster-${c.id}" class="text-dark-400 text-sm">Loading roster…</div>
+        <div id="teacher-roster-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </td>
     </tr>`);
 
@@ -496,7 +541,11 @@ async function renderTeacherView(): Promise<void> {
     `
     <div class="space-y-6">
       ${sectionHeader('My Classes', `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
-      ${courses.length === 0 ? emptyState('No classes yet', 'Create a class or ask an admin to assign you one.') : `
+      ${courses.length === 0 ? emptyState(
+        'No classes found',
+        'Create a class or ask an admin to assign you one.',
+        `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create class</button>`
+      ) : `
         <div class="overflow-x-auto rounded-xl border border-dark-700">
           <table class="w-full text-sm">
             <thead class="bg-dark-800/80">
@@ -527,7 +576,8 @@ async function renderTeacherView(): Promise<void> {
       const cell = container.querySelector(`[data-teacher-cell="${c.id}"]`);
       if (cell) {
         cell.textContent = teacherNames[c.teacherId] ?? '—';
-        cell.classList.remove('text-dark-500');
+        cell.classList.remove('text-on-surface-muted', 'tabular-nums');
+        cell.removeAttribute('aria-hidden');
       }
     }
   }
@@ -559,20 +609,20 @@ async function renderAdminView(): Promise<void> {
   );
 
   const rows = courses.map(c => `
-    <tr class="border-b border-dark-700 hover:bg-dark-800/50">
-      <td class="py-3 px-4 text-white font-medium">${esc(c.courseName)}</td>
+    <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
+      <td class="py-3 px-4 text-white font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${esc(teacherNames[c.teacherId] ?? '—')}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${c.studentIds?.length ?? 0}</td>
       <td class="py-3 px-4 flex gap-1">
-        <button data-action="admin-edit-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
-        <button data-action="admin-delete-class" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
-        <button data-action="admin-toggle-roster" data-course-id="${c.id}" class="px-2 py-1 rounded text-xs bg-dark-600 text-dark-300 hover:bg-dark-500">Roster</button>
+        <button data-action="admin-edit-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
+        <button data-action="admin-delete-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
+        <button data-action="admin-toggle-roster" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-dark-600 text-dark-300 hover:bg-dark-500">Roster</button>
       </td>
     </tr>
     <tr id="admin-roster-row-${c.id}" class="hidden border-b border-dark-700 bg-dark-900/30">
       <td colspan="5" class="py-4 px-4">
-        <div id="admin-roster-${c.id}" class="text-dark-400 text-sm">Loading roster…</div>
+        <div id="admin-roster-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </td>
     </tr>`);
 
@@ -581,7 +631,11 @@ async function renderAdminView(): Promise<void> {
     `
     <div class="space-y-6">
       ${sectionHeader('Classes', `<button type="button" data-action="admin-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
-      ${courses.length === 0 ? emptyState('No classes', 'Create a class to get started.') : `
+      ${courses.length === 0 ? emptyState(
+        'No classes found',
+        'Create a class to get started.',
+        `<button type="button" data-action="admin-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create class</button>`
+      ) : `
         <div class="overflow-x-auto rounded-xl border border-dark-700">
           <table class="w-full text-sm">
             <thead class="bg-dark-800/80">
@@ -619,12 +673,12 @@ async function loadTeacherRoster(courseId: string): Promise<void> {
         <p class="text-dark-300 font-medium">Enrolled (${roster.length})</p>
         ${roster.length === 0
           ? '<p class="text-dark-500 text-sm">None</p>'
-          : `<ul class="space-y-1">${roster.map(s => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(s.name)}</span><button type="button" data-action="teacher-remove-student" data-course-id="${courseId}" data-student-id="${s.id}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`}
+          : `<ul class="space-y-1">${roster.map(s => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(safeStudentDisplayName(s.name))}</span><button type="button" data-action="teacher-remove-student" data-course-id="${esc(courseId)}" data-student-id="${esc(s.id)}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`}
         <div>
           <p class="text-dark-300 font-medium mb-1">Add student</p>
-          <select data-course-id="${courseId}" data-action="teacher-add-student-select" class="w-full max-w-xs px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
+          <select data-course-id="${esc(courseId)}" data-action="teacher-add-student-select" class="w-full max-w-xs px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
             <option value="">— Select student —</option>
-            ${available.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+            ${available.map(s => `<option value="${esc(s.id)}">${esc(safeStudentDisplayName(s.name))}</option>`).join('')}
           </select>
         </div>
       </div>`
@@ -653,12 +707,12 @@ async function loadAdminRoster(courseId: string): Promise<void> {
       <p class="text-dark-300 font-medium">Enrolled (${roster.length})</p>
       ${roster.length === 0
         ? '<p class="text-dark-500 text-sm">None</p>'
-        : `<ul class="space-y-1">${roster.map(s => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(s.name)}</span><button type="button" data-action="admin-remove-student" data-course-id="${courseId}" data-student-id="${s.id}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`}
+        : `<ul class="space-y-1">${roster.map(s => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(safeStudentDisplayName(s.name))}</span><button type="button" data-action="admin-remove-student" data-course-id="${esc(courseId)}" data-student-id="${esc(s.id)}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`}
       <div>
         <p class="text-dark-300 font-medium mb-1">Add student</p>
-        <select data-course-id="${courseId}" data-action="admin-add-student-select" class="w-full max-w-xs px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
+        <select data-course-id="${esc(courseId)}" data-action="admin-add-student-select" class="w-full max-w-xs px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
           <option value="">— Select student —</option>
-          ${available.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+          ${available.map(s => `<option value="${esc(s.id)}">${esc(safeStudentDisplayName(s.name))}</option>`).join('')}
         </select>
       </div>
     </div>`

@@ -264,6 +264,7 @@ export function configureUIForRole(user: User): void {
     document.querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav').forEach(el => {
       (el as HTMLElement).classList.add('hide');
     });
+    document.dispatchEvent(new CustomEvent('lms-role-configured', { detail: { role: null } }));
     return;
   }
 
@@ -297,6 +298,8 @@ export function configureUIForRole(user: User): void {
   document.querySelectorAll('.lms-my-account-nav').forEach(el => {
     (el as HTMLElement).classList.remove('hide');
   });
+
+  document.dispatchEvent(new CustomEvent('lms-role-configured', { detail: { role: role as UserRole } }));
 }
 
 const VALID_MAIN_TABS = new Set([
@@ -383,10 +386,11 @@ function ensureToastHost(): HTMLElement {
 
 const TOAST_STYLES: Record<AppToastKind, string> = {
   success:
-    'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg bg-emerald-950/95 text-emerald-50 border-emerald-600/50',
+    'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-primary-100 border-primary-400/35',
   error:
-    'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg bg-red-950/95 text-red-50 border-red-600/50',
-  info: 'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg bg-slate-900/95 text-slate-50 border-slate-600/60',
+    'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-red-100 border-red-500/40',
+  info:
+    'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-dark-100 border-secondary-400/30',
 };
 
 /**
@@ -454,11 +458,9 @@ export function showFirebaseConfigurationError(message: string): void {
   banner.id = FIREBASE_CONFIG_BANNER_ID;
   banner.setAttribute('role', 'alert');
   banner.className = [
-    'mx-auto max-w-lg rounded-lg border px-4 py-3 text-sm shadow-lg m-4',
-    // Light theme
-    'bg-red-50 text-red-900 border-red-300',
-    // Dark theme
-    'dark:bg-red-950/90 dark:text-red-100 dark:border-red-500/40',
+    'mx-auto max-w-lg rounded-xl border px-4 py-3 text-sm shadow-xl m-4 backdrop-blur-md',
+    'bg-dark-950/95 text-red-100 border-red-500/35',
+    'dark:bg-dark-950/95 dark:text-red-100 dark:border-red-500/35',
   ].join(' ');
   banner.textContent = message;
   root.insertBefore(banner, root.firstChild);
@@ -477,11 +479,9 @@ export function showBootstrapError(message: string): void {
   banner.id = INIT_ERROR_BANNER_ID;
   banner.setAttribute('role', 'alert');
   banner.className = [
-    'mx-auto max-w-lg rounded-lg border px-4 py-3 text-sm shadow-lg m-4',
-    // Light theme
-    'bg-amber-50 text-amber-900 border-amber-300',
-    // Dark theme
-    'dark:bg-amber-950/90 dark:text-amber-100 dark:border-amber-500/40',
+    'mx-auto max-w-lg rounded-xl border px-4 py-3 text-sm shadow-xl m-4 backdrop-blur-md',
+    'bg-dark-950/95 text-amber-100 border-secondary-400/35',
+    'dark:bg-dark-950/95 dark:text-amber-100 dark:border-secondary-400/35',
   ].join(' ');
   banner.textContent = message;
   root.insertBefore(banner, root.firstChild);

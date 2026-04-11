@@ -10,6 +10,7 @@ import {
   renderErrorPanel,
   appendParsedHtml,
 } from './dom-render';
+import { safeCourseDisplayName, safeStudentDisplayName } from '../core/display-fallbacks';
 import {
   fetchTeacherAssessments,
   fetchStudentAssessments,
@@ -53,9 +54,9 @@ let cachedStudentProfiles: Student[] = [];
 
 function submissionStudentDisplayName(sub: { studentName?: string; studentProfileId: string }): string {
   const n = sub.studentName?.trim();
-  if (n) return n;
-  const fromCache = cachedStudentProfiles.find(s => s.id === sub.studentProfileId)?.name?.trim();
-  return fromCache || 'Student';
+  if (n) return safeStudentDisplayName(n);
+  const fromCache = cachedStudentProfiles.find(s => s.id === sub.studentProfileId)?.name;
+  return safeStudentDisplayName(fromCache);
 }
 // Builder questions are collected from DOM at save time via collectQuestionsFromDOM()
 
@@ -164,21 +165,21 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
       : `<span class="text-dark-300 text-xs">${formatDate(a.dueDateTime)}</span>`;
 
     return `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50 transition-colors"
+      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors"
           style="content-visibility:auto; contain: content; contain-intrinsic-size: 56px;">
         <td class="py-3 px-4 text-white font-medium">${esc(a.title)}</td>
-        <td class="py-3 px-4 text-dark-300 text-sm">${esc(a.courseName)}</td>
+        <td class="py-3 px-4 text-dark-300 text-sm">${esc(safeCourseDisplayName(a.courseName))}</td>
         <td class="py-3 px-4 text-center">${statusBadge}</td>
         <td class="py-3 px-4 text-center">${dueBadge}</td>
         <td class="py-3 px-4 text-center text-dark-300">${a.questionCount}</td>
         <td class="py-3 px-4 text-center text-dark-300">${a.totalPoints}</td>
         <td class="py-3 px-4 text-center">
           <div class="inline-flex items-center gap-1 flex-nowrap overflow-x-auto max-w-full align-middle" style="scrollbar-width: none;">
-          <button data-action="edit-assessment" data-class-id="${a.classId}" data-id="${a.id}"
+          <button data-action="edit-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
                   class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap">Edit</button>
-          <button data-action="view-submissions" data-class-id="${a.classId}" data-id="${a.id}"
+          <button data-action="view-submissions" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
                   class="px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 whitespace-nowrap">Submissions</button>
-          <button data-action="delete-assessment" data-class-id="${a.classId}" data-id="${a.id}"
+          <button data-action="delete-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
                   class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 whitespace-nowrap">Delete</button>
           </div>
         </td>
@@ -199,7 +200,7 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
         <div class="flex items-start justify-between gap-3 mb-2">
           <div class="min-w-0">
             <h3 class="text-white font-semibold text-base truncate">${esc(a.title)}</h3>
-            <p class="text-dark-400 text-sm mt-0.5 truncate">${esc(a.courseName)}</p>
+            <p class="text-dark-400 text-sm mt-0.5 truncate">${esc(safeCourseDisplayName(a.courseName))}</p>
           </div>
           ${statusBadge}
         </div>
@@ -209,11 +210,11 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
           <span>${a.totalPoints} pts</span>
         </div>
         <div class="flex items-center gap-2 overflow-x-auto pb-1" style="scrollbar-width: none;">
-          <button data-action="edit-assessment" data-class-id="${a.classId}" data-id="${a.id}"
+          <button data-action="edit-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
                   class="px-3 py-2 rounded-lg text-xs font-semibold bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap">Edit</button>
-          <button data-action="view-submissions" data-class-id="${a.classId}" data-id="${a.id}"
+          <button data-action="view-submissions" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
                   class="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 whitespace-nowrap">Submissions</button>
-          <button data-action="delete-assessment" data-class-id="${a.classId}" data-id="${a.id}"
+          <button data-action="delete-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
                   class="px-3 py-2 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 whitespace-nowrap">Delete</button>
         </div>
       </div>`;
@@ -230,7 +231,11 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
         </button>
       `)}
       ${assessments.length === 0
-        ? emptyState('No assessments yet', 'Create your first assessment to get started.')
+        ? emptyState(
+            'No assessments yet',
+            'Create your first assessment to get started.',
+            `<button data-action="create-assessment" type="button" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">+ Create assessment</button>`
+          )
         : `<div class="md:hidden grid gap-4">${cards}</div>
           <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
             <table class="w-full text-sm">
@@ -281,7 +286,7 @@ async function renderStudentList(_uid: string): Promise<void> {
         <div class="flex items-start justify-between mb-3">
           <div>
             <h3 class="text-white font-semibold text-lg">${esc(a.title)}</h3>
-            <p class="text-dark-400 text-sm mt-0.5">${esc(r.courseName)}</p>
+            <p class="text-dark-400 text-sm mt-0.5">${esc(safeCourseDisplayName(r.courseName))}</p>
           </div>
           ${statusBadgeHtml(status)}
         </div>
@@ -300,14 +305,47 @@ async function renderStudentList(_uid: string): Promise<void> {
       </div>`;
   }).join('');
 
+  const tableRows = rows.map(r => {
+    const a = r.assessment;
+    const sub = r.submission;
+    const isPast = new Date(a.dueDateTime) < new Date();
+    const status = getStudentStatus(a, sub, isPast);
+    return `
+      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
+        <td class="py-3 px-4 text-white font-medium">${esc(a.title)}</td>
+        <td class="py-3 px-4 text-dark-300 text-sm">${esc(safeCourseDisplayName(r.courseName))}</td>
+        <td class="py-3 px-4 text-center">${statusBadgeHtml(status)}</td>
+        <td class="py-3 px-4 text-dark-300 text-sm whitespace-nowrap">${formatDate(a.dueDateTime)}</td>
+        <td class="py-3 px-4 text-right">${renderStudentAction(a, r, sub, profileIds)}</td>
+      </tr>`;
+  }).join('');
+
   renderTemplate(
     container!,
     `
     <div class="space-y-6">
       ${sectionHeader('My Assessments')}
       ${rows.length === 0
-        ? emptyState('No assessments assigned', 'Assessments will appear here when your teacher publishes them.')
-        : `<div class="grid gap-4">${cards}</div>`
+        ? emptyState(
+            'No assessments assigned',
+            'Assessments will appear here when your teacher publishes them.',
+            `<button type="button" data-action="goto-classes-tab" class="px-4 py-2 rounded-lg bg-primary-500/20 text-primary-400 text-sm font-semibold hover:bg-primary-500/30 border border-primary-500/30">View my classes</button>`
+          )
+        : `<div class="md:hidden grid gap-4">${cards}</div>
+          <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
+            <table class="w-full text-sm">
+              <thead class="bg-dark-800/80">
+                <tr class="text-dark-300 text-xs uppercase tracking-wider">
+                  <th class="py-3 px-4 text-left">Title</th>
+                  <th class="py-3 px-4 text-left">Class</th>
+                  <th class="py-3 px-4 text-center">Status</th>
+                  <th class="py-3 px-4 text-left">Due</th>
+                  <th class="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </div>`
       }
       ${hasMore ? `
         <div class="flex justify-center pt-2">
@@ -334,21 +372,21 @@ function getStudentStatus(_a: Assessment, sub: Submission | undefined, isPast: b
 
 function statusBadgeHtml(status: string): string {
   const colors: Record<string, string> = {
-    'Not Started': 'bg-dark-600 text-dark-300',
-    'In Progress': 'bg-blue-500/20 text-blue-400',
-    'Submitted': 'bg-yellow-500/20 text-yellow-400',
-    'Graded': 'bg-green-500/20 text-green-400',
-    'Graded (Pending Release)': 'bg-purple-500/20 text-purple-400',
-    'Overdue': 'bg-red-500/20 text-red-400',
+    'Not Started': 'bg-dark-800/90 text-dark-300 border border-dark-600/90',
+    'In Progress': 'bg-blue-900/30 text-blue-400 border border-blue-500/25',
+    'Submitted': 'bg-amber-900/30 text-amber-400 border border-amber-500/25',
+    'Graded': 'bg-green-900/30 text-green-400 border border-green-500/25',
+    'Graded (Pending Release)': 'bg-purple-900/30 text-purple-400 border border-purple-500/25',
+    'Overdue': 'bg-red-900/30 text-red-400 border border-red-500/30',
   };
-  const cls = colors[status] || 'bg-dark-600 text-dark-300';
-  return `<span class="px-2.5 py-1 rounded-full text-xs font-semibold ${cls}">${status}</span>`;
+  const cls = colors[status] || 'bg-dark-800 text-dark-300 border border-dark-600';
+  return `<span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold tracking-tight ${cls}">${esc(status)}</span>`;
 }
 
 function renderStudentAction(a: Assessment, r: StudentAssessmentRow, sub: Submission | undefined, profileIds: string[]): string {
   const spId = profileIds[0] || '';
   if (sub?.status === 'graded' && sub.released) {
-    return `<button data-action="view-results" data-class-id="${r.courseId}" data-id="${a.id}" data-sp="${spId}"
+    return `<button data-action="view-results" data-class-id="${esc(r.courseId)}" data-id="${esc(a.id)}" data-sp="${esc(spId)}"
               class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500/20 text-green-400 hover:bg-green-500/30">View Grade</button>`;
   }
   if (sub?.status === 'submitted' || sub?.status === 'late_submitted' || sub?.status === 'graded') {
@@ -359,7 +397,7 @@ function renderStudentAction(a: Assessment, r: StudentAssessmentRow, sub: Submis
     return `<span class="text-red-400 text-xs">Closed</span>`;
   }
   const label = sub?.status === 'in_progress' ? 'Resume' : 'Start';
-  return `<button data-action="take-assessment" data-class-id="${r.courseId}" data-id="${a.id}" data-sp="${spId}"
+  return `<button data-action="take-assessment" data-class-id="${esc(r.courseId)}" data-id="${esc(a.id)}" data-sp="${esc(spId)}"
             class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-500 text-white hover:bg-primary-600">${label}</button>`;
 }
 
@@ -391,7 +429,7 @@ async function renderBuilder(): Promise<void> {
   const title = isEdit ? 'Edit Assessment' : 'Create Assessment';
 
   const courseOptions = cachedCourses.map(c =>
-    `<option value="${c.id}" ${existing?.classId === c.id ? 'selected' : ''}>${esc(c.courseName)}${c.courseCode ? ` (${esc(c.courseCode)})` : ''}</option>`
+    `<option value="${esc(c.id)}" ${existing?.classId === c.id ? 'selected' : ''}>${esc(safeCourseDisplayName(c.courseName))}${c.courseCode ? ` (${esc(c.courseCode)})` : ''}</option>`
   ).join('');
 
   // Build questions HTML
@@ -408,8 +446,8 @@ async function renderBuilder(): Promise<void> {
       ${sectionHeader(title, `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
 
       <form id="assessment-form" class="space-y-6">
-        <input type="hidden" name="assessmentId" value="${assessmentId || ''}">
-        <input type="hidden" name="existingClassId" value="${classId || ''}">
+        <input type="hidden" name="assessmentId" value="${esc(assessmentId || '')}">
+        <input type="hidden" name="existingClassId" value="${esc(classId || '')}">
 
         <!-- Settings Card -->
         <div class="bg-dark-800 rounded-xl border border-dark-700 p-6 space-y-4">
@@ -435,7 +473,7 @@ async function renderBuilder(): Promise<void> {
             </div>
             <div>
               <label class="block text-dark-300 text-sm mb-1">Due Date & Time *</label>
-              <input name="dueDateTime" type="datetime-local" required value="${dueVal}"
+              <input name="dueDateTime" type="datetime-local" required value="${esc(dueVal)}"
                      class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm focus:border-primary-500 focus:outline-none">
             </div>
             <div>
@@ -537,7 +575,7 @@ function questionCardHtml(q: Partial<AssessmentQuestion> & { id?: string }, inde
     </div>`).join('');
 
   return `
-    <div class="bg-dark-900 rounded-lg border border-dark-600 p-4 question-card" data-qi="${index}" data-qid="${q.id || ''}">
+    <div class="bg-dark-900 rounded-lg border border-dark-600 p-4 question-card" data-qi="${index}" data-qid="${esc(q.id || '')}">
       <div class="flex items-start justify-between mb-3">
         <span class="text-primary-400 font-semibold text-sm">Q${index + 1}</span>
         <button type="button" data-action="remove-question" data-qi="${index}"
@@ -648,10 +686,10 @@ async function renderTake(): Promise<void> {
         </div>
       </div>
 
-      <form id="take-assessment-form" data-class-id="${classId}" data-id="${assessmentId}" data-sp="${studentProfileId}">
+      <form id="take-assessment-form" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(studentProfileId)}">
         ${questionsHtml}
         <div class="flex gap-3 pt-2">
-          <button type="button" data-action="save-progress" data-class-id="${classId}" data-id="${assessmentId}" data-sp="${studentProfileId}"
+          <button type="button" data-action="save-progress" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(studentProfileId)}"
                   class="px-4 py-2.5 rounded-lg bg-dark-700 text-white text-sm font-semibold hover:bg-dark-600">
             Save Progress
           </button>
@@ -670,7 +708,7 @@ function renderAnswerInput(q: AssessmentQuestion, _qi: number, ans?: QuestionAns
     case 'multiple_choice':
       return (q.options || []).map((opt, oi) => `
         <label class="flex items-center gap-2 p-2 rounded hover:bg-dark-700 cursor-pointer">
-          <input type="radio" name="ans_${q.id}" value="${oi}"
+          <input type="radio" name="ans_${esc(q.id)}" value="${oi}"
                  ${ans?.selectedOptions?.[0] === oi ? 'checked' : ''}
                  class="accent-primary-500">
           <span class="text-dark-200 text-sm">${esc(opt)}</span>
@@ -678,19 +716,19 @@ function renderAnswerInput(q: AssessmentQuestion, _qi: number, ans?: QuestionAns
     case 'checkbox':
       return (q.options || []).map((opt, oi) => `
         <label class="flex items-center gap-2 p-2 rounded hover:bg-dark-700 cursor-pointer">
-          <input type="checkbox" name="ans_${q.id}" value="${oi}"
+          <input type="checkbox" name="ans_${esc(q.id)}" value="${oi}"
                  ${(ans?.selectedOptions || []).includes(oi) ? 'checked' : ''}
                  class="accent-primary-500">
           <span class="text-dark-200 text-sm">${esc(opt)}</span>
         </label>`).join('');
     case 'short_answer':
-      return `<input type="text" name="ans_${q.id}" value="${esc(ans?.value || '')}"
+      return `<input type="text" name="ans_${esc(q.id)}" value="${esc(ans?.value || '')}"
                      class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm">`;
     case 'paragraph':
-      return `<textarea name="ans_${q.id}" rows="4"
+      return `<textarea name="ans_${esc(q.id)}" rows="4"
                         class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm">${esc(ans?.value || '')}</textarea>`;
     case 'numeric':
-      return `<input type="number" step="any" name="ans_${q.id}" value="${esc(ans?.value || '')}"
+      return `<input type="number" step="any" name="ans_${esc(q.id)}" value="${esc(ans?.value || '')}"
                      class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm">`;
     default:
       return '';
@@ -730,7 +768,7 @@ async function renderSubmissionsList(): Promise<void> {
     };
     const cls = statusCls[sub.status] || 'bg-dark-600 text-dark-300';
     return `
-      <tr class="border-b border-dark-700 hover:bg-dark-800/50"
+      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors"
           style="content-visibility:auto; contain: content; contain-intrinsic-size: 56px;">
         <td class="py-3 px-4 text-white">${esc(submissionStudentDisplayName(sub))}</td>
         <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${sub.status.replace('_', ' ')}</span></td>
@@ -741,11 +779,11 @@ async function renderSubmissionsList(): Promise<void> {
         <td class="py-3 px-4 text-center">${sub.released ? '<span class="text-green-400 text-xs">Yes</span>' : '<span class="text-dark-400 text-xs">No</span>'}</td>
         <td class="py-3 px-4 text-center">
           <div class="inline-flex items-center gap-1 flex-nowrap overflow-x-auto max-w-full align-middle" style="scrollbar-width: none;">
-            <button data-action="grade-submission" data-class-id="${classId}" data-id="${assessmentId}" data-sp="${sub.studentProfileId}"
+            <button data-action="grade-submission" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(sub.studentProfileId)}"
                     class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap">Grade</button>
-            ${!sub.released ? `<button data-action="release-single" data-class-id="${classId}" data-id="${assessmentId}" data-sp="${sub.studentProfileId}"
+            ${!sub.released ? `<button data-action="release-single" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(sub.studentProfileId)}"
                     class="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 whitespace-nowrap">Release</button>` : ''}
-            <button data-action="reopen-submission" data-class-id="${classId}" data-id="${assessmentId}" data-sp="${sub.studentProfileId}"
+            <button data-action="reopen-submission" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(sub.studentProfileId)}"
                     class="px-2 py-1 rounded text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 whitespace-nowrap">Reopen</button>
           </div>
         </td>
@@ -758,13 +796,17 @@ async function renderSubmissionsList(): Promise<void> {
     <div class="space-y-6">
       ${sectionHeader(`Submissions: ${assessment.title}`, `
         <div class="flex gap-2">
-          <button data-action="release-all" data-class-id="${classId}" data-id="${assessmentId}"
+          <button data-action="release-all" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}"
                   class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700">Release All Grades</button>
           <button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>
         </div>
       `)}
       ${submissions.length === 0
-        ? emptyState('No submissions yet', 'Students haven\'t started this assessment.')
+        ? emptyState(
+            'No submissions yet',
+            'Students haven\'t started this assessment.',
+            `<button data-action="back-to-list" type="button" class="px-4 py-2 rounded-lg bg-dark-700 text-dark-200 text-sm font-semibold hover:bg-dark-600 transition-colors">&larr; Back to assessments</button>`
+          )
         : `<div class="overflow-x-auto rounded-xl border border-dark-700">
             <table class="w-full text-sm">
               <thead class="bg-dark-800/80">
@@ -848,14 +890,14 @@ async function renderGradeView(): Promise<void> {
             <label class="text-dark-300 text-xs">Points:</label>
             <input type="number" min="0" max="${q.points}" step="0.5"
                    value="${grade?.points ?? 0}"
-                   data-role="grade-points" data-qid="${q.id}" data-max="${q.points}"
+                   data-role="grade-points" data-qid="${esc(q.id)}" data-max="${esc(String(q.points ?? 0))}"
                    class="w-20 px-2 py-1 rounded bg-dark-900 border border-dark-600 text-white text-sm text-center ${isAuto ? 'border-green-500/30' : ''}">
             <span class="text-dark-400 text-xs">/ ${q.points}</span>
           </div>
           <div class="flex-1">
             <input type="text" placeholder="Feedback (optional)"
                    value="${esc(grade?.feedback || '')}"
-                   data-role="grade-feedback" data-qid="${q.id}"
+                   data-role="grade-feedback" data-qid="${esc(q.id)}"
                    class="w-full px-2 py-1 rounded bg-dark-900 border border-dark-600 text-white text-sm">
           </div>
           ${isAuto ? '<span class="text-green-400 text-xs whitespace-nowrap">Auto-graded</span>' : '<span class="text-yellow-400 text-xs whitespace-nowrap">Manual</span>'}
@@ -868,7 +910,7 @@ async function renderGradeView(): Promise<void> {
     `
     <div class="max-w-4xl space-y-6">
       ${sectionHeader(`Grade: ${submissionStudentDisplayName(submission)}`, `
-        <button data-action="view-submissions" data-class-id="${classId}" data-id="${assessmentId}"
+        <button data-action="view-submissions" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}"
                 class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back to Submissions</button>
       `)}
       <div class="bg-dark-800/50 rounded-lg p-4 text-sm text-dark-300 flex gap-6">
@@ -879,7 +921,7 @@ async function renderGradeView(): Promise<void> {
       </div>
 
       <div class="space-y-4" id="grading-questions"
-           data-class-id="${classId}" data-id="${assessmentId}" data-sp="${studentProfileId}">
+           data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(studentProfileId)}">
         ${questionsHtml}
       </div>
 
@@ -889,11 +931,11 @@ async function renderGradeView(): Promise<void> {
                  value="${esc(submission.feedbackSummary || '')}"
                  class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm">
         </div>
-        <button data-action="save-grades" data-class-id="${classId}" data-id="${assessmentId}" data-sp="${studentProfileId}"
+        <button data-action="save-grades" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(studentProfileId)}"
                 class="px-5 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">
           Save Grades
         </button>
-        <button data-action="save-and-release" data-class-id="${classId}" data-id="${assessmentId}" data-sp="${studentProfileId}"
+        <button data-action="save-and-release" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(studentProfileId)}"
                 class="px-5 py-2.5 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700">
           Save & Release
         </button>
@@ -924,7 +966,11 @@ async function renderResultsView(): Promise<void> {
       `
       <div class="space-y-6">
         ${sectionHeader(assessment.title, `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
-        ${emptyState('Grades not yet released', 'Your teacher has not released the grades for this assessment yet.')}
+        ${emptyState(
+          'Grades not yet released',
+          'Your teacher has not released the grades for this assessment yet.',
+          `<button data-action="back-to-list" type="button" class="px-4 py-2 rounded-lg bg-dark-700 text-dark-200 text-sm font-semibold hover:bg-dark-600 transition-colors">&larr; Back to assessments</button>`
+        )}
       </div>`
     );
     return;
@@ -1012,6 +1058,11 @@ async function handleClick(e: Event): Promise<void> {
       case 'back-to-list':
         navigate({ view: 'list' });
         break;
+      case 'goto-classes-tab': {
+        const w = window as unknown as { switchToTab?: (t: string) => void };
+        w.switchToTab?.('classes');
+        break;
+      }
       case 'create-assessment':
         navigate({ view: 'builder' });
         break;
@@ -1459,11 +1510,22 @@ async function handleSaveGrades(classId: string, assessmentId: string, studentPr
 //  UI HELPERS
 // ────────────────────────────────────────────────────────────────────────────
 
+/** Locale-formatted date safe to embed in HTML templates. */
 function formatDate(isoStr: string): string {
   try {
     const d = new Date(isoStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-  } catch { return isoStr; }
+    if (Number.isNaN(d.getTime())) return esc(isoStr);
+    const s = d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    return esc(s);
+  } catch {
+    return esc(isoStr);
+  }
 }
 
 function sectionHeader(title: string, rightHtml?: string): string {
@@ -1474,12 +1536,16 @@ function sectionHeader(title: string, rightHtml?: string): string {
     </div>`;
 }
 
-function emptyState(title: string, subtitle?: string): string {
+function emptyState(title: string, subtitle?: string, ctaHtml?: string): string {
+  const cta = ctaHtml
+    ? `<div class="mt-6 flex flex-wrap justify-center gap-3">${ctaHtml}</div>`
+    : '';
   return `
-    <div class="text-center py-16">
+    <div class="text-center py-16 px-4">
       <div class="text-4xl mb-3 opacity-30">📋</div>
       <h3 class="text-white font-semibold text-lg">${esc(title)}</h3>
-      ${subtitle ? `<p class="text-dark-400 text-sm mt-1">${esc(subtitle)}</p>` : ''}
+      ${subtitle ? `<p class="text-dark-400 text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
+      ${cta}
     </div>`;
 }
 

@@ -303,6 +303,12 @@ import {
 } from './ai-config';
 import { normalizeLegalUserAgent } from './forensic-legal';
 import { isUserRole, isPrivilegedAiRole } from './domain-types';
+import {
+  rosterEntryFromStudentDoc,
+  sanitizeGradeDocForAi,
+  sanitizeAttendanceDocForAi,
+  type AiStudentRosterEntry,
+} from './ai-data-minimize';
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -724,14 +730,9 @@ export const getStudyTips = onCall(
  * 
  * FEATURES:
  * - Conversational (maintains context across messages)
- * - Has access to all student data
+ * - Uses minimized student/grade/attendance payloads for the model (no photos or unnecessary PII)
  * - Can answer questions about grades, attendance, performance
  * - Provides insights and analysis
- * 
- * DEBUG:
- * - Check Cloud Functions logs for conversation flow
- * - Verify data is being loaded correctly
- * - Review prompt structure in logs
  * 
  * MIGRATION PATH:
  * - Can be moved to dedicated API service
@@ -778,10 +779,10 @@ export const aiAgentChat = onCall(
         .map((h: any) => ({ user: String(h.user), assistant: String(h.assistant) }))
     : [];
 
-  let students: Array<{ id: string; name?: string; memberId?: string; yearOfBirth?: number; contactEmail?: string; [key: string]: any }> = [];
+  let students: AiStudentRosterEntry[] = [];
   if (role === 'admin') {
     const studentsSnapshot = await db.collection('students').get();
-    students = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as typeof students;
+    students = studentsSnapshot.docs.map((doc) => rosterEntryFromStudentDoc(doc.id, doc.data()));
   } else if (role === 'teacher') {
     const coursesSnap = await db.collection('courses').where('teacherId', '==', request.auth.uid).get();
     const allowedIds = new Set<string>();
@@ -794,13 +795,13 @@ export const aiAgentChat = onCall(
       const chunk = idList.slice(i, i + 30);
       if (chunk.length === 0) continue;
       const snaps = await db.collection('students').where(FieldPath.documentId(), 'in', chunk).get();
-      snaps.forEach((doc) => students.push({ id: doc.id, ...doc.data() } as (typeof students)[0]));
+      snaps.forEach((doc) => students.push(rosterEntryFromStudentDoc(doc.id, doc.data())));
     }
   }
   
   // STEP 3: Load grades and attendance for all students
-  const allGrades: any[] = [];
-  const allAttendance: any[] = [];
+  const allGrades: ReturnType<typeof sanitizeGradeDocForAi>[] = [];
+  const allAttendance: ReturnType<typeof sanitizeAttendanceDocForAi>[] = [];
   
   for (const student of students.slice(0, 50)) { // Limit to 50 students for performance
     try {
@@ -812,11 +813,9 @@ export const aiAgentChat = onCall(
         .get();
       
       gradesSnapshot.docs.forEach(doc => {
-        allGrades.push({
-          studentId: student.id,
-          studentName: student.name || 'Unknown',
-          ...doc.data()
-        });
+        allGrades.push(
+          sanitizeGradeDocForAi(student.id, student.name, doc.data())
+        );
       });
       
       // Load attendance
@@ -827,11 +826,9 @@ export const aiAgentChat = onCall(
         .get();
       
       attendanceSnapshot.docs.forEach(doc => {
-        allAttendance.push({
-          studentId: student.id,
-          studentName: student.name || 'Unknown',
-          ...doc.data()
-        });
+        allAttendance.push(
+          sanitizeAttendanceDocForAi(student.id, student.name, doc.data())
+        );
       });
     } catch (error) {
       // Ignore a single student's data load failure; continue with the rest.
@@ -842,10 +839,9 @@ export const aiAgentChat = onCall(
   const contextSummary = {
     totalStudents: students.length,
     studentsSummary: students.slice(0, 20).map(s => ({
-      name: s.name || 'Unknown',
-      memberId: s.memberId || 'N/A',
-      yearOfBirth: s.yearOfBirth || null,
-      contactEmail: s.contactEmail || 'N/A'
+      name: s.name,
+      memberId: s.memberId,
+      yearOfBirth: s.yearOfBirth,
     })),
     totalGrades: allGrades.length,
     totalAttendance: allAttendance.length,
@@ -859,17 +855,27 @@ export const aiAgentChat = onCall(
         score: g.score,
         totalPoints: g.totalPoints,
         percentage: pct,
-        date: g.date
+        date: g.date,
       };
     }),
-    attendanceStats: allAttendance.reduce((acc, a) => {
-      if (!acc[a.studentName]) {
-        acc[a.studentName] = { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
-      }
-      acc[a.studentName][a.status] = (acc[a.studentName][a.status] || 0) + 1;
-      acc[a.studentName].total += 1;
-      return acc;
-    }, {} as any)
+    attendanceStats: allAttendance.reduce(
+      (acc, a) => {
+        if (!acc[a.studentName]) {
+          acc[a.studentName] = { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+        }
+        const row = acc[a.studentName];
+        const st = typeof a.status === 'string' ? a.status : '';
+        if (st === 'present' || st === 'absent' || st === 'late' || st === 'excused') {
+          row[st] = (row[st] || 0) + 1;
+        }
+        row.total += 1;
+        return acc;
+      },
+      {} as Record<
+        string,
+        { present: number; absent: number; late: number; excused: number; total: number }
+      >
+    ),
   };
   
   // STEP 5: Check if AI is configured
@@ -941,8 +947,8 @@ DATA GROUNDING
 - Total Attendance Records: ${contextSummary.totalAttendance}
 
 👥 STUDENT ROSTER (${contextSummary.studentsSummary.length} students):
-${contextSummary.studentsSummary.map((s: any, i: number) => 
-  `${i + 1}. ${s.name} | ID: ${s.memberId} | Born: ${s.yearOfBirth || 'N/A'} | Email: ${s.contactEmail}`
+${contextSummary.studentsSummary.map((s: { name: string; memberId: string; yearOfBirth: number | null }, i: number) => 
+  `${i + 1}. ${s.name} | Member ID: ${s.memberId} | Birth year: ${s.yearOfBirth ?? 'N/A'}`
 ).join('\n')}
 
 📝 RECENT GRADE RECORDS (Last ${contextSummary.recentGrades.length} entries):

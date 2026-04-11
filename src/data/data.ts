@@ -19,6 +19,7 @@ import { Student, Grade, Attendance, Course, User } from '../types';
 import { getCurrentUser, normalizeLegalUserAgent } from '../core/auth';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from '../core/legal-versions';
 import { showAppToast } from '../ui/ui';
+import { reportClientFault } from '../core/client-errors';
 
 function cleanText(value: unknown, maxLen: number): string {
   if (value == null) return '';
@@ -30,10 +31,16 @@ function cleanEmail(value: unknown): string {
   return cleanText(value, 254).toLowerCase();
 }
 
-/**
- * Loads students visible to the current user: all for admins, course-roster union for teachers,
- * or the single profile linked to the student’s Firebase uid.
- */
+/** Drops legacy / disallowed photo fields so roster UI stays initial-only and payloads stay minimal. */
+function studentRecordFromFirestore(id: string, raw: Record<string, unknown>): Student {
+  const copy = { ...raw };
+  delete copy.profilePhotoUrl;
+  delete copy.photoURL;
+  delete copy.avatarUrl;
+  delete copy.profileImageUrl;
+  return { id, ...copy } as Student;
+}
+
 export async function fetchStudents(): Promise<Student[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
@@ -44,7 +51,7 @@ export async function fetchStudents(): Promise<Student[]> {
   if (user.role === 'admin') {
     const q = query(studentsRef);
     const snapshot = await getDocs(q);
-    students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+    students = snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
   } else if (user.role === 'teacher') {
     const coursesRef = collection(db, 'courses');
     const coursesQuery = query(coursesRef, where('teacherId', '==', user.uid));
@@ -58,34 +65,34 @@ export async function fetchStudents(): Promise<Student[]> {
       try {
         const studentDoc = await getDoc(doc(db, 'students', studentId));
         if (studentDoc.exists()) {
-          students.push({ id: studentDoc.id, ...studentDoc.data() } as Student);
+          students.push(studentRecordFromFirestore(studentDoc.id, studentDoc.data() as Record<string, unknown>));
         }
-      } catch {
-        /* skip missing student doc */
+      } catch (e) {
+        reportClientFault(e);
+        /* omit this roster id — remainder of list still usable */
       }
     }
   } else if (user.role === 'student') {
     const q = query(studentsRef, where('studentUid', '==', user.uid));
     const snapshot = await getDocs(q);
-    students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+    students = snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
   } else {
     throw new Error(`Invalid user role: ${user.role}`);
   }
   return students;
 }
 
-/** Fetch student profiles for class rosters. Teachers only see students linked via course teacherIds. */
 export async function fetchAllStudentProfiles(): Promise<Student[]> {
   const user = getCurrentUser();
   if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
     throw new Error('Only administrators and teachers can list student profiles');
   if (user.role === 'admin') {
     const snapshot = await getDocs(collection(db, 'students'));
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
+    return snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
   }
   const q = query(collection(db, 'students'), where('teacherIds', 'array-contains', user.uid));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
+  return snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
 }
 
 export async function createStudent(studentData: {
@@ -164,6 +171,7 @@ export async function createStudent(studentData: {
 
     return profileRef.id;
   } catch (error: unknown) {
+    reportClientFault(error);
     if (profileRef) {
       try {
         await deleteDoc(profileRef);
@@ -213,11 +221,175 @@ export async function updateStudent(studentId: string, data: Partial<{
   await updateDoc(ref, updates);
 }
 
+let learnerAllowedProfileIdsCacheUid: string | null = null;
+let learnerAllowedProfileIdsCache: Set<string> | null = null;
+
+async function loadAllowedStudentProfileIdsForLearner(): Promise<Set<string>> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'student') return new Set();
+  if (learnerAllowedProfileIdsCacheUid === user.uid && learnerAllowedProfileIdsCache) {
+    return learnerAllowedProfileIdsCache;
+  }
+  const out = new Set<string>();
+  try {
+    const q = query(collection(db, 'students'), where('studentUid', '==', user.uid));
+    const snap = await getDocs(q);
+    snap.docs.forEach((d) => out.add(d.id));
+  } catch (e) {
+    reportClientFault(e);
+    throw e;
+  }
+  try {
+    const uSnap = await getDoc(doc(db, 'users', user.uid));
+    const sp = uSnap.exists() ? (uSnap.data() as { studentProfileId?: unknown }).studentProfileId : undefined;
+    if (typeof sp === 'string' && sp.trim()) out.add(sp.trim());
+  } catch (e) {
+    reportClientFault(e);
+    /* continue with ids from students query only */
+  }
+  learnerAllowedProfileIdsCacheUid = user.uid;
+  learnerAllowedProfileIdsCache = out;
+  return out;
+}
+
+export async function assertLearnerMayAccessStudentProfile(studentId: string): Promise<void> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'student') return;
+  const allowed = await loadAllowedStudentProfileIdsForLearner();
+  if (!allowed.has(studentId)) {
+    throw new Error('Not authorized to view this academic record.');
+  }
+}
+
 export async function fetchGrades(studentId: string): Promise<Grade[]> {
-  const gradesRef = collection(db, 'students', studentId, 'grades');
-  const q = query(gradesRef, orderBy('date', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Grade));
+  const user = getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+  await assertLearnerMayAccessStudentProfile(studentId);
+  try {
+    const gradesRef = collection(db, 'students', studentId, 'grades');
+    const q = query(gradesRef, orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Grade));
+  } catch (e) {
+    reportClientFault(e);
+    return [];
+  }
+}
+
+export async function fetchGradesForManyStudents(studentIds: string[]): Promise<Grade[]> {
+  const user = getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+  if (user.role === 'student') {
+    throw new Error('Aggregate grade access is not available for student accounts.');
+  }
+  if (user.role !== 'admin' && user.role !== 'teacher') {
+    throw new Error('Not authorized');
+  }
+  if (studentIds.length === 0) return [];
+  const batches = await Promise.all(studentIds.map((id) => fetchGrades(id)));
+  return batches.flat();
+}
+
+let studentGpaSessionCacheUid: string | null = null;
+let studentGpaSessionCacheValue: number | null | undefined;
+
+export function invalidateStudentGpaSessionCache(): void {
+  studentGpaSessionCacheUid = null;
+  studentGpaSessionCacheValue = undefined;
+  learnerAllowedProfileIdsCacheUid = null;
+  learnerAllowedProfileIdsCache = null;
+}
+
+export function invalidateStudentGpaSessionCacheIfUserChanged(uid: string): void {
+  if (studentGpaSessionCacheUid !== null && studentGpaSessionCacheUid !== uid) {
+    invalidateStudentGpaSessionCache();
+  }
+}
+
+export function seedStudentGpaSessionCache(uid: string, grades: Grade[]): void {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'student' || user.uid !== uid) {
+    return;
+  }
+  studentGpaSessionCacheUid = uid;
+  studentGpaSessionCacheValue = computeCumulativeGpaFromGrades(grades);
+}
+
+function percentageTo4PointScale(pct: number): number {
+  if (!Number.isFinite(pct)) return 0;
+  if (pct >= 93) return 4.0;
+  if (pct >= 90) return 3.7;
+  if (pct >= 87) return 3.3;
+  if (pct >= 83) return 3.0;
+  if (pct >= 80) return 2.7;
+  if (pct >= 77) return 2.3;
+  if (pct >= 73) return 2.0;
+  if (pct >= 70) return 1.7;
+  if (pct >= 67) return 1.3;
+  if (pct >= 63) return 1.0;
+  if (pct >= 60) return 0.7;
+  return 0;
+}
+
+/** True when at least one grade row can contribute to the weighted GPA denominator. */
+export function studentHasCountableGradesForGpa(grades: Grade[]): boolean {
+  for (const g of grades) {
+    const tp = Number(g.totalPoints);
+    const sc = Number(g.score);
+    if (Number.isFinite(tp) && tp > 0 && Number.isFinite(sc)) return true;
+  }
+  return false;
+}
+
+/**
+ * Weighted GPA on a 4.0 scale: GPA = Σ(qi · wi) / Σwi where wi = totalPoints and qi from percentage bands.
+ * Returns null when Σwi ≤ 0 or any intermediate sum is non-finite (never NaN/Infinity to callers).
+ */
+export function computeCumulativeGpaFromGrades(grades: Grade[]): number | null {
+  let weightSum = 0;
+  let weighted = 0;
+  for (const g of grades) {
+    const tp = Number(g.totalPoints);
+    const sc = Number(g.score);
+    if (!Number.isFinite(tp) || tp <= 0 || !Number.isFinite(sc)) continue;
+    const pct = (sc / tp) * 100;
+    if (!Number.isFinite(pct)) continue;
+    const q = percentageTo4PointScale(pct);
+    if (!Number.isFinite(q)) continue;
+    const term = q * tp;
+    if (!Number.isFinite(term)) continue;
+    weighted += term;
+    weightSum += tp;
+  }
+  if (weightSum <= 0 || !Number.isFinite(weightSum) || !Number.isFinite(weighted)) return null;
+  const gpa = weighted / weightSum;
+  if (!Number.isFinite(gpa)) return null;
+  const rounded = Math.round(gpa * 100) / 100;
+  return Number.isFinite(rounded) ? rounded : null;
+}
+
+export async function calculateStudentCumulativeGPA(uid: string, forceRefresh = false): Promise<number | null> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'student' || user.uid !== uid) {
+    throw new Error('Not authorized to view this academic record.');
+  }
+  if (
+    !forceRefresh &&
+    studentGpaSessionCacheUid === uid &&
+    studentGpaSessionCacheValue !== undefined
+  ) {
+    return studentGpaSessionCacheValue;
+  }
+  const profiles = await fetchStudents();
+  const ids = profiles.map((s) => s.id);
+  const merged: Grade[] = [];
+  for (const id of ids) {
+    merged.push(...(await fetchGrades(id)));
+  }
+  const gpa = computeCumulativeGpaFromGrades(merged);
+  studentGpaSessionCacheUid = uid;
+  studentGpaSessionCacheValue = gpa;
+  return gpa;
 }
 
 export async function addGrade(studentId: string, grade: Omit<Grade, 'id' | 'studentId'>): Promise<string> {
@@ -246,10 +418,21 @@ export async function deleteGrade(studentId: string, gradeId: string): Promise<v
 }
 
 export async function fetchAttendance(studentId: string): Promise<Attendance[]> {
-  const attendanceRef = collection(db, 'students', studentId, 'attendance');
-  const q = query(attendanceRef, orderBy('date', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Attendance));
+  const user = getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+  if (user.role !== 'admin' && user.role !== 'teacher' && user.role !== 'student') {
+    throw new Error('Not authorized to load attendance.');
+  }
+  await assertLearnerMayAccessStudentProfile(studentId);
+  try {
+    const attendanceRef = collection(db, 'students', studentId, 'attendance');
+    const q = query(attendanceRef, orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance));
+  } catch (e) {
+    reportClientFault(e);
+    return [];
+  }
 }
 
 export async function markAttendance(studentId: string, attendance: Omit<Attendance, 'id' | 'studentId'>): Promise<string> {
@@ -302,10 +485,6 @@ export async function updateUserRoleDirect(targetUserId: string, newRole: User['
   await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
 }
 
-/**
- * Self-service: merges `displayName`, `phoneNumber`, optional `birthYear`, and `memberId` onto `users/{uid}`.
- * Does not touch `legalAcceptance` (preserved by `merge: true` and enforced in rules).
- */
 export async function saveUserSelfServiceProfile(data: {
   displayName: string;
   phoneNumber: string;
@@ -369,9 +548,16 @@ export async function createTeacher(data: {
 export function listenToGrades(studentId: string, callback: (grades: Grade[]) => void): () => void {
   const gradesRef = collection(db, 'students', studentId, 'grades');
   const q = query(gradesRef, orderBy('date', 'desc'));
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Grade)));
-  });
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Grade)));
+    },
+    (error) => {
+      reportClientFault(error);
+      callback([]);
+    }
+  );
   return unsubscribe;
 }
 
@@ -383,9 +569,17 @@ export function exportGradesToCSV(grades: Grade[], studentName: string): void {
   const BOM = '\uFEFF';
   let csvContent = 'Assignment,Category,Score,Total Points,Percentage,Date\n';
   grades.forEach(grade => {
-    const percentage = ((grade.score / grade.totalPoints) * 100).toFixed(2);
+    const tp = Number(grade.totalPoints);
+    const sc = Number(grade.score);
+    const pct =
+      Number.isFinite(tp) && tp > 0 && Number.isFinite(sc) ? ((sc / tp) * 100).toFixed(2) : '';
+    const pctCol = pct === '' ? '' : `${pct}%`;
     const escape = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
-    csvContent += `${escape(grade.assignmentName)},${escape(grade.category)},${grade.score},${grade.totalPoints},${percentage}%,${escape(grade.date)}\n`;
+    const assignTitle =
+      typeof grade.assignmentName === 'string' && grade.assignmentName.trim()
+        ? grade.assignmentName.trim()
+        : 'Untitled assignment';
+    csvContent += `${escape(assignTitle)},${escape(grade.category)},${grade.score},${grade.totalPoints},${pctCol},${escape(grade.date)}\n`;
   });
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);

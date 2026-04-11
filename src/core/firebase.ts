@@ -34,6 +34,7 @@ import {
   serverTimestamp,
   arrayUnion,
   arrayRemove,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   getFunctions,
@@ -134,6 +135,7 @@ export {
   serverTimestamp,
   arrayUnion,
   arrayRemove,
+  writeBatch,
   httpsCallable,
   type FirebaseUser
 };

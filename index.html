@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" id="meta-theme-color" content="#0a0f1a">
+    <meta name="theme-color" id="meta-theme-color" content="#060e20">
     <title>DSKM LMS</title>
     <link rel="icon" href="data:,">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -60,7 +60,7 @@
         }
     </script>
     <script>
-        // Prevent theme "white flash" by applying stored theme ASAP (before paint).
+        // Apply stored theme before paint to avoid flash (initTheme() reconciles system preference next).
         (function () {
             try {
                 const t = safeGetStorage('theme');
@@ -68,7 +68,7 @@
                 if (theme) {
                     document.documentElement.setAttribute('data-theme', theme);
                     const meta = document.getElementById('meta-theme-color');
-                    if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#0a0f1a');
+                    if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#060e20');
                 }
             } catch (e) { /* ignore */ }
         })();
@@ -1275,47 +1275,53 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #06b6d4, #10b981);
+            background: linear-gradient(180deg, #9ffff2, #d4bbff);
             border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #0891b2, #059669);
+            background: linear-gradient(180deg, #5ee9dc, #c4a8f5);
         }
 
         /* ==================== THEME VARIABLES ==================== */
         :root {
-            --bg-primary: #0a0f1a;
-            --bg-secondary: #111827;
-            --bg-tertiary: #1f2937;
-            --glass-bg: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(6, 182, 212, 0.15);
+            --lms-surface: #060e20;
+            --lms-primary: #9ffff2;
+            --lms-secondary: #d4bbff;
+            --bg-primary: #060e20;
+            --bg-secondary: #0a1428;
+            --bg-tertiary: #111f36;
+            --glass-bg: rgba(10, 20, 40, 0.45);
+            --glass-border: rgba(159, 255, 242, 0.12);
             --text-primary: #f1f5f9;
             --text-secondary: #cbd5e1;
             --text-tertiary: #94a3b8;
-            --border-color: rgba(6, 182, 212, 0.2);
-            --shadow-color: rgba(0, 0, 0, 0.4);
-            --input-bg: rgba(17, 24, 39, 0.8);
-            --bg-hover: rgba(6, 182, 212, 0.1);
-            --card-hover-shadow: rgba(6, 182, 212, 0.15);
-            --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
-            --accent-glow: rgba(6, 182, 212, 0.4);
+            --text-on-surface: #f8fafc;
+            --border-color: rgba(159, 255, 242, 0.18);
+            --shadow-color: rgba(0, 0, 0, 0.45);
+            --input-bg: rgba(6, 14, 32, 0.85);
+            --bg-hover: rgba(159, 255, 242, 0.08);
+            --card-hover-shadow: rgba(159, 255, 242, 0.12);
+            --accent-gradient: linear-gradient(135deg, #9ffff2 0%, #5ee9dc 100%);
+            --accent-glow: rgba(159, 255, 242, 0.35);
         }
 
         /* ==================== ADA COMPLIANT LIGHT MODE ==================== */
         /* WCAG 2.1 AA: 4.5:1 for normal text, 3:1 for large text/UI */
         [data-theme="light"] {
+            --lms-surface: #ffffff;
             --bg-primary: #ffffff;
             --bg-secondary: #f8fafc;
             --bg-tertiary: #f1f5f9;
             --glass-bg: rgba(255, 255, 255, 0.95);
             --glass-border: #cbd5e1;
-            --text-primary: #1e293b;
-            /* 11.7:1 on white - AAA */
-            --text-secondary: #334155;
-            /* 8.5:1 on white - AAA */
-            --text-tertiary: #475569;
-            /* 5.9:1 on white - AA */
+            --text-primary: #0f172a;
+            /* deep slate — primary reading text on #fff / #f8fafc */
+            --text-on-surface: #0f172a;
+            --text-secondary: #1e293b;
+            /* ~12.6:1 on white */
+            --text-tertiary: #334155;
+            /* ~7.3:1 on white — AA body */
             --border-color: #94a3b8;
             /* Visible borders */
             --shadow-color: rgba(15, 23, 42, 0.1);
@@ -1350,9 +1356,9 @@
 
         .gradient-bg {
             background:
-                radial-gradient(ellipse 80% 50% at 20% -20%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse 60% 50% at 80% 120%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
-                radial-gradient(ellipse 40% 40% at 50% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 60%),
+                radial-gradient(ellipse 80% 50% at 15% -15%, rgba(159, 255, 242, 0.09) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 45% at 90% 110%, rgba(212, 187, 255, 0.07) 0%, transparent 50%),
+                radial-gradient(ellipse 40% 40% at 50% 50%, rgba(159, 255, 242, 0.04) 0%, transparent 60%),
                 linear-gradient(160deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
             transition: background 0.3s ease;
             min-height: 100vh;
@@ -1380,11 +1386,45 @@
         }
 
         .glass-effect:hover {
-            border-color: rgba(6, 182, 212, 0.3);
+            border-color: rgba(159, 255, 242, 0.28);
             box-shadow:
-                0 8px 32px rgba(6, 182, 212, 0.15),
-                0 4px 16px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+                0 8px 32px rgba(159, 255, 242, 0.08),
+                0 4px 16px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        /* Premium metric surfaces (LMS shell) */
+        .card-blur {
+            background: rgba(10, 20, 40, 0.52);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(159, 255, 242, 0.1);
+            box-shadow:
+                0 4px 28px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        [data-theme="light"] .card-blur {
+            background: rgba(255, 255, 255, 0.92);
+            border-color: rgba(15, 23, 42, 0.08);
+            box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .progress-bar-glow {
+            position: relative;
+        }
+
+        .progress-bar-glow::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(125deg, rgba(159, 255, 242, 0.35), rgba(212, 187, 255, 0.22));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
         }
 
         /* Light mode glass morphism - ADA compliant solid borders */
@@ -2263,21 +2303,28 @@
         [data-theme="light"] #app-container,
         [data-theme="light"] .lms-content,
         [data-theme="light"] .glass-effect {
-            color: #1e293b;
+            color: #0f172a;
         }
         [data-theme="light"] #app-container .text-white:not(.tab-active):not(button):not([class*="bg-gradient"]):not(.bg-primary-500):not(.bg-red-500):not(.bg-green-500):not(.bg-blue-500) {
-            color: #1e293b !important;
+            color: #0f172a !important;
         }
         [data-theme="light"] .glass-effect .text-white:not(button):not([class*="bg-"]) {
-            color: #1e293b !important;
+            color: #0f172a !important;
         }
 
         /* Convert white text to dark for
                     light backgrounds */
         [data-theme="light"] .text-white {
-            color: #1e293b !important;
-            /* 11.7:1 on
-                    white */
+            color: #0f172a !important;
+        }
+
+        /* Mobile dashboard proverb: WCAG-friendly body text on card surfaces (≥4.5:1 typical). */
+        [data-theme="light"] .lms-mobile-proverb-body {
+            color: #0b1220 !important;
+        }
+
+        [data-theme="dark"] .lms-mobile-proverb-body {
+            color: #e2e8f0 !important;
         }
 
         /* Preserve white text on colored backgrounds */
@@ -2564,8 +2611,7 @@
             background-color: #f1f5f9 !important;
         }
 
-        /*
-                    Placeholder text - ADA compliant (4.5:1 minimum) */
+        /* Light mode: placeholder contrast (WCAG AA) */
         [data-theme="light"] .placeholder-dark-400::placeholder,
         [data-theme="light"] input::placeholder,
         [data-theme="light"] textarea::placeholder {
@@ -2777,8 +2823,8 @@
         /* Sidebar Navigation */
         .lms-sidebar {
             width: 260px;
-            background: #0f172a;
-            border-right: 1px solid #1f2937; /* slate-800 */
+            background: var(--lms-surface, #060e20);
+            border-right: 1px solid rgba(159, 255, 242, 0.08);
             position: fixed;
             top: 0;
             left: 0;
@@ -2884,11 +2930,11 @@
         }
 
         .lms-nav-item.active {
-            background: rgba(255, 255, 255, 0.10);
+            background: rgba(159, 255, 242, 0.08);
             color: #ffffff;
-            border-left: 3px solid #06b6d4; /* cyan accent */
+            border-left: 3px solid var(--lms-primary, #9ffff2);
             margin-left: -3px;
-            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+            box-shadow: 0 0 0 1px rgba(159, 255, 242, 0.12) inset;
         }
 
         [data-theme="light"] .lms-nav-item {
@@ -2914,8 +2960,8 @@
 
         .lms-nav-badge {
             margin-left: auto;
-            background: #06b6d4;
-            color: white;
+            background: rgba(159, 255, 242, 0.25);
+            color: #060e20;
             font-size: 0.7rem;
             font-weight: 600;
             padding: 0.125rem 0.5rem;
@@ -3010,8 +3056,9 @@
             border: 1px solid rgba(6, 182, 212, 0.2);
             border-radius: 1rem;
             padding: 1.5rem;
+            padding-bottom: max(2rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)));
             width: 100%;
-            max-width: 28rem;         /* 448px */
+            max-width: 42rem;         /* max-w-2xl — room for forms on tablet */
             max-height: calc(100vh - 2rem);
             overflow-y: auto;
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
@@ -3075,17 +3122,19 @@
 
         /* Top Header Bar */
         .lms-header {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(6, 182, 212, 0.1);
-            padding: 0.75rem 1.5rem;
+            background: rgba(6, 14, 32, 0.72);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(159, 255, 242, 0.1);
+            padding: 0.65rem 1.25rem;
             position: sticky;
             top: 0;
             z-index: 30;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 1rem;
+            flex-wrap: wrap;
+            gap: 0.75rem 1rem;
         }
 
         [data-theme="light"] .lms-header {
@@ -3109,7 +3158,7 @@
         }
 
         .lms-breadcrumbs a:hover {
-            color: #06b6d4;
+            color: var(--lms-primary, #9ffff2);
         }
 
         .lms-breadcrumbs .current {
@@ -3132,6 +3181,89 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .lms-header-search-wrap {
+            flex: 1 1 12rem;
+            max-width: 26rem;
+            min-width: 8rem;
+        }
+
+        .lms-header-search-inner {
+            display: flex;
+            align-items: center;
+            border-radius: 0.75rem;
+            background: rgba(10, 20, 40, 0.65);
+            border: 1px solid rgba(159, 255, 242, 0.12);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .lms-header-search-inner:focus-within {
+            border-color: rgba(159, 255, 242, 0.45);
+            box-shadow: 0 0 0 2px rgba(159, 255, 242, 0.12);
+        }
+
+        [data-theme="light"] .lms-header-search-inner {
+            background: rgba(248, 250, 252, 0.95);
+            border-color: rgba(15, 23, 42, 0.12);
+        }
+
+        .lms-go-live-btn {
+            border: 1px solid rgba(159, 255, 242, 0.45);
+            color: var(--lms-primary, #9ffff2);
+            background: rgba(159, 255, 242, 0.06);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 0.45rem 0.85rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        .lms-go-live-btn:hover {
+            background: rgba(159, 255, 242, 0.14);
+            border-color: rgba(159, 255, 242, 0.65);
+        }
+
+        .lms-go-live-btn:disabled {
+            opacity: 0.85;
+            cursor: wait;
+            pointer-events: none;
+        }
+
+        /* Spinner arc: dark stroke reads on mint/teal label + translucent fill (avoids low-contrast mint-on-mint). */
+        .lms-go-live-btn .lms-go-live-spinner {
+            border-color: rgba(6, 14, 32, 0.35);
+            border-top-color: rgba(6, 14, 32, 0.92);
+        }
+
+        [data-theme="light"] .lms-go-live-btn .lms-go-live-spinner {
+            border-color: rgba(15, 23, 42, 0.22);
+            border-top-color: rgba(15, 23, 42, 0.88);
+        }
+
+        [data-theme="light"] .lms-go-live-btn {
+            color: #0f172a;
+            border-color: rgba(15, 23, 42, 0.2);
+            background: rgba(15, 23, 42, 0.04);
+        }
+
+        .lms-header-user-chip {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(159, 255, 242, 0.12);
+            background: rgba(10, 20, 40, 0.4);
+            max-width: 14rem;
+        }
+
+        [data-theme="light"] .lms-header-user-chip {
+            background: rgba(248, 250, 252, 0.9);
+            border-color: rgba(15, 23, 42, 0.08);
         }
 
         /* Content Area */
@@ -3463,13 +3595,9 @@
                 padding: 1rem;
             }
 
-            /* Tables mobile - horizontal scroll */
+            /* Tables mobile - horizontal scroll (do not force min-width on all tables — breaks narrow layouts) */
             .overflow-x-auto {
                 -webkit-overflow-scrolling: touch;
-            }
-
-            table {
-                min-width: 600px;
             }
 
             /* Form inputs mobile */
@@ -3609,8 +3737,9 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        /* No forced min-width — parent `.responsive-table-wrapper` provides horizontal scroll when needed. */
         .responsive-table {
-            min-width: 600px;
+            min-width: 0;
         }
 
         /* Mobile
@@ -4939,6 +5068,36 @@
             color: #f8fafc !important;
         }
 
+        /* Home-indicator safe area for fixed mobile nav (Tailwind has no default `safe-area-pb` utility). */
+        .safe-area-pb {
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        @keyframes lms-urgent-pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.45;
+                transform: scale(0.88);
+            }
+        }
+        .lms-urgent-dot {
+            animation: lms-urgent-pulse 1.5s ease-in-out infinite;
+        }
+
+        .lms-mobile-app-bar {
+            background: rgba(6, 14, 32, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        [data-theme="light"] .lms-mobile-app-bar {
+            background: rgba(255, 255, 255, 0.94);
+            border-bottom-color: rgba(148, 163, 184, 0.45);
+        }
+
         /* Main shell: prevent viewport horizontal scroll on narrow phones */
         #app-container {
             max-width: 100%;
@@ -5228,7 +5387,7 @@
                         <div>
                             <span class="text-lg font-bold text-white">DSKM <span
                                     class="text-primary-400">LMS</span></span>
-                            <p class="text-xs text-dark-400">Learning Platform</p>
+                            <p class="text-xs text-dark-400 tracking-wide">Learning Management Platform</p>
                         </div>
                     </div>
                 </div>
@@ -5251,21 +5410,13 @@
                     <!-- Academic Section -->
                     <div class="lms-nav-section">
                         <div class="lms-nav-section-title">Academic</div>
-                        <button class="lms-nav-item" data-tab="grades">
+                        <button class="lms-nav-item" data-tab="classes">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
                                 </path>
                             </svg>
-                            Grades & Reports
-                        </button>
-                        <button class="lms-nav-item" data-tab="attendance">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                            Attendance
+                            Classes
                         </button>
                         <button class="lms-nav-item" data-tab="assessments">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5275,13 +5426,21 @@
                             </svg>
                             Assessments
                         </button>
-                        <button class="lms-nav-item" data-tab="classes">
+                        <button class="lms-nav-item" data-tab="grades">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                                 </path>
                             </svg>
-                            Classes
+                            Grades
+                        </button>
+                        <button class="lms-nav-item" data-tab="attendance">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                            Attendance
                         </button>
                     </div>
 
@@ -5354,14 +5513,9 @@
                 <!-- Sidebar Footer - User Info -->
                 <div class="lms-sidebar-footer">
                     <div class="sidebar-user-info flex items-center gap-3 p-3 rounded-xl mb-3">
-                        <div
-                            class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
-                                </path>
-                            </svg>
-                        </div>
+                        <div id="sidebar-user-avatar"
+                            class="w-10 h-10 shrink-0 rounded-full bg-primary-700 ring-2 ring-primary-400/45 flex items-center justify-center font-display font-bold text-sm text-white"
+                            aria-hidden="true">?</div>
                         <div class="flex-1 min-w-0">
                             <p id="sidebar-user-email" class="text-sm text-white truncate sidebar-user-email">
                             </p>
@@ -5382,21 +5536,42 @@
             </aside>
 
             <!-- Main Content Area -->
-            <main class="lms-main">
-                <!-- Top Header Bar -->
-                <header class="lms-header">
-                    <div class="flex items-center gap-4 flex-wrap">
-                        <!-- Mobile Sidebar Toggle -->
-                        <button id="lms-sidebar-toggle" class="lms-sidebar-toggle">
+            <main class="lms-main min-w-0 max-w-full overflow-x-clip pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+                <!-- Mobile top bar: menu, initial avatar, DSKM LMS, notifications -->
+                <div id="lms-mobile-app-bar"
+                    class="lms-mobile-app-bar md:hidden sticky top-0 z-[35] flex items-center gap-2 px-3 py-2.5 border-b border-slate-200/90 dark:border-white/10">
+                    <button type="button" class="lms-sidebar-toggle p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/10"
+                        aria-label="Open menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <div id="lms-mobile-user-avatar"
+                        class="w-9 h-9 rounded-full bg-primary-700 ring-2 ring-primary-400/45 flex items-center justify-center shrink-0 font-display font-bold text-sm text-white"
+                        aria-hidden="true">?</div>
+                    <span class="flex-1 text-center font-display font-bold text-xs tracking-[0.14em] text-primary-800 dark:text-primary-300">DSKM LMS</span>
+                    <button type="button" id="lms-mobile-notifications-btn"
+                        class="relative p-2 rounded-xl text-primary-800 hover:bg-primary-500/10 dark:text-primary-300 dark:hover:bg-primary-400/10 transition-colors"
+                        aria-label="Notifications" title="Notifications">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                            </path>
+                        </svg>
+                        <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-dark-950" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <!-- Top Header Bar (md+) -->
+                <header class="lms-header hidden md:flex">
+                    <div class="flex items-center gap-3 min-w-0 shrink">
+                        <button id="lms-sidebar-toggle" class="lms-sidebar-toggle" type="button"
+                            aria-label="Open menu">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M4 6h16M4 12h16M4 18h16"></path>
                             </svg>
                         </button>
-
-
-                        <!-- Breadcrumbs -->
-                        <nav class="lms-breadcrumbs" aria-label="Breadcrumb">
+                        <nav class="lms-breadcrumbs hidden sm:flex" aria-label="Breadcrumb">
                             <a href="#" onclick="switchToTab('dashboard'); return false;">Home</a>
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
@@ -5406,11 +5581,57 @@
                         </nav>
                     </div>
 
-                    <!-- Header Actions -->
+                    <div class="lms-header-search-wrap w-full md:w-auto order-3 md:order-none">
+                        <div class="lms-header-search-inner lms-global-search">
+                            <svg class="w-5 h-5 ml-3 text-dark-400 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input type="search" id="lms-header-search-input" autocomplete="off"
+                                placeholder="Search classes, assessments, or records…"
+                                class="w-full min-w-0 bg-transparent border-0 py-2.5 pr-3 pl-2 rounded-xl text-sm text-white placeholder-dark-500 focus:outline-none focus:ring-0"
+                                aria-label="Search">
+                        </div>
+                    </div>
+
                     <div class="lms-header-actions">
-                        <!-- Theme Toggle -->
+                        <button type="button" id="lms-go-live-btn"
+                            class="lms-go-live-btn inline-flex items-center justify-center gap-2 min-w-[6.75rem]"
+                            aria-live="polite">
+                            <span class="lms-go-live-text">GO LIVE</span>
+                            <span
+                                class="lms-go-live-spinner hide w-4 h-4 shrink-0 rounded-full border-2 animate-spin"
+                                aria-hidden="true"></span>
+                        </button>
+                        <button type="button" id="lms-header-notifications-btn"
+                            class="relative p-2 rounded-xl text-dark-400 hover:text-primary-300 transition-colors"
+                            aria-label="Notifications" title="Notifications">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                                </path>
+                            </svg>
+                            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-dark-950"
+                                aria-hidden="true"></span>
+                        </button>
+
+                        <div class="lms-header-user-chip min-w-0">
+                            <div id="lms-header-user-avatar"
+                                class="w-9 h-9 rounded-full bg-primary-700 ring-2 ring-primary-400/45 flex items-center justify-center shrink-0 font-display font-bold text-sm text-white"
+                                aria-hidden="true">?</div>
+                            <div class="min-w-0 text-left hidden sm:block pr-1">
+                                <p id="lms-header-user-name"
+                                    class="text-sm font-semibold text-white truncate font-display leading-tight"></p>
+                                <p id="lms-header-user-email" class="text-[0.65rem] text-dark-400 truncate leading-tight"></p>
+                            </div>
+                        </div>
+
+                        <span id="user-role-badge"
+                            class="hidden xl:inline-flex px-2.5 py-1 rounded-lg text-[0.65rem] font-semibold uppercase tracking-wide bg-primary-400/10 text-primary-300 border border-primary-400/25"></span>
+
                         <button id="theme-toggle-btn" class="theme-toggle" title="Toggle dark/light mode"
-                            aria-label="Toggle theme">
+                            type="button" aria-label="Toggle theme">
                             <div class="theme-toggle-slider">
                                 <svg class="theme-icon moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -5425,10 +5646,6 @@
                                 </svg>
                             </div>
                         </button>
-
-                        <!-- User Role Badge -->
-                        <span id="user-role-badge"
-                            class="hidden md:inline-block px-3 py-2 rounded-lg text-xs font-semibold bg-primary-500/20 text-primary-300 border border-primary-500/30"></span>
                     </div>
                 </header>
 
@@ -5462,11 +5679,18 @@
                     <!-- Dashboard Tab -->
                     <div id="dashboard-content" class="tab-content">
 
-                        <!-- Welcome Title (Student View Only) -->
-                        <div class="student-only hide mb-8">
-                            <h1 class="text-3xl md:text-4xl font-bold text-white">
-                                Welcome Back Students
-                            </h1>
+                        <!-- Mobile-only role dashboards (populated via renderTemplate in main.ts) -->
+                        <div id="dashboard-mobile-shell" class="md:hidden mb-6 min-w-0" aria-live="polite"></div>
+
+                        <!-- Personalized welcome (tablet/desktop; copy set in main.ts) -->
+                        <div class="mb-8 hidden md:block">
+                            <p id="dashboard-welcome-kicker"
+                                class="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary-400/90 mb-2 font-display">
+                                Academic overview</p>
+                            <h1 id="dashboard-welcome-heading"
+                                class="text-3xl md:text-4xl font-bold text-white font-display tracking-tight"
+                                aria-live="polite"></h1>
+                            <p id="dashboard-welcome-sub" class="mt-2 text-sm text-dark-400 max-w-2xl leading-relaxed"></p>
                         </div>
 
                         <!-- Student Selection for Admin/Teacher -->
@@ -5478,7 +5702,7 @@
                                         Dashboard</h3>
                                     <div class="w-full md:flex-1 md:max-w-md md:min-w-0">
                                         <!-- Single search box: wrapper has bg/border, input is borderless for symmetry -->
-                                        <div class="lms-dashboard-search relative flex items-center rounded-lg bg-dark-800 border border-dark-600 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
+                                        <div class="lms-dashboard-search lms-global-search relative flex items-center rounded-lg bg-dark-800 border border-dark-600 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
                                             <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z">
@@ -5489,6 +5713,7 @@
                                                 class="w-full bg-transparent border-0 py-3 pl-10 pr-4 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:ring-0">
                                         </div>
                                     </div>
+                                    <p id="dashboard-student-filter-empty" class="hidden text-amber-300/90 text-xs mb-2" role="status"></p>
                                     <select id="dashboard-student-select"
                                         class="w-full md:w-auto md:min-w-[12rem] px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                         <option value="">-- Select a student --</option>
@@ -5513,118 +5738,69 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <!-- Quick Stats Cards -->
-                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Total Students
-                                    </h3>
-                                    <div class="p-3 rounded-lg bg-primary-500/20">
-                                        <svg class="w-6 h-6 text-primary-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <p id="stats-total-students" class="text-4xl font-bold text-white">0</p>
-                            </div>
+                        <!-- Role-based KPIs, educator assessment table, and contextual metrics (main.ts + renderTemplate) -->
+                        <div id="dashboard-institutional-mount" class="w-full min-w-0 min-h-0 hidden md:block"></div>
 
-                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover teacher-only admin-only hide">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Active Courses
-                                    </h3>
-                                    <div class="p-3 rounded-lg bg-green-500/20">
-                                        <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
+                        <!-- Student mastery row (GPA + next deadline); populated via replaceChildren in main.ts -->
+                        <div id="dashboard-student-mastery-row"
+                            class="student-only hide mt-8 w-full max-w-full hidden md:grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <article
+                                class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover">
+                                <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
+                                    aria-hidden="true"></div>
+                                <div class="relative flex items-start justify-between gap-3 mb-5">
+                                    <div>
+                                        <p class="text-xs font-semibold uppercase tracking-widest text-primary-400/90">
+                                            My Academic Standing</p>
+                                        <h3 class="mt-1 text-lg font-bold text-white font-display">Overall GPA</h3>
+                                    </div>
+                                    <div class="shrink-0 rounded-xl bg-primary-400/10 p-3 ring-1 ring-primary-400/25">
+                                        <svg class="h-6 w-6 text-primary-300" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
-                                            </path>
+                                                d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m0 0H9m3 0h3" />
                                         </svg>
                                     </div>
                                 </div>
-                                <p id="stats-active-courses" class="text-4xl font-bold text-white">0</p>
-                            </div>
+                                <div id="student-gpa-metric-root" class="relative min-h-[5rem]"></div>
+                            </article>
+                            <article
+                                class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover md:col-span-2">
+                                <div class="pointer-events-none absolute -right-6 -bottom-10 h-28 w-28 rounded-full bg-secondary-400/10 blur-2xl"
+                                    aria-hidden="true"></div>
+                                <div class="relative flex items-start justify-between gap-3 mb-5">
+                                    <div>
+                                        <p class="text-xs font-semibold uppercase tracking-widest text-secondary-300/95">
+                                            Focus Next On</p>
+                                        <h3 class="mt-1 text-lg font-bold text-white font-display">Next deadline</h3>
+                                    </div>
+                                    <div class="shrink-0 rounded-xl bg-secondary-400/10 p-3 ring-1 ring-secondary-400/25">
+                                        <svg class="h-6 w-6 text-secondary-300" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div id="student-deadline-metric-root" class="relative min-h-[5rem]"></div>
+                            </article>
+                        </div>
 
-                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Average Grade
-                                    </h3>
-                                    <div class="p-3 rounded-lg bg-yellow-500/20">
-                                        <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <p id="stats-avg-grade" class="text-4xl font-bold text-white">--
-                                </p>
-                                <p class="text-dark-400 text-sm mt-2" id="stats-grade-count">0
-                                    assignments</p>
-                            </div>
-
-                            <div class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Letter Grade
-                                    </h3>
-                                    <div class="p-3 rounded-lg bg-purple-500/20">
-                                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <p id="stats-letter-grade" class="text-4xl font-bold text-white">--</p>
-                            </div>
-
-                            <!-- Attendance Rate Card (shown when student selected) -->
-                            <div id="dashboard-attendance-card" class="glass-effect min-h-[7.5rem] rounded-2xl p-6 card-hover hide">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-dark-200 font-semibold">Attendance Rate
-                                    </h3>
-                                    <div class="p-3 rounded-lg bg-blue-500/20">
-                                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <p id="dashboard-attendance-rate" class="text-4xl font-bold text-white">--</p>
-                                <div class="mt-3 flex gap-2 text-sm">
-                                    <span class="text-green-400" id="dashboard-attendance-present">0 Present</span>
-                                    <span class="text-dark-400">•</span>
-                                    <span class="text-red-400" id="dashboard-attendance-absent">0 Absent</span>
+                        <!-- Recent academic activity (table-style list from main.ts) -->
+                        <div class="mt-10">
+                            <h3 class="text-xl md:text-2xl font-bold text-white mb-4 font-display tracking-tight">Recent
+                                academic activity</h3>
+                            <div id="recent-activity" class="min-h-[4rem]">
+                                <div class="card-blur progress-bar-glow rounded-xl p-4 text-dark-400 text-sm">
+                                    No recent activity recorded.
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Recent Activity Section -->
-                        <div class="mt-8">
-                            <h3 class="text-2xl font-bold text-white mb-4">Recent Activity
-                            </h3>
-                            <div id="recent-activity" class="space-y-3">
-                                <!-- Activity items will be dynamically added here -->
-                                <div class="glass-effect rounded-xl p-4 text-dark-300">
-                                    No recent activity
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Bible Verse Section -->
-                        <div class="mt-12 mb-8 text-center bible-verse-section">
-                            <p class="text-sm text-dark-300 italic leading-relaxed">
-                                "I can do all things through Christ who strengthens me."
+                        <div class="mt-12 mb-8 text-center">
+                            <p class="text-xs text-dark-500 uppercase tracking-widest font-semibold font-display">DSKM LMS
                             </p>
-                            <p class="text-xs text-dark-400 mt-2">
-                                – Philippians 4:13
-                            </p>
+                            <p class="text-sm text-dark-400 mt-1">Excellence in teaching, learning, and assessment.</p>
                         </div>
                     </div>
 
@@ -5639,6 +5815,7 @@
                                     <input type="text" id="grades-student-search" placeholder="Search by name or email..."
                                         class="w-full px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 text-sm mb-2"
                                         aria-label="Search students by name or email">
+                                    <p id="grades-student-filter-empty" class="hidden text-amber-300/90 text-xs mb-2" role="status"></p>
                                     <select id="student-select"
                                         class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                         <option value="">-- Select a student --</option>
@@ -5809,8 +5986,25 @@
                                     </div>
                                 </div>
 
-                                <!-- Grades Table -->
-                                <div class="glass-effect rounded-2xl p-6">
+                                <!-- Mobile gradebook (< md) -->
+                                <div id="grades-mobile-panel" class="md:hidden space-y-4 pb-4">
+                                    <div class="rounded-2xl border border-slate-600/60 bg-slate-900/50 p-4">
+                                        <label class="sr-only" for="grades-mobile-assignment-select">Assignment</label>
+                                        <select id="grades-mobile-assignment-select"
+                                            class="w-full min-h-[48px] px-4 rounded-xl bg-slate-800 border border-slate-600 text-white text-sm font-medium mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-400/40">
+                                            <option value="">All assignments</option>
+                                        </select>
+                                        <div id="grades-mobile-progress-inner"></div>
+                                    </div>
+                                    <button type="button" id="grades-mobile-save-btn"
+                                        class="teacher-only admin-only hide w-full min-h-[48px] rounded-xl bg-cyan-500 text-slate-950 font-bold text-sm hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/15">
+                                        Save grades
+                                    </button>
+                                    <div id="grades-mobile-cards" class="space-y-3"></div>
+                                </div>
+
+                                <!-- Grades Table (desktop) -->
+                                <div class="glass-effect rounded-2xl p-6 hidden md:block">
                                     <h3 class="text-xl font-bold text-white mb-4">Grade
                                         Records</h3>
                                     <div class="overflow-x-auto">
@@ -5924,6 +6118,80 @@
                                 </div>
                             </div>
 
+                            <!-- Roll call session stats (teachers / admins) -->
+                            <div
+                                class="teacher-only admin-only lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4 hide">
+                                <div class="rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <p class="text-slate-400 text-xs font-semibold tracking-wide">TOTAL
+                                                STUDENTS</p>
+                                            <p id="roll-call-stat-total" class="text-2xl font-bold text-white mt-1">0
+                                            </p>
+                                        </div>
+                                        <div
+                                            class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-300">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <p class="text-slate-400 text-xs font-semibold tracking-wide">PRESENT</p>
+                                            <p id="roll-call-stat-present" class="text-2xl font-bold text-cyan-400 mt-1">
+                                                0</p>
+                                        </div>
+                                        <div
+                                            class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-300">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <p class="text-slate-400 text-xs font-semibold tracking-wide">ABSENT</p>
+                                            <p id="roll-call-stat-absent" class="text-2xl font-bold text-rose-400 mt-1">
+                                                0</p>
+                                        </div>
+                                        <div
+                                            class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-300">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <p class="text-slate-400 text-xs font-semibold tracking-wide">LATE</p>
+                                            <p id="roll-call-stat-late" class="text-2xl font-bold text-amber-400 mt-1">0
+                                            </p>
+                                        </div>
+                                        <div
+                                            class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Mark Attendance Form (Teacher/Admin Only) -->
                             <div class="teacher-only admin-only glass-effect rounded-2xl p-6 hide">
                                 <h3 class="text-xl font-bold text-white mb-4">Mark
@@ -5934,6 +6202,7 @@
                                         <input type="text" id="attendance-student-search" placeholder="Search by name or email..."
                                             class="w-full px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 text-sm mb-2"
                                             aria-label="Search students by name or email">
+                                        <p id="attendance-student-filter-empty" class="hidden text-amber-300/90 text-xs mb-2" role="status"></p>
                                         <select id="attendance-student-select" required
                                             class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
                                             <option value="">-- Select a student --</option>
@@ -5951,7 +6220,7 @@
                                                 <input type="radio" name="status" value="present" required
                                                     class="hidden peer">
                                                 <div
-                                                    class="px-4 py-3 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-green-500 peer-checked:bg-green-500/20 hover:border-dark-500">
+                                                    class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-green-500 peer-checked:bg-green-500/20 hover:border-dark-500 flex flex-col items-center justify-center">
                                                     <svg class="w-5 h-5 mx-auto mb-1 text-green-400" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -5966,7 +6235,7 @@
                                                 <input type="radio" name="status" value="absent" required
                                                     class="hidden peer">
                                                 <div
-                                                    class="px-4 py-3 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-red-500 peer-checked:bg-red-500/20 hover:border-dark-500">
+                                                    class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-red-500 peer-checked:bg-red-500/20 hover:border-dark-500 flex flex-col items-center justify-center">
                                                     <svg class="w-5 h-5 mx-auto mb-1 text-red-400" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -5981,7 +6250,7 @@
                                                 <input type="radio" name="status" value="late" required
                                                     class="hidden peer">
                                                 <div
-                                                    class="px-4 py-3 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-yellow-500 peer-checked:bg-yellow-500/20 hover:border-dark-500">
+                                                    class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-yellow-500 peer-checked:bg-yellow-500/20 hover:border-dark-500 flex flex-col items-center justify-center">
                                                     <svg class="w-5 h-5 mx-auto mb-1 text-yellow-400" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -5996,7 +6265,7 @@
                                                 <input type="radio" name="status" value="excused" required
                                                     class="hidden peer">
                                                 <div
-                                                    class="px-4 py-3 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-500/20 hover:border-dark-500">
+                                                    class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-500/20 hover:border-dark-500 flex flex-col items-center justify-center">
                                                     <svg class="w-5 h-5 mx-auto mb-1 text-blue-400" fill="none"
                                                         stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -6018,10 +6287,84 @@
                                     <div id="mark-attendance-error" class="text-red-400 text-sm hide"></div>
                                     <div id="mark-attendance-success" class="text-green-400 text-sm hide"></div>
                                     <button type="submit"
-                                        class="w-full py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">
+                                        class="w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg">
                                         Mark Attendance
                                     </button>
                                 </form>
+                                <div id="attendance-roll-call-root"
+                                    class="teacher-only admin-only mt-8 pt-6 border-t border-dark-600/60 space-y-5">
+                                    <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                                        <div class="space-y-2 min-w-0">
+                                            <p class="text-xs font-bold tracking-widest text-cyan-400/90">ACTIVE CLASS
+                                            </p>
+                                            <h4 id="attendance-active-class-title" class="text-xl font-bold text-white">
+                                                All students</h4>
+                                            <p id="attendance-active-class-meta"
+                                                class="text-slate-400 text-sm flex flex-wrap gap-x-2 gap-y-1">
+                                                <span id="attendance-meta-date"></span>
+                                                <span id="attendance-meta-extra"></span>
+                                            </p>
+                                        </div>
+                                        <div class="flex flex-col sm:flex-row gap-3 shrink-0 w-full xl:w-auto">
+                                            <label class="sr-only" for="attendance-class-select">Switch class</label>
+                                            <select id="attendance-class-select"
+                                                class="min-h-[48px] w-full sm:min-w-[14rem] px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400/50">
+                                                <option value="">All students</option>
+                                            </select>
+                                            <button type="button" id="mark-all-present-btn"
+                                                class="min-h-[48px] px-5 rounded-xl border-2 border-emerald-500/70 text-emerald-300 font-semibold text-sm hover:bg-emerald-500/10 transition-all whitespace-nowrap">
+                                                Mark all present
+                                            </button>
+                                            <button type="button" id="save-bulk-attendance-btn"
+                                                class="min-h-[48px] px-6 rounded-xl bg-cyan-500 text-slate-950 font-bold text-sm hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20 whitespace-nowrap">
+                                                Save attendance
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="sr-only" for="roll-call-student-search">Search roster</label>
+                                        <input type="search" id="roll-call-student-search"
+                                            placeholder="Search student by name or ID…"
+                                            class="w-full min-h-[48px] px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400/40" />
+                                    </div>
+                                    <div class="flex flex-wrap gap-2 items-center">
+                                        <span class="text-xs font-semibold text-slate-500 w-full sm:w-auto">FILTER
+                                            STATUS</span>
+                                        <button type="button" data-roll-filter="all"
+                                            class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold">All</button>
+                                        <button type="button" data-roll-filter="present"
+                                            class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold">Present</button>
+                                        <button type="button" data-roll-filter="absent"
+                                            class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold">Absent</button>
+                                        <button type="button" data-roll-filter="late"
+                                            class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold">Late</button>
+                                    </div>
+                                    <div id="roll-call-filter-empty-mount" class="hidden mt-3" aria-live="polite"></div>
+                                    <div
+                                        class="hidden md:block rounded-xl border border-slate-600/60 bg-slate-900/30 overflow-hidden">
+                                        <div class="overflow-x-auto max-h-[min(28rem,60vh)] overflow-y-auto overscroll-contain">
+                                            <table class="w-full min-w-[640px] text-left">
+                                                <thead class="sticky top-0 z-10 bg-slate-900/95 border-b border-slate-600">
+                                                    <tr>
+                                                        <th class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider">
+                                                            Student</th>
+                                                        <th class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider">
+                                                            Student ID</th>
+                                                        <th class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider">
+                                                            Status</th>
+                                                        <th
+                                                            class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider text-right">
+                                                            Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="attendance-roster-table-body"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div id="attendance-roster-cards"
+                                        class="md:hidden space-y-3 max-h-[min(28rem,60vh)] overflow-y-auto overscroll-contain pr-1">
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Attendance History -->
@@ -6450,16 +6793,11 @@
                     <!-- My Profile (all authenticated roles) -->
                     <div id="student-profile-content" class="tab-content hide">
                         <div class="glass-effect rounded-2xl p-6">
-                            <div class="flex items-center justify-between mb-6">
-                                <h3 class="text-2xl font-bold text-white">My Profile</h3>
-                                <div class="p-3 rounded-lg bg-green-500/20">
-                                    <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
-                                        </path>
-                                    </svg>
-                                </div>
+                            <div class="flex items-center gap-4 mb-6 min-w-0">
+                                <div id="profile-header-avatar"
+                                    class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-700 text-lg font-bold text-white ring-2 ring-primary-400/45 font-display"
+                                    aria-hidden="true">?</div>
+                                <h3 class="text-2xl font-bold text-white truncate">My Profile</h3>
                             </div>
 
                             <div class="space-y-6">
@@ -6718,7 +7056,7 @@
                             <!-- Chat Messages Container -->
                             <div id="ai-agent-messages" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
                                 <!-- Welcome message -->
-                                <div class="flex items-start gap-4 animate-fade-in-up">
+                                <div class="flex items-start gap-4 animate-fade-in-up" data-lms-ai-welcome-root>
                                     <div
                                         class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
                                         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor"
@@ -6999,6 +7337,16 @@
                     </div>
                 </div><!-- /lms-content -->
             </main><!-- /lms-main -->
+
+            <!-- Mobile bottom navigation (< md): glass bar, switchToTab wiring -->
+            <nav id="lms-mobile-bottom-nav"
+                class="md:hidden fixed bottom-0 inset-x-0 z-40 rounded-t-3xl border-t border-slate-200/80 bg-white/80 backdrop-blur-xl safe-area-pb overflow-hidden shadow-[0_-8px_32px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-[#060e20]/80 dark:shadow-[0_-8px_32px_rgba(0,0,0,0.35)]"
+                aria-label="Primary">
+                <!-- Items injected by main.ts renderRoleBasedBottomNav(role) via replaceChildren -->
+                <div id="lms-mobile-bottom-nav-slot"
+                    class="flex justify-around items-stretch max-w-lg mx-auto px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-h-[56px]">
+                </div>
+            </nav>
         </div><!-- /lms-layout -->
     </div><!-- /app-container -->
 
@@ -7284,7 +7632,6 @@
         }
 
         function applyTheme(theme, animate = true) {
-
             currentTheme = theme;
 
             // Update document attribute
@@ -7953,7 +8300,6 @@
                 doc.text(`Academic Year ${schoolYear}-${schoolYear + 1}`, pageWidth / 2, 145, { align: 'center' });
                 doc.text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), pageWidth / 2, 155, { align: 'center' });
 
-                // School Logo/Seal placeholder
                 doc.setFontSize(48);
                 doc.text('🎓', pageWidth / 2, 190, { align: 'center' });
 
@@ -8557,7 +8903,6 @@
                 doc.line(margin + sigWidth + 10, sigY + 12, margin + sigWidth * 2 + 10, sigY + 12);
                 doc.text('Date', margin + sigWidth + 10 + sigWidth / 2 - 5, sigY + 17);
 
-                // Official Seal placeholder
                 doc.setDrawColor(6, 182, 212);
                 doc.setLineWidth(1);
                 doc.circle(pageWidth - margin - 20, sigY + 6, 12);
@@ -8805,6 +9150,21 @@
             const tabEvent = new CustomEvent('tab-switched', { detail: { tab: tabName } });
             document.dispatchEvent(tabEvent);
 
+            if (typeof window.syncMobileBottomNavActiveState === 'function') {
+                window.syncMobileBottomNavActiveState(tabName);
+            } else {
+                document.querySelectorAll('.lms-mobile-nav-btn[data-tab]').forEach((btn) => {
+                    const id = btn.getAttribute('data-tab');
+                    const on = id === tabName;
+                    btn.classList.toggle('bg-primary-500/15', on);
+                    btn.classList.toggle('text-primary-300', on);
+                    btn.classList.toggle('ring-1', on);
+                    btn.classList.toggle('ring-primary-400/35', on);
+                    btn.classList.toggle('text-slate-400', !on);
+                    btn.setAttribute('aria-current', on ? 'page' : 'false');
+                });
+            }
+
         }
 
         // Make switchToTab globally accessible
@@ -8828,9 +9188,8 @@
         // Initialize sidebar navigation
         function initSidebarNavigation() {
 
-            // Sidebar toggle button
-            const toggleBtn = document.getElementById('lms-sidebar-toggle');
-            if (toggleBtn) {
+            // Sidebar toggle buttons (desktop + mobile app bar)
+            document.querySelectorAll('.lms-sidebar-toggle').forEach((toggleBtn) => {
                 toggleBtn.addEventListener('click', () => {
                     const sidebar = document.getElementById('lms-sidebar');
                     if (sidebar && sidebar.classList.contains('open')) {
@@ -8839,6 +9198,12 @@
                         openSidebar();
                     }
                 });
+            });
+
+            const mobileNotify = document.getElementById('lms-mobile-notifications-btn');
+            const headerNotify = document.getElementById('lms-header-notifications-btn');
+            if (mobileNotify && headerNotify) {
+                mobileNotify.addEventListener('click', () => headerNotify.click());
             }
 
             // Sidebar overlay click to close
@@ -8856,6 +9221,8 @@
                     }
                 });
             });
+
+            // Mobile bottom nav: items are created dynamically; switching uses data-lms-action + app-container delegation.
 
             // Sidebar logout button
             const sidebarLogout = document.getElementById('sidebar-logout-btn');
@@ -8883,15 +9250,41 @@
         }
 
         // Update sidebar user info (primary line: display name when available, else email)
-        function updateSidebarUserInfo(displayNameOrEmail, role) {
+        function updateSidebarUserInfo(displayNameOrEmail, role, secondaryLine) {
             const sidebarEmail = document.getElementById('sidebar-user-email');
             const sidebarRole = document.getElementById('sidebar-user-role');
+            const headerName = document.getElementById('lms-header-user-name');
+            const headerEmail = document.getElementById('lms-header-user-email');
+            const emailLine = typeof secondaryLine === 'string' ? secondaryLine : '';
+
+            const labelForInitial = (displayNameOrEmail || '').trim();
+            let initial = '?';
+            if (labelForInitial.length > 0) {
+                const parts = labelForInitial.split(/\s+/).filter(Boolean);
+                if (parts.length === 0) initial = '?';
+                else if (parts.length === 1) initial = parts[0].slice(0, 2).toUpperCase();
+                else initial = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            }
+            const mobileAvatar = document.getElementById('lms-mobile-user-avatar');
+            const headerAvatar = document.getElementById('lms-header-user-avatar');
+            const sidebarAvatar = document.getElementById('sidebar-user-avatar');
+            if (mobileAvatar) mobileAvatar.textContent = initial;
+            if (headerAvatar) headerAvatar.textContent = initial;
+            if (sidebarAvatar) sidebarAvatar.textContent = initial;
 
             if (sidebarEmail) {
                 sidebarEmail.textContent = displayNameOrEmail || '';
             }
             if (sidebarRole) {
                 sidebarRole.textContent = role ? role.charAt(0).toUpperCase() + role.slice(1) : '';
+            }
+            if (headerName) {
+                headerName.textContent = displayNameOrEmail || '';
+            }
+            if (headerEmail) {
+                const dn = (displayNameOrEmail || '').trim();
+                const em = (emailLine || '').trim();
+                headerEmail.textContent = em && em !== dn ? em : '';
             }
         }
 
@@ -9095,7 +9488,7 @@
             // Typewriter effect
             const subtitleEl = document.getElementById('typewriter-subtitle');
             if (subtitleEl) {
-                const text = 'Secure Learning Management System for Church Education';
+                const text = 'Learning Management Platform';
                 let i = 0;
                 subtitleEl.style.borderRight = '2px solid var(--login-accent-1, #8B2942)';
 

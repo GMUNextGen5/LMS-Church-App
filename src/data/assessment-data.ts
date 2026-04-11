@@ -8,6 +8,8 @@ import {
   updateDoc, deleteDoc, query, where, orderBy, writeBatch
 } from 'firebase/firestore';
 import { getCurrentUser } from '../core/auth';
+import { fetchStudents } from './data';
+import { fetchStudentClasses } from './classes-data';
 import type {
   Assessment, AssessmentQuestion, Submission, QuestionAnswer,
   QuestionGradeDetail, Course, Student
@@ -156,16 +158,11 @@ export interface StudentAssessmentRow {
 export async function fetchStudentAssessments(studentProfileIds: string[]): Promise<StudentAssessmentRow[]> {
   if (studentProfileIds.length === 0) return [];
 
-  // Find courses where student is enrolled
-  const allCourses = await getDocs(collection(db, 'courses'));
-  const enrolled = allCourses.docs.filter(d => {
-    const data = d.data() as Course;
-    return (data.studentIds ?? []).some(id => studentProfileIds.includes(id));
-  });
+  const enrolled = await fetchStudentClasses(studentProfileIds);
 
   const results: StudentAssessmentRow[] = [];
   for (const courseDoc of enrolled) {
-    const courseName = (courseDoc.data() as Course).courseName;
+    const courseName = courseDoc.courseName;
     const aRef = collection(db, 'courses', courseDoc.id, 'assessments');
     const aSnap = await getDocs(query(aRef, where('status', '==', 'published')));
 
@@ -175,7 +172,7 @@ export async function fetchStudentAssessments(studentProfileIds: string[]): Prom
       // If assigned individually, skip if student not in list
       if (
         assessment.assignedMode === 'individual' &&
-        !assessment.assignedStudentIds.some(id => studentProfileIds.includes(id))
+        !(assessment.assignedStudentIds ?? []).some(id => studentProfileIds.includes(id))
       ) continue;
 
       // Look for existing submission
@@ -194,6 +191,87 @@ export async function fetchStudentAssessments(studentProfileIds: string[]): Prom
     }
   }
   return results;
+}
+
+export interface NextStudentDeadlineResult {
+  assessment: Assessment;
+  courseId: string;
+  courseName: string;
+  dueDateTime: string;
+}
+
+function submissionStillActionable(sub: Submission | undefined): boolean {
+  if (!sub) return true;
+  return sub.status === 'in_progress';
+}
+
+/**
+ * Parses `dueDateTime` to UTC epoch ms. Prefer full ISO-8601 with offset or `Z` in Firestore
+ * so comparisons use absolute instants (not ambiguous local calendar dates).
+ */
+function parseAssessmentDueInstantMs(dueDateTime: string): number | null {
+  const ms = Date.parse(dueDateTime);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Earliest published assessment due after now across the student’s enrolled classes.
+ * Only includes work the learner still needs to turn in (no submission yet, or in progress).
+ */
+export async function fetchNextStudentDeadline(uid: string): Promise<NextStudentDeadlineResult | null> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'student' || user.uid !== uid) {
+    throw new Error('Not authorized');
+  }
+  const profiles = await fetchStudents();
+  const profileIds = profiles.map((p) => p.id);
+  if (profileIds.length === 0) return null;
+
+  const courses = await fetchStudentClasses(profileIds);
+  const nowMs = Date.now();
+  let best: NextStudentDeadlineResult | null = null;
+  let bestDue = Infinity;
+
+  for (const course of courses) {
+    const aSnap = await getDocs(
+      query(collection(db, 'courses', course.id, 'assessments'), where('status', '==', 'published'))
+    );
+    for (const aDoc of aSnap.docs) {
+      const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
+      const dueMs = parseAssessmentDueInstantMs(assessment.dueDateTime);
+      if (dueMs === null || dueMs <= nowMs) continue;
+
+      if (
+        assessment.assignedMode === 'individual' &&
+        !(assessment.assignedStudentIds ?? []).some((id) => profileIds.includes(id))
+      ) {
+        continue;
+      }
+
+      let submission: Submission | undefined;
+      for (const spId of profileIds) {
+        const subSnap = await getDoc(
+          doc(db, 'courses', course.id, 'assessments', aDoc.id, 'submissions', spId)
+        );
+        if (subSnap.exists()) {
+          submission = { id: subSnap.id, ...subSnap.data() } as Submission;
+          break;
+        }
+      }
+      if (!submissionStillActionable(submission)) continue;
+
+      if (dueMs < bestDue) {
+        bestDue = dueMs;
+        best = {
+          assessment,
+          courseId: course.id,
+          courseName: course.courseName,
+          dueDateTime: assessment.dueDateTime,
+        };
+      }
+    }
+  }
+  return best;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -579,14 +657,232 @@ export function autoGrade(
 
 /** Returns courses that contain at least one of the given student profile IDs. */
 export async function fetchCoursesForStudent(studentProfileIds: string[]): Promise<Course[]> {
-  if (studentProfileIds.length === 0) return [];
-  const snap = await getDocs(collection(db, 'courses'));
-  return snap.docs
-    .filter(d => {
-      const data = d.data() as Course;
-      return (data.studentIds ?? []).some(id => studentProfileIds.includes(id));
-    })
-    .map(d => ({ id: d.id, ...d.data() } as Course));
+  return fetchStudentClasses(studentProfileIds);
+}
+
+/**
+ * Counts submissions across the current teacher’s assessments that still need grading (manual / open-ended).
+ * Administrators are excluded; use only for the teacher dashboard.
+ */
+export async function countPendingSubmissionsForTeacher(): Promise<number> {
+  const user = getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+  if (user.role !== 'teacher') {
+    throw new Error('Pending submission counts are only available to signed-in teacher accounts.');
+  }
+
+  const coursesRef = collection(db, 'courses');
+  const cq = query(coursesRef, where('teacherId', '==', user.uid));
+  const coursesSnap = await getDocs(cq);
+  let total = 0;
+
+  for (const courseDoc of coursesSnap.docs) {
+    const classId = courseDoc.id;
+    const aRef = collection(db, 'courses', classId, 'assessments');
+    const aSnap = await getDocs(aRef);
+    for (const aDoc of aSnap.docs) {
+      const subsSnap = await getDocs(collection(db, 'courses', classId, 'assessments', aDoc.id, 'submissions'));
+      for (const s of subsSnap.docs) {
+        const sub = s.data() as Submission;
+        if (sub.needsGrading === true) total += 1;
+      }
+    }
+  }
+  return total;
+}
+
+/** One assessment with submissions still awaiting educator grading (teacher dashboard / mobile queue). */
+export interface TeacherGradingQueueRow {
+  classId: string;
+  assessmentId: string;
+  title: string;
+  courseName: string;
+  pendingCount: number;
+  dueDateTime: string;
+}
+
+/**
+ * Assessments that have at least one `needsGrading` submission, ordered with overdue due dates first,
+ * then by due date ascending.
+ */
+export async function fetchTeacherGradingQueueRows(limit: number): Promise<TeacherGradingQueueRow[]> {
+  const user = getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+  if (user.role !== 'teacher') {
+    throw new Error('Grading queue details are only available to signed-in teacher accounts.');
+  }
+
+  const coursesRef = collection(db, 'courses');
+  const cq = query(coursesRef, where('teacherId', '==', user.uid));
+  const coursesSnap = await getDocs(cq);
+  const out: TeacherGradingQueueRow[] = [];
+  const now = Date.now();
+
+  for (const courseDoc of coursesSnap.docs) {
+    const courseData = courseDoc.data() as Course;
+    const classId = courseDoc.id;
+    const aRef = collection(db, 'courses', classId, 'assessments');
+    const aSnap = await getDocs(aRef);
+    for (const aDoc of aSnap.docs) {
+      const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
+      const subs = await fetchSubmissions(classId, aDoc.id);
+      const pendingCount = subs.filter(s => s.needsGrading === true).length;
+      if (pendingCount === 0) continue;
+      out.push({
+        classId,
+        assessmentId: aDoc.id,
+        title: assessment.title,
+        courseName: courseData.courseName,
+        pendingCount,
+        dueDateTime: assessment.dueDateTime,
+      });
+    }
+  }
+
+  out.sort((a, b) => {
+    const da = Date.parse(a.dueDateTime);
+    const db = Date.parse(b.dueDateTime);
+    const ma = Number.isFinite(da) ? da : 0;
+    const mb = Number.isFinite(db) ? db : 0;
+    const aOver = ma > 0 && ma < now;
+    const bOver = mb > 0 && mb < now;
+    if (aOver !== bOver) return aOver ? -1 : 1;
+    return ma - mb;
+  });
+
+  return out.slice(0, Math.max(0, limit));
+}
+
+export type StudentUpcomingAssessmentTag = 'QUIZ' | 'ESSAY' | 'REFLECTION';
+
+export interface StudentUpcomingAssessmentMobile {
+  courseId: string;
+  assessmentId: string;
+  title: string;
+  courseName: string;
+  dueDateTime: string;
+  tag: StudentUpcomingAssessmentTag;
+}
+
+function inferAssessmentTag(title: string): StudentUpcomingAssessmentTag {
+  const t = title.toLowerCase();
+  if (/\bquiz\b/.test(t)) return 'QUIZ';
+  if (/\b(essay|thesis|paper|outline|report)\b/.test(t)) return 'ESSAY';
+  return 'REFLECTION';
+}
+
+/**
+ * Published assessments the learner still needs to complete, sorted by due date (soonest first).
+ */
+export async function fetchStudentUpcomingAssessmentsMobile(
+  uid: string,
+  limit: number
+): Promise<StudentUpcomingAssessmentMobile[]> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'student' || user.uid !== uid) {
+    throw new Error('Not authorized');
+  }
+  const profiles = await fetchStudents();
+  const profileIds = profiles.map(p => p.id);
+  if (profileIds.length === 0) return [];
+
+  const rows = await fetchStudentAssessments(profileIds);
+  const nowMs = Date.now();
+  const open: StudentUpcomingAssessmentMobile[] = [];
+
+  for (const row of rows) {
+    const dueMs = Date.parse(row.assessment.dueDateTime);
+    if (!Number.isFinite(dueMs) || dueMs <= nowMs) continue;
+
+    if (
+      row.assessment.assignedMode === 'individual' &&
+      !(row.assessment.assignedStudentIds ?? []).some(id => profileIds.includes(id))
+    ) {
+      continue;
+    }
+
+    if (!submissionStillActionable(row.submission)) continue;
+
+    open.push({
+      courseId: row.courseId,
+      assessmentId: row.assessment.id,
+      title: row.assessment.title,
+      courseName: row.courseName,
+      dueDateTime: row.assessment.dueDateTime,
+      tag: inferAssessmentTag(row.assessment.title),
+    });
+  }
+
+  open.sort((a, b) => Date.parse(a.dueDateTime) - Date.parse(b.dueDateTime));
+  return open.slice(0, Math.max(0, limit));
+}
+
+/** Row for the educator dashboard “Recent assessment results” table (teachers only). */
+export interface TeacherAssessmentDashboardRow {
+  classId: string;
+  assessmentId: string;
+  title: string;
+  courseName: string;
+  submissionCount: number;
+  /** Mean percent score across submissions with a positive total; null if none. */
+  avgPercent: number | null;
+}
+
+/**
+ * Summarizes the teacher’s most recently updated assessments with submission counts and mean scores.
+ * Callers must be signed-in teachers; administrators use other dashboard paths.
+ */
+export async function fetchTeacherAssessmentDashboardRows(limit = 8): Promise<TeacherAssessmentDashboardRow[]> {
+  const user = getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+  if (user.role === 'student') {
+    throw new Error('Teacher assessment dashboard rows are not available to learner accounts.');
+  }
+  if (user.role !== 'teacher') {
+    throw new Error('Teacher assessment dashboard rows are only available to signed-in teacher accounts.');
+  }
+
+  const assessments = await fetchTeacherAssessments();
+  const sorted = [...assessments].sort((a, b) => {
+    const tb = new Date(b.updatedAt || b.createdAt).getTime();
+    const ta = new Date(a.updatedAt || a.createdAt).getTime();
+    return tb - ta;
+  });
+  const slice = sorted.slice(0, Math.max(0, limit));
+
+  const rows: TeacherAssessmentDashboardRow[] = [];
+  for (const a of slice) {
+    const subs = await fetchSubmissions(a.classId, a.id);
+    const submitted = subs.filter(
+      s =>
+        s.status === 'submitted' ||
+        s.status === 'graded' ||
+        s.status === 'late_submitted' ||
+        !!s.submittedAt
+    );
+    const scored = submitted.filter(s => typeof s.totalPoints === 'number' && s.totalPoints > 0);
+    let avgPercent: number | null = null;
+    const pcts: number[] = [];
+    for (const s of scored) {
+      const tp = Number(s.totalPoints);
+      const fs = Number(s.finalScore);
+      if (!Number.isFinite(tp) || tp <= 0 || !Number.isFinite(fs)) continue;
+      const p = (fs / tp) * 100;
+      if (Number.isFinite(p)) pcts.push(p);
+    }
+    if (pcts.length > 0) {
+      avgPercent = pcts.reduce((a, b) => a + b, 0) / pcts.length;
+    }
+    rows.push({
+      classId: a.classId,
+      assessmentId: a.id,
+      title: a.title,
+      courseName: a.courseName,
+      submissionCount: submitted.length,
+      avgPercent,
+    });
+  }
+  return rows;
 }
 
 /** Fetch all students in a given course. */

@@ -1,11 +1,66 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined', system-ui, sans-serif;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 1.5rem;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    -webkit-font-smoothing: antialiased;
+  }
+
   html {
     font-family: Inter, system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: Manrope, Inter, system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  /** Primary reading color: slate on light surfaces, white on dark (matches --text-on-surface intent). */
+  .text-on-surface {
+    @apply text-slate-900 dark:text-white;
+  }
+
+  .text-on-surface-muted {
+    @apply text-slate-600 dark:text-dark-400;
+  }
+
+  .text-on-surface-subtle {
+    @apply text-slate-500 dark:text-dark-500;
+  }
+
+  .bg-surface-container {
+    @apply bg-white/95 dark:bg-dark-900/60;
+  }
+
+  .bg-surface-container-tonal {
+    @apply bg-slate-50/95 dark:bg-dark-900/50;
+  }
+
+  .border-surface-default {
+    @apply border-slate-200/90 dark:border-white/10;
+  }
+
+  /** Extra bottom inset for scroll regions above the home indicator (use with fixed nav layouts). */
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
   }
 }

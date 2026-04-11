@@ -45,7 +45,8 @@ service cloud.firestore {
       return isStudentRole() &&
         pid != null &&
         course.keys().hasAll(['studentIds']) &&
-        course.studentIds.hasAny([pid]);
+        (course.studentIds.hasAny([pid]) ||
+          course.studentIds.hasAny([request.auth.uid]));
     }
 
     function assessmentPublished(courseId, assessmentId) {
@@ -195,10 +196,19 @@ service cloud.firestore {
         return isTeacher() && request.auth.uid == resource.data.teacherId;
       }
 
+      /** Student access: linked profile ID or Firebase UID on the class roster (privacy: no broad course listing). */
+      function canReadCourseAsStudent() {
+        return isStudentRole() &&
+          resource.data.keys().hasAll(['studentIds']) &&
+          (resource.data.studentIds.hasAny([request.auth.uid]) ||
+            (userStudentProfileId() != null &&
+              resource.data.studentIds.hasAny([userStudentProfileId()])));
+      }
+
       allow read: if isAuthenticated() && (
         isAdmin() ||
         isCourseTeacher() ||
-        isStudentEnrolledInCourse(courseId)
+        canReadCourseAsStudent()
       );
 
       allow create: if isAdmin() || isTeacher();

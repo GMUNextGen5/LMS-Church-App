@@ -24,6 +24,39 @@ export function renderTemplate(container: Element, html: string): void {
 }
 
 /**
+ * Centered empty / CTA panel for card stacks and non-table regions (static copy only; dynamic text is escaped).
+ */
+export function emptyStateBlockHtml(
+  title: string,
+  subtitle?: string,
+  ctaHtml?: string,
+  options?: { branded?: boolean }
+): string {
+  const branded = options?.branded !== false;
+  const brand = branded
+    ? `<p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-2">DSKM LMS</p>`
+    : '';
+  const cta = ctaHtml ? `<div class="mt-6 flex flex-wrap justify-center gap-3">${ctaHtml}</div>` : '';
+  const sub = subtitle
+    ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${escapeHtmlText(subtitle)}</p>`
+    : '';
+  return `
+    <div class="text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container">
+      ${brand}
+      <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📚</div>
+      <h3 class="text-on-surface font-semibold text-lg">${escapeHtmlText(title)}</h3>
+      ${sub}
+      ${cta}
+    </div>`;
+}
+
+/** Single table row spanning `colspan` with the same empty-state treatment (for gradebook / history tables). */
+export function emptyStateTableRowHtml(colspan: number, title: string, subtitle?: string, ctaHtml?: string): string {
+  const inner = emptyStateBlockHtml(title, subtitle, ctaHtml).trim();
+  return `<tr><td colspan="${colspan}" class="p-0 border-0 bg-transparent">${inner}</td></tr>`;
+}
+
+/**
  * Appends parsed nodes (e.g. one question card) without replacing the whole parent.
  */
 export function appendParsedHtml(parent: Element, html: string): void {
@@ -46,22 +79,28 @@ export function renderErrorPanel(
   options?: RenderErrorPanelOptions
 ): void {
   const wrap = document.createElement('div');
-  wrap.className = 'text-center py-16';
+  wrap.className =
+    'card-blur progress-bar-glow max-w-lg mx-auto text-center py-14 px-6 rounded-2xl border border-primary-400/15 bg-dark-950/80';
 
   const icon = document.createElement('div');
-  icon.className = 'text-4xl mb-3 opacity-30';
+  icon.className = 'text-3xl mb-4 opacity-40';
   icon.textContent = '⚠️';
 
   const h3 = document.createElement('h3');
-  h3.className = 'text-red-400 font-semibold';
-  h3.textContent = message;
+  h3.className = 'font-display text-lg font-semibold text-primary-300';
+  h3.textContent = 'Access or data unavailable';
 
-  wrap.append(icon, h3);
+  const p = document.createElement('p');
+  p.className = 'mt-2 text-sm text-dark-300 leading-relaxed';
+  p.textContent = message;
+
+  wrap.append(icon, h3, p);
 
   if (options?.showBackToList) {
     const btn = document.createElement('button');
     btn.setAttribute('data-action', 'back-to-list');
-    btn.className = 'mt-4 px-4 py-2 rounded-lg bg-dark-700 text-dark-300 text-sm hover:bg-dark-600';
+    btn.className =
+      'mt-6 px-4 py-2.5 rounded-xl text-sm font-medium border border-primary-400/40 text-primary-300 hover:bg-primary-400/10 transition-colors';
     btn.textContent = '\u2190 Back to List';
     wrap.appendChild(btn);
   }
