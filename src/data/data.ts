@@ -15,6 +15,7 @@ import {
 } from '../core/firebase';
 import { Student, Grade, Attendance, Course, User } from '../types';
 import { getCurrentUser } from '../core/auth';
+import { showAppToast } from '../ui/ui';
 
 function cleanText(value: unknown, maxLen: number): string {
   if (value == null) return '';
@@ -235,6 +236,42 @@ export async function updateUserRoleDirect(targetUserId: string, newRole: User['
   await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
 }
 
+/**
+ * Student self-service: merges `displayName`, `phoneNumber`, and optional `birthYear` onto `users/{uid}` only.
+ * Does not touch `legalAcceptance` (preserved by `merge: true` and enforced in rules).
+ */
+export async function saveStudentUserSelfServiceProfile(data: {
+  displayName: string;
+  phoneNumber: string;
+  birthYearStr: string;
+}): Promise<void> {
+  const user = getCurrentUser();
+  if (!user || user.role !== 'student') throw new Error('Only students can update this profile');
+
+  const displayName = cleanText(data.displayName, 120);
+  const phoneNumber = cleanText(data.phoneNumber, 40);
+
+  const y = data.birthYearStr.trim();
+  let birthYear: number | undefined;
+  if (y !== '') {
+    const n = parseInt(y, 10);
+    if (!Number.isFinite(n) || n < 1900 || n > 2100) {
+      throw new Error('Year of birth must be a whole year between 1900 and 2100.');
+    }
+    birthYear = n;
+  }
+
+  const ref = doc(db, 'users', user.uid);
+  const updates: Record<string, unknown> = {
+    displayName,
+    phoneNumber,
+    updatedAt: new Date().toISOString(),
+  };
+  if (birthYear !== undefined) updates.birthYear = birthYear;
+
+  await setDoc(ref, updates, { merge: true });
+}
+
 export async function createTeacher(data: {
   teacherUid: string;
   name?: string;
@@ -271,7 +308,7 @@ export function listenToGrades(studentId: string, callback: (grades: Grade[]) =>
 
 export function exportGradesToCSV(grades: Grade[], studentName: string): void {
   if (grades.length === 0) {
-    alert('No grades to export.');
+    showAppToast('No grades to export.', 'info');
     return;
   }
   const BOM = '\uFEFF';

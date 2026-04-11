@@ -8,18 +8,29 @@ import './core/shims/chart-bridge';
 import './core/shims/jspdf-bridge';
 import {
   auth,
+  db,
   functions,
   httpsCallable,
   ensureFirebaseClient,
   ensureAuthPersistence,
   signOut,
+  doc,
+  getDoc,
 } from './core/firebase';
 import {
   getAppTheme,
   installThemeChangeBridge,
   registerThemeRefreshHandler,
 } from './core/theme-events';
-import { initAuth, signUp, signIn, logout, userLegalAcceptanceIncomplete } from './core/auth';
+import {
+  initAuth,
+  signUp,
+  signIn,
+  logout,
+  userLegalAcceptanceIncomplete,
+  getCurrentUser,
+  reloadCurrentUserFromFirestore,
+} from './core/auth';
 import { ParticleSystem } from './ui/particles';
 import {
   initUI,
@@ -40,6 +51,7 @@ import {
   sanitizeHTML,
   showFirebaseConfigurationError,
   showBootstrapError,
+  showAppToast,
 } from './ui/ui';
 import {
   fetchStudents,
@@ -55,11 +67,13 @@ import {
   fetchAllUsers,
   updateUserRoleDirect,
   createTeacher,
+  saveStudentUserSelfServiceProfile,
 } from './data/data';
 import { User, Student, Grade, Attendance } from './types';
 import { initAssessments, loadAssessments } from './ui/assessment-ui';
 import { initClasses, loadClasses } from './ui/classes-ui';
 import { initLegalModals } from './ui/legal';
+import { setupSignupPasswordStrengthMeter } from './ui/signup-password-strength';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './core/legal-versions';
 
 let currentStudents: Student[] = [];
@@ -173,6 +187,29 @@ async function init(): Promise<void> {
     // UI boot should not block Firebase init; fall through to banner-based error handling if needed.
   }
 
+  (window as Window & { lmsShowToast?: (m: string, k?: 'success' | 'error' | 'info') => void }).lmsShowToast = (
+    message: string,
+    kind?: 'success' | 'error' | 'info'
+  ) => {
+    showAppToast(message, kind ?? 'info');
+  };
+  const docWithToast = document as Document & { __lmsToastBridge?: boolean };
+  if (!docWithToast.__lmsToastBridge) {
+    docWithToast.__lmsToastBridge = true;
+    document.addEventListener('lms-toast', (ev: Event) => {
+      const d = (ev as CustomEvent<{ message?: string; kind?: 'success' | 'error' | 'info' }>).detail;
+      if (d?.message) showAppToast(d.message, d.kind ?? 'info');
+    });
+  }
+
+  // Auth forms (login/signup + password strength) must wire even when Firebase config is missing,
+  // so the early return below does not skip them.
+  try {
+    setupAuthForms();
+  } catch {
+    /* auth form wiring */
+  }
+
   const firebaseErr = ensureFirebaseClient();
   if (firebaseErr) {
     scheduleDomPaint(() => {
@@ -249,7 +286,6 @@ async function init(): Promise<void> {
   };
 
   try { initAuth(handleAuthStateChangeBootstrap); } catch { /* auth listener init */ }
-  try { setupAuthForms(); } catch { /* auth form wiring */ }
   try { setupAppForms(); } catch { /* app wiring */ }
   try { setupLmsDelegatedActions(); } catch { /* delegated actions */ }
   try { initAssessments(); } catch { /* assessments init */ }
@@ -365,6 +401,9 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     markAuthShellReady();
 
     await loadDashboardData();
+    if (user.role === 'student') {
+      void loadStudentProfile();
+    }
 
     scheduleDomPaint(() => {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
@@ -403,9 +442,13 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 }
 
 function setupAuthForms(): void {
-  const lf = loginForm;
-  const sf = signupForm;
+  const lf =
+    loginForm ?? (document.getElementById('login-form') as HTMLFormElement | null);
+  const sf =
+    signupForm ?? (document.getElementById('signup-form') as HTMLFormElement | null);
   if (!lf || !sf) return;
+
+  setupSignupPasswordStrengthMeter(sf);
 
   lf.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -478,7 +521,11 @@ function setupAuthForms(): void {
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      try { await logout(); } catch { alert('Logout failed. Please try again.'); }
+      try {
+        await logout();
+      } catch {
+        showAppToast('Logout failed. Please try again.', 'error');
+      }
     });
   }
 }
@@ -688,10 +735,10 @@ function setupAppForms(): void {
         });
         editStudentModal.classList.add('hide');
         await Promise.all([loadDashboardData(), loadRegisteredStudents()]);
-        alert('Student updated successfully');
+        showAppToast('Student updated successfully.', 'success');
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Update failed';
-        alert('Failed to update student: ' + msg);
+        showAppToast('Failed to update student: ' + msg, 'error');
       } finally {
         hideLoading();
       }
@@ -723,7 +770,10 @@ function setupAppForms(): void {
   if (gradeEntryForm) {
     gradeEntryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!selectedStudentId) { alert('Please select a student first'); return; }
+      if (!selectedStudentId) {
+        showAppToast('Please select a student first.', 'info');
+        return;
+      }
       const formData = new FormData(gradeEntryForm);
       const gradeData = {
         assignmentName: formData.get('assignmentName') as string,
@@ -737,7 +787,7 @@ function setupAppForms(): void {
         await addGrade(selectedStudentId, gradeData);
         gradeEntryForm.reset();
       } catch (error: any) {
-        alert('Failed to add grade: ' + error.message);
+        showAppToast('Failed to add grade: ' + error.message, 'error');
       }
     });
   }
@@ -745,7 +795,10 @@ function setupAppForms(): void {
   const exportCsvBtn = document.getElementById('export-csv-btn');
   if (exportCsvBtn) {
     exportCsvBtn.addEventListener('click', () => {
-      if (currentGrades.length === 0) { alert('No grades to export. Please select a student with grades.'); return; }
+      if (currentGrades.length === 0) {
+        showAppToast('No grades to export. Please select a student with grades.', 'info');
+        return;
+      }
       const student = currentStudents.find(s => s.id === selectedStudentId);
       exportGradesToCSV(currentGrades, student ? student.name : 'Unknown');
     });
@@ -754,7 +807,10 @@ function setupAppForms(): void {
   const aiSummaryBtn = document.getElementById('ai-summary-btn');
   if (aiSummaryBtn) {
     aiSummaryBtn.addEventListener('click', async () => {
-      if (!selectedStudentId) { alert('Please select a student first'); return; }
+      if (!selectedStudentId) {
+        showAppToast('Please select a student first.', 'info');
+        return;
+      }
       await generatePerformanceSummary(selectedStudentId);
     });
   }
@@ -762,7 +818,10 @@ function setupAppForms(): void {
   const studyTipsBtn = document.getElementById('study-tips-btn');
   if (studyTipsBtn) {
     studyTipsBtn.addEventListener('click', async () => {
-      if (!selectedStudentId) { alert('Please select a student first'); return; }
+      if (!selectedStudentId) {
+        showAppToast('Please select a student first.', 'info');
+        return;
+      }
       await generateStudyTips(selectedStudentId);
     });
   }
@@ -941,7 +1000,50 @@ function setupAppForms(): void {
     studentProfileBtn.addEventListener('click', () => {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
       document.getElementById('student-profile-content')?.classList.remove('hide');
-      loadStudentProfile();
+      void loadStudentProfile();
+    });
+  }
+
+  const studentProfileSaveBtn = document.getElementById('student-profile-save-btn');
+  const studentProfileSaveStatus = document.getElementById('student-profile-save-status');
+  if (studentProfileSaveBtn && !studentProfileSaveWired) {
+    studentProfileSaveWired = true;
+    studentProfileSaveBtn.addEventListener('click', async () => {
+      const nameEl = document.getElementById('profile-self-display-name') as HTMLInputElement | null;
+      const phoneEl = document.getElementById('profile-self-phone') as HTMLInputElement | null;
+      const birthEl = document.getElementById('profile-self-birth-year') as HTMLInputElement | null;
+      if (!nameEl || !phoneEl || !birthEl) return;
+      if (studentProfileSaveStatus) {
+        studentProfileSaveStatus.textContent = 'Saving…';
+        studentProfileSaveStatus.classList.remove('text-red-400', 'text-green-400');
+      }
+      try {
+        await saveStudentUserSelfServiceProfile({
+          displayName: nameEl.value,
+          phoneNumber: phoneEl.value,
+          birthYearStr: birthEl.value,
+        });
+        const refreshed = await reloadCurrentUserFromFirestore();
+        const u = refreshed ?? getCurrentUser();
+        if (u) {
+          configureUIForRole(u);
+          if (typeof (window as any).updateSidebarUserInfo === 'function') {
+            const sidebarLabel = (u.displayName && u.displayName.trim()) || u.email || '';
+            (window as any).updateSidebarUserInfo(sidebarLabel, u.role);
+          }
+        }
+        await loadStudentProfile();
+        if (studentProfileSaveStatus) {
+          studentProfileSaveStatus.textContent = 'Saved.';
+          studentProfileSaveStatus.classList.add('text-green-400');
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Save failed.';
+        if (studentProfileSaveStatus) {
+          studentProfileSaveStatus.textContent = msg;
+          studentProfileSaveStatus.classList.add('text-red-400');
+        }
+      }
     });
   }
 }
@@ -1473,7 +1575,11 @@ function renderGradeCharts(grades: Grade[]): void {
 
 (window as any).handleDeleteGrade = async (studentId: string, gradeId: string) => {
   if (!confirm('Are you sure you want to delete this grade?')) return;
-  try { await deleteGrade(studentId, gradeId); } catch (error: any) { alert('Failed to delete grade: ' + error.message); }
+  try {
+    await deleteGrade(studentId, gradeId);
+  } catch (error: any) {
+    showAppToast('Failed to delete grade: ' + (error?.message ?? 'Unknown error'), 'error');
+  }
 };
 
 (window as any).handleDeleteStudent = async (studentId: string) => {
@@ -1481,8 +1587,10 @@ function renderGradeCharts(grades: Grade[]): void {
   try {
     await deleteStudent(studentId);
     await loadDashboardData();
-    alert('Student deleted successfully');
-  } catch (error: any) { alert('Failed to delete student: ' + error.message); }
+    showAppToast('Student deleted successfully.', 'success');
+  } catch (error: any) {
+    showAppToast('Failed to delete student: ' + (error?.message ?? 'Unknown error'), 'error');
+  }
 };
 
 (window as any).handleEditStudent = (studentId: string) => {
@@ -1514,10 +1622,10 @@ function renderGradeCharts(grades: Grade[]): void {
     await updateUserRoleDirect(userId, 'student');
     await loadRegisteredTeachers();
     hideLoading();
-    alert('Teacher removed (role set to student).');
+    showAppToast('Teacher removed (role set to student).', 'success');
   } catch (err: any) {
     hideLoading();
-    alert('Failed to remove teacher: ' + err?.message);
+    showAppToast('Failed to remove teacher: ' + (err?.message ?? 'Unknown error'), 'error');
   }
 };
 
@@ -1525,15 +1633,21 @@ function renderGradeCharts(grades: Grade[]): void {
   const newRole = prompt(`Change role for this user.\n\nCurrent role: ${currentRole}\n\nEnter new role (admin, teacher, or student):`, currentRole);
   if (!newRole) return;
   const roleNormalized = newRole.trim().toLowerCase();
-  if (!['admin', 'teacher', 'student'].includes(roleNormalized)) { alert('Invalid role. Must be: admin, teacher, or student'); return; }
-  if (roleNormalized === currentRole) { alert('No change - same role'); return; }
+  if (!['admin', 'teacher', 'student'].includes(roleNormalized)) {
+    showAppToast('Invalid role. Must be: admin, teacher, or student.', 'info');
+    return;
+  }
+  if (roleNormalized === currentRole) {
+    showAppToast('No change — same role.', 'info');
+    return;
+  }
   try {
     showLoading();
     await updateUserRoleDirect(userId, roleNormalized as 'admin' | 'teacher' | 'student');
     await loadAllUsers();
-    alert(`User role changed to ${roleNormalized}`);
+    showAppToast(`User role changed to ${roleNormalized}.`, 'success');
   } catch (error: any) {
-    alert('Failed to change role: ' + error.message);
+    showAppToast('Failed to change role: ' + (error?.message ?? 'Unknown error'), 'error');
   } finally { hideLoading(); }
 };
 
@@ -1685,7 +1799,7 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
     const data = result.data as any;
     showModal(`Performance Summary - ${data?.studentName ?? 'Student'}`, data?.summaryHtml ?? '<p>No summary generated.</p>');
   } catch (error: any) {
-    alert(`Failed to generate summary: ${error.message || 'Unknown error occurred'}`);
+    showAppToast(`Failed to generate summary: ${error.message || 'Unknown error occurred'}`, 'error');
   } finally {
     hideLoading();
     if (btn) { btn.disabled = false; btn.textContent = 'AI Performance Summary'; }
@@ -1703,7 +1817,7 @@ async function generateStudyTips(studentId: string): Promise<void> {
     const data = result.data as any;
     showModal(`Study Tips - ${data?.studentName ?? 'Student'}`, data?.tipsHtml ?? '<p>No study tips generated.</p>');
   } catch (error: any) {
-    alert(`Failed to generate study tips: ${error.message || 'Unknown error occurred'}`);
+    showAppToast(`Failed to generate study tips: ${error.message || 'Unknown error occurred'}`, 'error');
   } finally {
     hideLoading();
     if (btn) { btn.disabled = false; btn.textContent = 'Get Study Tips'; }
@@ -2014,32 +2128,82 @@ function updateAttendanceStats(attendance: Attendance[]): void {
 
 // --- Student profile & UID display ---
 let passwordToggleInitialized = false;
+let studentProfileSaveWired = false;
 
-function loadStudentProfile(): void {
+async function loadStudentProfile(): Promise<void> {
   if (getCurrentUserRole() !== 'student') return;
-  const user = auth.currentUser;
-  if (!user) return;
-  const student = currentStudents.find(s => s.studentUid === user.uid);
-  if (!student) return;
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) return;
+
+  let userDocData: Record<string, unknown> = {};
+  try {
+    const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+    if (snap.exists()) userDocData = snap.data() as Record<string, unknown>;
+  } catch {
+    /* ignore: offline / rules */
+  }
+
+  const memUser = getCurrentUser();
+  const selfDisplay =
+    (typeof userDocData.displayName === 'string' && userDocData.displayName.trim()) ||
+    memUser?.displayName?.trim() ||
+    '';
+  const selfPhone =
+    (typeof userDocData.phoneNumber === 'string' && userDocData.phoneNumber.trim()) ||
+    memUser?.phoneNumber?.trim() ||
+    '';
+
+  let selfBirthYearStr = '';
+  if (typeof userDocData.birthYear === 'number' && Number.isFinite(userDocData.birthYear)) {
+    selfBirthYearStr = String(Math.round(userDocData.birthYear));
+  } else if (memUser?.birthYear != null && Number.isFinite(memUser.birthYear)) {
+    selfBirthYearStr = String(memUser.birthYear);
+  }
+
+  const student = currentStudents.find(s => s.studentUid === firebaseUser.uid);
+
+  const rosterName = student?.name?.trim() || '';
+  const emailLocal = firebaseUser.email?.split('@')[0]?.trim() || '';
+  const summaryName = rosterName || selfDisplay || emailLocal || 'Student';
+
+  const memberLabel = student?.memberId?.trim() ? student.memberId : 'Not assigned';
+
+  const summaryBirth =
+    student?.yearOfBirth != null
+      ? String(student.yearOfBirth)
+      : selfBirthYearStr || '--';
+
+  const fromStudentPhone = student?.contactPhone?.trim() || '';
+  const summaryPhone = fromStudentPhone || selfPhone || 'Not provided';
+
+  const summaryContactEmail =
+    student?.contactEmail?.trim() || firebaseUser.email || 'Not provided';
 
   const fields: Record<string, string> = {
-    'profile-name': student.name || '--',
-    'profile-member-id': student.memberId || 'Not assigned',
-    'profile-year-of-birth': student.yearOfBirth ? student.yearOfBirth.toString() : '--',
-    'profile-uid': user.uid,
-    'profile-email': user.email || '--',
-    'profile-contact-phone': student.contactPhone || 'Not provided',
-    'profile-contact-email': student.contactEmail || 'Not provided',
+    'profile-name': summaryName,
+    'profile-member-id': memberLabel,
+    'profile-year-of-birth': summaryBirth,
+    'profile-uid': firebaseUser.uid,
+    'profile-email': firebaseUser.email || '--',
+    'profile-contact-phone': summaryPhone,
+    'profile-contact-email': summaryContactEmail,
   };
   for (const [id, val] of Object.entries(fields)) {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
   }
 
+  const editName = document.getElementById('profile-self-display-name') as HTMLInputElement | null;
+  const editPhone = document.getElementById('profile-self-phone') as HTMLInputElement | null;
+  const editBirth = document.getElementById('profile-self-birth-year') as HTMLInputElement | null;
+  if (editName) editName.value = selfDisplay;
+  if (editPhone) editPhone.value = selfPhone;
+  if (editBirth) editBirth.value = selfBirthYearStr;
+
   const profileNotes = document.getElementById('profile-notes');
   const profileNotesSection = document.getElementById('profile-notes-section');
   if (profileNotes && profileNotesSection) {
-    if (student.notes?.trim()) {
+    if (student?.notes?.trim()) {
       profileNotes.textContent = student.notes;
       profileNotesSection.classList.remove('hide');
     } else {
@@ -2147,7 +2311,7 @@ function showUidModal(uid: string, email: string): void {
           <li>Copy your Account ID using the button above</li>
           <li>Send it to your teacher/administrator</li>
           <li>Wait for them to register you in the system</li>
-          <li>Log back in to see your grades and attendance</li>
+          <li>Keep using your dashboard; add your profile details anytime under My Profile</li>
         </ol>
       </div>
       <div class="text-center">
@@ -2157,11 +2321,95 @@ function showUidModal(uid: string, email: string): void {
 
   showModal('Account Created!', modalHtml, {
     onDismiss: () => {
-      showAuthContainer();
-      // Fire-and-forget: InPrivate / blocked IndexedDB must not block the dismiss pipeline.
-      signOut(auth).catch(() => {});
+      refreshAppShellAfterSignupModalDismiss();
     },
   });
+}
+
+/** After signup UID modal closes, keep the signed-in student in the app shell (no forced sign-out). */
+function refreshAppShellAfterSignupModalDismiss(): void {
+  void (async () => {
+    let user = getCurrentUser();
+    if (!user && auth.currentUser) {
+      user = await reloadCurrentUserFromFirestore();
+    }
+    if (!user && auth.currentUser) {
+      for (let attempt = 1; attempt <= 6 && !user; attempt++) {
+        await new Promise<void>((resolve) => {
+          window.setTimeout(() => resolve(), 40 + attempt * 35);
+        });
+        user = await reloadCurrentUserFromFirestore();
+      }
+    }
+
+    if (!auth.currentUser) {
+      scheduleDomPaint(() => {
+        showAuthContainer();
+      });
+      return;
+    }
+
+    if (!user) {
+      scheduleDomPaint(() => {
+        showAppContainer();
+        showBootstrapError(
+          'Still loading your account profile. You remain signed in; open My Profile in a moment if you still see placeholders.'
+        );
+      });
+      try {
+        await loadDashboardData();
+      } catch {
+        /* dashboard load error */
+      }
+      void loadStudentProfile();
+      return;
+    }
+
+    scheduleDomPaint(() => {
+      showAppContainer();
+      configureUIForRole(user!);
+      const userRole = getCurrentUserRole();
+      if (typeof (window as any).updateSidebarUserInfo === 'function') {
+        const sidebarLabel = (user!.displayName && user!.displayName.trim()) || user!.email || '';
+        (window as any).updateSidebarUserInfo(sidebarLabel, userRole);
+      }
+
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
+      document.getElementById('dashboard-content')?.classList.remove('hide');
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('text-dark-300');
+      });
+      const dashBtn = document.querySelector('.tab-btn[data-tab="dashboard"]');
+      if (dashBtn) {
+        dashBtn.classList.add('tab-active');
+        dashBtn.classList.remove('text-dark-300');
+      }
+
+      document.querySelectorAll('.lms-nav-item[data-tab]').forEach(item => item.classList.remove('active'));
+      document.querySelector('.lms-nav-item[data-tab="dashboard"]')?.classList.add('active');
+
+      const breadcrumb = document.getElementById('breadcrumb-current');
+      if (breadcrumb) breadcrumb.textContent = 'Dashboard';
+
+      if (user!.role === 'student' && user!.studentProfile === null) {
+        showBootstrapError(
+          'Your student profile is not linked yet. Share your Account ID with your teacher or administrator ' +
+            'so they can finish enrollment; you can still use the dashboard meanwhile.'
+        );
+      }
+    });
+
+    try {
+      await loadDashboardData();
+    } catch {
+      /* dashboard load error */
+    }
+    if (user!.role === 'student') {
+      void loadStudentProfile();
+    }
+  })();
 }
 
 function runInit(): void {

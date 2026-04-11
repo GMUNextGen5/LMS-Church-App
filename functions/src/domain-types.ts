@@ -1,6 +1,10 @@
 /**
  * Canonical Firestore `users/{uid}.role` values.
  * Keep aligned with frontend `src/types/index.ts` (`UserRole`).
+ *
+ * Security parity: student self-service updates to `users/{uid}` must not change
+ * `legalAcceptance.acceptedAt` from the signup value. That invariant is enforced in
+ * `firestore.rules` by `studentLegalAcceptanceAcceptedAtUnchanged()` on self `update`.
  */
 export const USER_ROLES = ['admin', 'teacher', 'student'] as const;
 export type UserRole = (typeof USER_ROLES)[number];

@@ -65,7 +65,7 @@ const aiModalContent = document.getElementById('ai-modal-content');
 
 let currentUserRole: UserRole | null = null;
 
-/** Optional hook invoked after the AI modal is hidden (e.g. sign-out after "Account Created"). */
+/** Optional hook invoked after the AI modal is hidden (e.g. refresh shell after "Account Created"). */
 let modalOnDismiss: (() => void | Promise<void>) | null = null;
 
 export type ShowModalOptions = {
@@ -75,7 +75,7 @@ export type ShowModalOptions = {
 function runDelegatedModalCopy(
   copyRoot: Element,
   inputSelector: string,
-  successStyleSwap?: { add: string[]; remove: string[] },
+  successStyleSwap?: { add: string[]; remove: string[]; successLabel?: string },
   afterClipboardSuccess?: () => void
 ): void {
   try {
@@ -93,7 +93,7 @@ function runDelegatedModalCopy(
       await navigator.clipboard.writeText(text);
     } catch {
       try {
-        window.alert('Failed to copy. Please select and copy manually.');
+        showAppToast('Failed to copy. Please select and copy manually.', 'error');
       } catch {
         /* alert blocked */
       }
@@ -118,7 +118,7 @@ function runDelegatedModalCopy(
       return;
     }
     const origText = btn.textContent;
-    btn.textContent = '✓ Copied!';
+    btn.textContent = successStyleSwap.successLabel ?? '✓ Copied!';
     for (const c of successStyleSwap.remove) {
       try {
         btn.classList.remove(c);
@@ -161,17 +161,18 @@ function installAiModalDelegatedClicks(): void {
         e.preventDefault();
         const root = raw.closest('#copy-uid-btn');
         if (root) {
-          runDelegatedModalCopy(
-            root,
-            '#uid-display',
-            {
-              add: ['bg-green-500', 'hover:bg-green-600'],
-              remove: ['bg-primary-500', 'hover:bg-primary-600'],
-            },
-            () => {
-              closeModal();
-            }
-          );
+          runDelegatedModalCopy(root, '#uid-display', {
+            add: [
+              'bg-green-600',
+              'hover:bg-green-700',
+              'ring-2',
+              'ring-green-400',
+              'ring-offset-2',
+              'ring-offset-dark-800',
+            ],
+            remove: ['bg-primary-500', 'hover:bg-primary-600'],
+            successLabel: 'Copied! ✅',
+          });
         }
         return;
       }
@@ -354,6 +355,54 @@ export function clearError(element: HTMLElement | null): void {
   if (!element) return;
   element.textContent = '';
   element.classList.add('hide');
+}
+
+export type AppToastKind = 'success' | 'error' | 'info';
+
+const LMS_TOAST_HOST_ID = 'lms-toast-host';
+
+function ensureToastHost(): HTMLElement {
+  let host = document.getElementById(LMS_TOAST_HOST_ID);
+  if (!host) {
+    host = document.createElement('div');
+    host.id = LMS_TOAST_HOST_ID;
+    host.className =
+      'fixed bottom-4 left-1/2 z-[10001] flex max-w-md w-[min(100%-2rem,28rem)] -translate-x-1/2 flex-col gap-2 pointer-events-none';
+    document.body.appendChild(host);
+  }
+  return host;
+}
+
+const TOAST_STYLES: Record<AppToastKind, string> = {
+  success:
+    'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg bg-emerald-950/95 text-emerald-50 border-emerald-600/50',
+  error:
+    'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg bg-red-950/95 text-red-50 border-red-600/50',
+  info: 'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg bg-slate-900/95 text-slate-50 border-slate-600/60',
+};
+
+/** Short-lived toast for confirmations and errors (replaces `alert` in production flows). */
+export function showAppToast(message: string, kind: AppToastKind = 'info'): void {
+  const text = typeof message === 'string' ? message : String(message ?? '');
+  const host = ensureToastHost();
+  const el = document.createElement('div');
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  el.className = TOAST_STYLES[kind];
+  el.textContent = text;
+  host.appendChild(el);
+  const ttl = kind === 'error' ? 10_000 : 5_000;
+  window.setTimeout(() => {
+    try {
+      el.remove();
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (host.childElementCount === 0) host.remove();
+    } catch {
+      /* ignore */
+    }
+  }, ttl);
 }
 
 const FIREBASE_CONFIG_BANNER_ID = 'firebase-config-error-banner';

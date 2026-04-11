@@ -70,6 +70,14 @@ service cloud.firestore {
         sd.teacherIds.hasAny([request.auth.uid]);
     }
 
+    /** Student-owned profiles must keep signup `acceptedAt` fixed (merge updates may omit nested maps). */
+    function studentLegalAcceptanceAcceptedAtUnchanged() {
+      return resource.data.role != 'student' ||
+        (request.resource.data.keys().hasAll(['legalAcceptance']) &&
+          resource.data.keys().hasAll(['legalAcceptance']) &&
+          request.resource.data.legalAcceptance.acceptedAt == resource.data.legalAcceptance.acceptedAt);
+    }
+
     // ==================== USER PROFILE RULES ====================
 
     match /users/{uid} {
@@ -88,7 +96,8 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         (request.auth.uid == uid &&
           !('role' in request.resource.data.diff(resource.data).affectedKeys()) &&
-          !('studentProfileId' in request.resource.data.diff(resource.data).affectedKeys())) ||
+          !('studentProfileId' in request.resource.data.diff(resource.data).affectedKeys()) &&
+          studentLegalAcceptanceAcceptedAtUnchanged()) ||
         isAdmin() ||
         isTeacherLinkingStudentProfile()
       );

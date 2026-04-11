@@ -23,6 +23,9 @@ export interface User {
    * `null` when the account is valid but no student document exists yet (incomplete setup).
    */
   studentProfile?: Student | null;
+  /** Self-service fields on `users/{uid}` (optional until the student saves them). */
+  phoneNumber?: string;
+  birthYear?: number;
 }
 
 export interface Student {

@@ -3,7 +3,7 @@
  */
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchAllUsers, fetchAllStudentProfiles } from '../data/data';
-import { showLoading, hideLoading } from './ui';
+import { showLoading, hideLoading, showAppToast } from './ui';
 import {
   fetchStudentClasses,
   fetchTeacherClasses,
@@ -39,7 +39,7 @@ function esc(s: string): string {
 function sectionHeader(title: string, rightHtml?: string): string {
   return `
     <div class="flex items-center justify-between">
-      <h2 class="text-xl font-bold text-white">${title}</h2>
+      <h2 class="text-xl font-bold text-white">${esc(title)}</h2>
       <div class="flex items-center gap-2">${rightHtml || ''}</div>
     </div>`;
 }
@@ -48,8 +48,8 @@ function emptyState(title: string, subtitle?: string): string {
   return `
     <div class="text-center py-16">
       <div class="text-4xl mb-3 opacity-30">📚</div>
-      <h3 class="text-white font-semibold text-lg">${title}</h3>
-      ${subtitle ? `<p class="text-dark-400 text-sm mt-1">${subtitle}</p>` : ''}
+      <h3 class="text-white font-semibold text-lg">${esc(title)}</h3>
+      ${subtitle ? `<p class="text-dark-400 text-sm mt-1">${esc(subtitle)}</p>` : ''}
     </div>`;
 }
 
@@ -648,7 +648,7 @@ function handleClick(e: Event): void {
     case 'teacher-delete-class':
       if (!confirm('Delete this class? This does not delete students.')) return;
       showLoading();
-      deleteClass(courseId).then(() => loadClasses()).catch(err => alert(err.message)).finally(hideLoading);
+      deleteClass(courseId).then(() => loadClasses()).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
       return;
     case 'admin-toggle-roster': {
       const row = document.getElementById(`admin-roster-row-${courseId}`);
@@ -666,7 +666,7 @@ function handleClick(e: Event): void {
     case 'admin-delete-class':
       if (!confirm('Delete this class? This does not delete students.')) return;
       showLoading();
-      deleteClass(courseId).then(() => loadClasses()).catch(err => alert(err.message)).finally(hideLoading);
+      deleteClass(courseId).then(() => loadClasses()).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
       return;
     case 'teacher-create-class':
       openTeacherClassFormModal();
@@ -675,14 +675,14 @@ function handleClick(e: Event): void {
       const studentId = target.getAttribute('data-student-id');
       if (!studentId) return;
       showLoading();
-      removeStudentsFromClass(courseId, [studentId]).then(() => loadTeacherRoster(courseId)).catch(err => alert(err.message)).finally(hideLoading);
+      removeStudentsFromClass(courseId, [studentId]).then(() => loadTeacherRoster(courseId)).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
       return;
     }
     case 'admin-remove-student': {
       const studentId = target.getAttribute('data-student-id');
       if (!studentId) return;
       showLoading();
-      removeStudentsFromClass(courseId, [studentId]).then(() => loadAdminRoster(courseId)).catch(err => alert(err.message)).finally(hideLoading);
+      removeStudentsFromClass(courseId, [studentId]).then(() => loadAdminRoster(courseId)).catch(err => showAppToast(err.message, 'error')).finally(hideLoading);
       return;
     }
   }
@@ -698,7 +698,7 @@ function handleChange(e: Event): void {
     showLoading();
     addStudentsToClass(courseId, [value])
       .then(() => { target.value = ''; return loadAdminRoster(courseId); })
-      .catch(err => alert(err.message))
+      .catch(err => showAppToast(err.message, 'error'))
       .finally(hideLoading);
   } else if (action === 'teacher-add-student-select') {
     const value = target.value;
@@ -707,7 +707,7 @@ function handleChange(e: Event): void {
     showLoading();
     addStudentsToClass(courseId, [value])
       .then(() => { target.value = ''; return loadTeacherRoster(courseId); })
-      .catch(err => alert(err.message))
+      .catch(err => showAppToast(err.message, 'error'))
       .finally(hideLoading);
   }
 }
@@ -754,7 +754,7 @@ async function handleAdminFormSubmit(e: Event): Promise<void> {
     closeClassFormModal();
     await loadClasses();
   } catch (err) {
-    alert(err instanceof Error ? err.message : String(err));
+    showAppToast(err instanceof Error ? err.message : String(err), 'error');
   } finally {
     hideLoading();
   }
@@ -797,7 +797,7 @@ async function handleTeacherFormSubmit(e: Event): Promise<void> {
     closeTeacherClassFormModal();
     await loadClasses();
   } catch (err) {
-    alert(err instanceof Error ? err.message : String(err));
+    showAppToast(err instanceof Error ? err.message : String(err), 'error');
   } finally {
     hideLoading();
   }

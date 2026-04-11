@@ -95,6 +95,16 @@ export function coerceFirestoreDateToIso(value: unknown): string {
   return now();
 }
 
+function pickSelfServiceUserFields(userData: Record<string, unknown>): Pick<User, 'phoneNumber' | 'birthYear'> {
+  const rawPhone = userData.phoneNumber;
+  const phoneNumber =
+    typeof rawPhone === 'string' && rawPhone.trim() ? rawPhone.trim().slice(0, 40) : undefined;
+  const by = userData.birthYear;
+  const birthYear =
+    typeof by === 'number' && Number.isFinite(by) ? Math.round(by) : undefined;
+  return { phoneNumber, birthYear };
+}
+
 function mapStudentFirestoreToStudent(id: string, raw: Record<string, unknown>): Student | null {
   try {
     const name = typeof raw.name === 'string' ? raw.name : '';
@@ -179,6 +189,7 @@ function buildFallbackUserFromFirebase(
     '';
   const fromAuth = firebaseUser.displayName?.trim() || '';
   const displayName = fromDoc || fromAuth || undefined;
+  const { phoneNumber, birthYear } = pickSelfServiceUserFields(userData);
 
   return {
     uid: firebaseUser.uid,
@@ -188,6 +199,8 @@ function buildFallbackUserFromFirebase(
     displayName,
     legalAcceptance,
     studentProfile: role === 'student' ? null : undefined,
+    phoneNumber,
+    birthYear,
   };
 }
 
@@ -233,6 +246,8 @@ async function mapFirestoreUserDocumentToUser(
     studentProfile = await resolveStudentProfileForUid(firebaseUser.uid, userData);
   }
 
+  const { phoneNumber, birthYear } = pickSelfServiceUserFields(userData);
+
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email ?? '',
@@ -241,6 +256,8 @@ async function mapFirestoreUserDocumentToUser(
     displayName,
     legalAcceptance,
     studentProfile,
+    phoneNumber,
+    birthYear,
   };
 }
 
@@ -262,6 +279,33 @@ export function userLegalAcceptanceIncomplete(user: User): boolean {
 
 export function getCurrentUser(): User | null {
   return currentUser;
+}
+
+/**
+ * Re-reads `users/{uid}` into the in-memory session after a self-service merge write
+ * (Firestore updates do not re-run `onAuthStateChanged`).
+ */
+export async function reloadCurrentUserFromFirestore(): Promise<User | null> {
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) return null;
+  try {
+    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    if (!userDoc.exists()) return currentUser;
+    const userData = userDoc.data() as Record<string, unknown>;
+    const role = userData?.role;
+    const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+    const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+    if (!isValidRole) return currentUser;
+    const roleTyped = role as UserRole;
+    try {
+      currentUser = await mapFirestoreUserDocumentToUser(firebaseUser, userData, roleTyped);
+    } catch {
+      currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, userData);
+    }
+    return currentUser;
+  } catch {
+    return currentUser;
+  }
 }
 
 export type LegalAcceptanceRecord = {

@@ -3,7 +3,7 @@
  */
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchCourses } from '../data/data';
-import { showLoading, hideLoading } from './ui';
+import { showLoading, hideLoading, showAppToast } from './ui';
 import {
   fetchTeacherAssessments,
   fetchStudentAssessments,
@@ -601,7 +601,7 @@ async function renderTake(): Promise<void> {
 
   container.innerHTML = `
     <div class="max-w-3xl space-y-6">
-      ${sectionHeader(esc(assessment.title), `
+      ${sectionHeader(assessment.title, `
         <button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>
       `)}
       <div class="text-dark-300 text-sm">
@@ -708,7 +708,7 @@ async function renderSubmissionsList(): Promise<void> {
 
   container.innerHTML = `
     <div class="space-y-6">
-      ${sectionHeader(`Submissions: ${esc(assessment.title)}`, `
+      ${sectionHeader(`Submissions: ${assessment.title}`, `
         <div class="flex gap-2">
           <button data-action="release-all" data-class-id="${classId}" data-id="${assessmentId}"
                   class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700">Release All Grades</button>
@@ -805,7 +805,7 @@ async function renderGradeView(): Promise<void> {
 
   container.innerHTML = `
     <div class="max-w-4xl space-y-6">
-      ${sectionHeader(`Grade: ${esc(submission.studentName || studentProfileId)}`, `
+      ${sectionHeader(`Grade: ${submission.studentName || studentProfileId}`, `
         <button data-action="view-submissions" data-class-id="${classId}" data-id="${assessmentId}"
                 class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back to Submissions</button>
       `)}
@@ -855,7 +855,7 @@ async function renderResultsView(): Promise<void> {
   if (!submission.released) {
     container.innerHTML = `
       <div class="space-y-6">
-        ${sectionHeader(esc(assessment.title), `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
+        ${sectionHeader(assessment.title, `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
         ${emptyState('Grades not yet released', 'Your teacher has not released the grades for this assessment yet.')}
       </div>`;
     return;
@@ -901,7 +901,7 @@ async function renderResultsView(): Promise<void> {
 
   container.innerHTML = `
     <div class="max-w-3xl space-y-6">
-      ${sectionHeader(esc(assessment.title), `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
+      ${sectionHeader(assessment.title, `<button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>`)}
 
       <!-- Score Summary -->
       <div class="bg-dark-800 rounded-xl border border-dark-700 p-6 text-center">
@@ -1028,7 +1028,7 @@ async function handleClick(e: Event): Promise<void> {
     }
   } catch (err: any) {
     hideLoading();
-    alert('Error: ' + err.message);
+    showAppToast('Error: ' + err.message, 'error');
   }
 }
 
@@ -1197,11 +1197,20 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
   const existingClassId = fd.get('existingClassId') as string;
   const classId = existingClassId || fd.get('classId') as string;
 
-  if (!classId) { alert('Please select a class.'); return; }
+  if (!classId) {
+    showAppToast('Please select a class.', 'info');
+    return;
+  }
 
   const questions = collectQuestionsFromDOM();
-  if (questions.length === 0) { alert('Please add at least one question.'); return; }
-  if (questions.some(q => !q.prompt.trim())) { alert('All questions must have a prompt.'); return; }
+  if (questions.length === 0) {
+    showAppToast('Please add at least one question.', 'info');
+    return;
+  }
+  if (questions.some(q => !q.prompt.trim())) {
+    showAppToast('All questions must have a prompt.', 'info');
+    return;
+  }
 
   const totalPoints = questions.reduce((s, q) => s + q.points, 0);
   const dueRaw = fd.get('dueDateTime') as string;
@@ -1253,7 +1262,7 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
     navigate({ view: 'list' });
   } catch (err: any) {
     hideLoading();
-    alert('Save failed: ' + err.message);
+    showAppToast('Save failed: ' + err.message, 'error');
   }
 }
 
@@ -1289,10 +1298,10 @@ async function handleSaveProgress(classId: string, assessmentId: string, student
   try {
     await saveProgress(classId, assessmentId, studentProfileId, answers);
     hideLoading();
-    alert('Progress saved!');
+    showAppToast('Progress saved!', 'success');
   } catch (err: any) {
     hideLoading();
-    alert('Save failed: ' + err.message);
+    showAppToast('Save failed: ' + err.message, 'error');
   }
 }
 
@@ -1314,12 +1323,12 @@ async function handleSubmitAssessment(form: HTMLFormElement): Promise<void> {
     if (submission.released) {
       navigate({ view: 'results', classId, assessmentId, studentProfileId: sp });
     } else {
-      alert('Assessment submitted successfully!');
+      showAppToast('Assessment submitted successfully!', 'success');
       navigate({ view: 'list' });
     }
   } catch (err: any) {
     hideLoading();
-    alert('Submit failed: ' + err.message);
+    showAppToast('Submit failed: ' + err.message, 'error');
   }
 }
 
@@ -1358,7 +1367,7 @@ async function handleSaveGrades(classId: string, assessmentId: string, studentPr
     navigate({ view: 'submissions', classId, assessmentId });
   } catch (err: any) {
     hideLoading();
-    alert('Grading failed: ' + err.message);
+    showAppToast('Grading failed: ' + err.message, 'error');
   }
 }
 
@@ -1382,7 +1391,7 @@ function formatDate(isoStr: string): string {
 function sectionHeader(title: string, rightHtml?: string): string {
   return `
     <div class="flex items-center justify-between">
-      <h2 class="text-xl font-bold text-white">${title}</h2>
+      <h2 class="text-xl font-bold text-white">${esc(title)}</h2>
       <div class="flex items-center gap-2">${rightHtml || ''}</div>
     </div>`;
 }
@@ -1391,8 +1400,8 @@ function emptyState(title: string, subtitle?: string): string {
   return `
     <div class="text-center py-16">
       <div class="text-4xl mb-3 opacity-30">📋</div>
-      <h3 class="text-white font-semibold text-lg">${title}</h3>
-      ${subtitle ? `<p class="text-dark-400 text-sm mt-1">${subtitle}</p>` : ''}
+      <h3 class="text-white font-semibold text-lg">${esc(title)}</h3>
+      ${subtitle ? `<p class="text-dark-400 text-sm mt-1">${esc(subtitle)}</p>` : ''}
     </div>`;
 }
 
