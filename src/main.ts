@@ -235,71 +235,86 @@ function getDashboardUrl(_role: User['role']): string {
 
 /** Routes Firebase auth changes into UI visibility, role configuration, and data loads. */
 async function handleAuthStateChange(user: User | null): Promise<void> {
-  const isValidProfile =
-    !!user &&
-    typeof user.uid === 'string' &&
-    !!user.uid &&
-    typeof user.email === 'string' &&
-    typeof user.role === 'string' &&
-    (user.role === 'admin' || user.role === 'teacher' || user.role === 'student');
+  try {
+    const isValidProfile =
+      !!user &&
+      typeof user.uid === 'string' &&
+      !!user.uid &&
+      typeof user.email === 'string' &&
+      typeof user.role === 'string' &&
+      (user.role === 'admin' || user.role === 'teacher' || user.role === 'student');
 
-  // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
-  if (isValidProfile) {
-    const incomplete = userLegalAcceptanceIncomplete(user);
-    if (incomplete) {
-      showBootstrapError(
-        'Your account must acknowledge the current Terms of Service (version ' +
-          LEGAL_TERMS_VERSION +
-          '). Please contact an administrator to update your profile, or create a new student account through signup.'
-      );
-      try {
-        await logout();
-      } catch {
-        /* sign-out best-effort */
+    // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
+    if (isValidProfile) {
+      const incomplete = userLegalAcceptanceIncomplete(user);
+      if (incomplete) {
+        showBootstrapError(
+          'Your account must acknowledge the current Terms of Service (version ' +
+            LEGAL_TERMS_VERSION +
+            '). Please contact an administrator to update your profile, or create a new student account through signup.'
+        );
+        try {
+          await logout();
+        } catch {
+          /* sign-out best-effort */
+        }
+        showAuthContainer();
+        resetAppState();
+        return;
       }
+      const dashboardUrl = getDashboardUrl(user.role);
+      const here = window.location.href.split('#')[0];
+      const there = dashboardUrl.split('#')[0];
+      if (here !== there) {
+        window.location.href = dashboardUrl;
+        return;
+      }
+      showAppContainer();
+      configureUIForRole(user);
+
+      const userRole = getCurrentUserRole();
+      if (typeof (window as any).updateSidebarUserInfo === 'function') {
+        const sidebarLabel = (user.displayName && user.displayName.trim()) || user.email || '';
+        (window as any).updateSidebarUserInfo(sidebarLabel, userRole);
+      }
+
+      await loadDashboardData();
+
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
+      document.getElementById('dashboard-content')?.classList.remove('hide');
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('text-dark-300');
+      });
+      const dashBtn = document.querySelector('.tab-btn[data-tab="dashboard"]');
+      if (dashBtn) {
+        dashBtn.classList.add('tab-active');
+        dashBtn.classList.remove('text-dark-300');
+      }
+
+      document.querySelectorAll('.lms-nav-item[data-tab]').forEach(item => item.classList.remove('active'));
+      document.querySelector('.lms-nav-item[data-tab="dashboard"]')?.classList.add('active');
+
+      const breadcrumb = document.getElementById('breadcrumb-current');
+      if (breadcrumb) breadcrumb.textContent = 'Dashboard';
+
+      if (user.role === 'student' && user.studentProfile === null) {
+        showBootstrapError(
+          'Your student profile is not linked yet. Share your Account ID with your teacher or administrator ' +
+            'so they can finish enrollment; you can still use the dashboard meanwhile.'
+        );
+      }
+    } else {
       showAuthContainer();
       resetAppState();
-      return;
     }
-    const dashboardUrl = getDashboardUrl(user.role);
-    const here = window.location.href.split('#')[0];
-    const there = dashboardUrl.split('#')[0];
-    if (here !== there) {
-      window.location.href = dashboardUrl;
-      return;
+  } finally {
+    try {
+      hideLoading();
+    } catch {
+      /* overlay may be absent in tests */
     }
-    showAppContainer();
-    configureUIForRole(user);
-
-    const userRole = getCurrentUserRole();
-    if (typeof (window as any).updateSidebarUserInfo === 'function') {
-      const sidebarLabel = (user.displayName && user.displayName.trim()) || user.email || '';
-      (window as any).updateSidebarUserInfo(sidebarLabel, userRole);
-    }
-
-    await loadDashboardData();
-
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
-    document.getElementById('dashboard-content')?.classList.remove('hide');
-
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.remove('tab-active');
-      btn.classList.add('text-dark-300');
-    });
-    const dashBtn = document.querySelector('.tab-btn[data-tab="dashboard"]');
-    if (dashBtn) {
-      dashBtn.classList.add('tab-active');
-      dashBtn.classList.remove('text-dark-300');
-    }
-
-    document.querySelectorAll('.lms-nav-item[data-tab]').forEach(item => item.classList.remove('active'));
-    document.querySelector('.lms-nav-item[data-tab="dashboard"]')?.classList.add('active');
-
-    const breadcrumb = document.getElementById('breadcrumb-current');
-    if (breadcrumb) breadcrumb.textContent = 'Dashboard';
-  } else {
-    showAuthContainer();
-    resetAppState();
   }
 }
 

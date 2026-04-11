@@ -14,7 +14,14 @@ export interface User {
   legalAcceptance?: {
     termsVersion?: string;
     privacyVersion?: string;
+    /** ISO string; Firestore may store Timestamp or string. */
+    acceptedAt?: string;
   };
+  /**
+   * For `student` accounts: linked `students/{id}` roster record when present.
+   * `null` when the account is valid but no student document exists yet (incomplete setup).
+   */
+  studentProfile?: Student | null;
 }
 
 export interface Student {

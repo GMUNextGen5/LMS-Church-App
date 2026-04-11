@@ -185,11 +185,11 @@ function switchTab(tabName: string): void {
 }
 
 export function showLoading(): void {
-  loadingOverlay?.classList.remove('hide');
+  loadingOverlay?.classList.remove('hide', 'hidden');
 }
 
 export function hideLoading(): void {
-  loadingOverlay?.classList.add('hide');
+  loadingOverlay?.classList.add('hide', 'hidden');
 }
 
 export function showError(element: HTMLElement | null, message: string): void {

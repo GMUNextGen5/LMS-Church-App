@@ -8,41 +8,210 @@ import {
   deleteUser,
   doc,
   getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
   setDoc,
   serverTimestamp,
   FirebaseUser
 } from './firebase';
-import { User, UserRole } from './types';
+import { User, UserRole, Student } from './types';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './legal-versions';
 import { showLoading, hideLoading, showBootstrapError } from '../ui/ui';
 
 let currentUser: User | null = null;
 
-type FirestoreTimestampLike = { toDate?: () => Date };
+type TimestampLike = { toDate?: () => Date };
 
-function normalizeProfileCreatedAt(createdAt: unknown): string {
-  const tsLike = createdAt as FirestoreTimestampLike | undefined;
-  if (tsLike != null && typeof tsLike === 'object' && typeof tsLike.toDate === 'function') {
+/**
+ * Normalizes Firestore Timestamp, ISO string, number, or Date-like values to an ISO string.
+ * Never calls `.toDate()` unless it is a function on the value.
+ */
+export function coerceFirestoreDateToIso(value: unknown): string {
+  if (value == null || value === '') {
+    return new Date().toISOString();
+  }
+  const tsLike = value as TimestampLike;
+  if (typeof value === 'object' && value !== null && typeof tsLike.toDate === 'function') {
     try {
-      return tsLike.toDate().toISOString();
+      const date = tsLike.toDate!();
+      if (date instanceof Date && !Number.isNaN(date.getTime())) {
+        return date.toISOString();
+      }
     } catch {
-      return new Date().toISOString();
+      /* fall through */
     }
   }
-  if (typeof createdAt === 'string' && createdAt.trim()) {
-    return createdAt.trim();
+  try {
+    const date = new Date(value as string | number | Date);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+  } catch {
+    /* ignore */
   }
   return new Date().toISOString();
 }
 
+function mapStudentFirestoreToStudent(id: string, raw: Record<string, unknown>): Student | null {
+  try {
+    const name = typeof raw.name === 'string' ? raw.name : '';
+    const parentUid = typeof raw.parentUid === 'string' ? raw.parentUid : '';
+    const studentUid = typeof raw.studentUid === 'string' ? raw.studentUid : '';
+    return {
+      id,
+      name: name.trim() ? name : 'Student',
+      memberId: typeof raw.memberId === 'string' ? raw.memberId : undefined,
+      yearOfBirth: typeof raw.yearOfBirth === 'number' ? raw.yearOfBirth : undefined,
+      contactPhone: typeof raw.contactPhone === 'string' ? raw.contactPhone : undefined,
+      contactEmail: typeof raw.contactEmail === 'string' ? raw.contactEmail : undefined,
+      parentUid,
+      studentUid,
+      teacherIds: Array.isArray(raw.teacherIds)
+        ? raw.teacherIds.filter((t): t is string => typeof t === 'string')
+        : undefined,
+      notes: typeof raw.notes === 'string' ? raw.notes : undefined,
+      createdAt: coerceFirestoreDateToIso(raw.createdAt),
+      createdBy: typeof raw.createdBy === 'string' ? raw.createdBy : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves `students/{id}` for the signed-in learner: explicit `studentProfileId` on the user doc,
+ * else the first document with `studentUid` matching Firebase Auth. Missing or denied reads yield `null`.
+ */
+async function resolveStudentProfileForUid(
+  uid: string,
+  userData: Record<string, unknown>
+): Promise<Student | null> {
+  try {
+    const spIdRaw = userData.studentProfileId;
+    const spId = typeof spIdRaw === 'string' && spIdRaw.trim() ? spIdRaw.trim() : '';
+
+    if (spId) {
+      const snap = await getDoc(doc(db, 'students', spId));
+      if (snap.exists()) {
+        return mapStudentFirestoreToStudent(snap.id, snap.data() as Record<string, unknown>);
+      }
+      return null;
+    }
+
+    const q = query(collection(db, 'students'), where('studentUid', '==', uid));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const d = snapshot.docs[0];
+    return mapStudentFirestoreToStudent(d.id, d.data() as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort fields from Firestore when full normalization throws (keeps legal gate accurate). */
+function buildFallbackUserFromFirebase(
+  firebaseUser: FirebaseUser,
+  role: UserRole,
+  userData: Record<string, unknown>
+): User {
+  let legalAcceptance: User['legalAcceptance'];
+  try {
+    const laRaw = userData?.legalAcceptance;
+    if (laRaw != null && typeof laRaw === 'object') {
+      const o = laRaw as Record<string, unknown>;
+      legalAcceptance = {
+        termsVersion: typeof o.termsVersion === 'string' ? o.termsVersion : undefined,
+        privacyVersion: typeof o.privacyVersion === 'string' ? o.privacyVersion : undefined,
+        acceptedAt:
+          o.acceptedAt !== undefined ? coerceFirestoreDateToIso(o.acceptedAt) : undefined,
+      };
+    }
+  } catch {
+    legalAcceptance = undefined;
+  }
+  const fromDoc =
+    (typeof userData?.displayName === 'string' && userData.displayName.trim()) ||
+    (typeof userData?.fullName === 'string' && userData.fullName.trim()) ||
+    (typeof userData?.name === 'string' && userData.name.trim()) ||
+    '';
+  const fromAuth = firebaseUser.displayName?.trim() || '';
+  const displayName = fromDoc || fromAuth || undefined;
+
+  return {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email ?? '',
+    role,
+    createdAt: coerceFirestoreDateToIso(userData?.createdAt),
+    displayName,
+    legalAcceptance,
+    studentProfile: role === 'student' ? null : undefined,
+  };
+}
+
+/**
+ * Maps `users/{uid}` (and optional `students` link) into a {@link User}. Throws only for invalid role
+ * (caller handles); mapping errors should be caught by the caller for fallback behavior.
+ */
+async function mapFirestoreUserDocumentToUser(
+  firebaseUser: FirebaseUser,
+  userData: Record<string, unknown>,
+  role: UserRole
+): Promise<User> {
+  const fromDoc =
+    (typeof userData?.displayName === 'string' && userData.displayName.trim()) ||
+    (typeof userData?.fullName === 'string' && userData.fullName.trim()) ||
+    (typeof userData?.name === 'string' && userData.name.trim()) ||
+    '';
+  const fromAuth = firebaseUser.displayName?.trim() || '';
+  const displayName = fromDoc || fromAuth || undefined;
+
+  const laRaw = userData?.legalAcceptance;
+  let legalAcceptance: User['legalAcceptance'];
+  if (laRaw != null && typeof laRaw === 'object') {
+    const o = laRaw as Record<string, unknown>;
+    const acceptedAtRaw = o.acceptedAt;
+    let acceptedAt: string | undefined;
+    if (acceptedAtRaw !== undefined) {
+      acceptedAt = coerceFirestoreDateToIso(acceptedAtRaw);
+    }
+    legalAcceptance = {
+      termsVersion: typeof o.termsVersion === 'string' ? o.termsVersion : undefined,
+      privacyVersion: typeof o.privacyVersion === 'string' ? o.privacyVersion : undefined,
+      acceptedAt,
+    };
+  }
+
+  let studentProfile: Student | null | undefined;
+  if (role === 'student') {
+    studentProfile = await resolveStudentProfileForUid(firebaseUser.uid, userData);
+  }
+
+  return {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email ?? '',
+    role,
+    createdAt: coerceFirestoreDateToIso(userData?.createdAt),
+    displayName,
+    legalAcceptance,
+    studentProfile,
+  };
+}
+
 /**
  * True when the account must acknowledge the current in-app Terms version (`LEGAL_TERMS_VERSION`).
- * Teacher profiles without a `legalAcceptance` block are exempt (manual provisioning).
+ *
+ * Audit consistency: **admin**, **student**, and **teacher** (when a `legalAcceptance` object exists on the profile)
+ * all require `termsVersion === LEGAL_TERMS_VERSION`.
+ *
+ * Exception (provisioning only): **teacher** accounts with **no** `legalAcceptance` object (`null`/`undefined`)
+ * are not blocked, so manually provisioned teachers without that block are not locked out.
  */
 export function userLegalAcceptanceIncomplete(user: User): boolean {
   const la = user?.legalAcceptance;
+  if (user?.role === 'teacher' && la == null) return false;
   const terms = la?.termsVersion?.trim() ?? '';
-  if (user?.role === 'teacher' && !la) return false;
   return terms !== LEGAL_TERMS_VERSION;
 }
 
@@ -63,80 +232,70 @@ export type LegalAcceptanceRecord = {
  * instead of crashing during post-login UI boot.
  */
 export function initAuth(onUserChanged: (user: User | null) => void): void {
-  onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-    if (firebaseUser) {
-      try {
-        showLoading();
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
+  onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    void (async () => {
+      if (firebaseUser) {
+        try {
+          showLoading();
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const role = userData?.role;
-          const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
-          const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
-          if (!isValidRole) {
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as Record<string, unknown>;
+            const role = userData?.role;
+            const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+            const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+            if (!isValidRole) {
+              throw new Error(
+                'Your account profile is incomplete (missing role). ' +
+                  'Please contact an administrator to finish account setup.'
+              );
+            }
+            const roleTyped = role as UserRole;
+            try {
+              currentUser = await mapFirestoreUserDocumentToUser(firebaseUser, userData, roleTyped);
+            } catch {
+              currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, userData);
+            }
+            onUserChanged(currentUser);
+          } else {
             throw new Error(
-              'Your account profile is incomplete (missing role). ' +
-                'Please contact an administrator to finish account setup.'
+              'Your account profile was not found. Please contact an administrator to finish account setup.'
             );
           }
-          const fromDoc =
-            (typeof userData?.displayName === 'string' && userData.displayName.trim()) ||
-            (typeof userData?.fullName === 'string' && userData.fullName.trim()) ||
-            (typeof userData?.name === 'string' && userData.name.trim()) ||
-            '';
-          const fromAuth = firebaseUser.displayName?.trim() || '';
-          const displayName = fromDoc || fromAuth || undefined;
-          const laRaw = userData?.legalAcceptance;
-          const legalAcceptance =
-            laRaw != null && typeof laRaw === 'object'
-              ? {
-                  termsVersion:
-                    typeof (laRaw as { termsVersion?: unknown }).termsVersion === 'string'
-                      ? (laRaw as { termsVersion: string }).termsVersion
-                      : undefined,
-                  privacyVersion:
-                    typeof (laRaw as { privacyVersion?: unknown }).privacyVersion === 'string'
-                      ? (laRaw as { privacyVersion: string }).privacyVersion
-                      : undefined,
-                }
-              : undefined;
-          currentUser = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email ?? '',
-            role: role as UserRole,
-            createdAt: normalizeProfileCreatedAt(userData?.createdAt),
-            displayName,
-            legalAcceptance,
-          };
-          onUserChanged(currentUser);
-        } else {
-          throw new Error(
-            'Your account profile was not found. Please contact an administrator to finish account setup.'
-          );
+        } catch (error: unknown) {
+          const code = (error as { code?: string })?.code ?? '';
+          if (code === 'permission-denied') {
+            showBootstrapError(
+              'Permission denied while loading your profile. This usually means Firestore rules are ' +
+                'blocking access to `users/{uid}`. Please contact support or try again shortly.'
+            );
+          } else {
+            const msg = error instanceof Error ? error.message : '';
+            showBootstrapError(msg || 'We could not load your account profile. Please try again.');
+          }
+          currentUser = null;
+          onUserChanged(null);
+          try {
+            await signOut(auth);
+          } catch {
+            /* ignore */
+          }
+        } finally {
+          hideLoading();
         }
-      } catch (error: unknown) {
-        const code = (error as { code?: string })?.code ?? '';
-        if (code === 'permission-denied') {
-          showBootstrapError(
-            'Permission denied while loading your profile. This usually means Firestore rules are ' +
-              'blocking access to `users/{uid}`. Please contact support or try again shortly.'
-          );
-        } else {
-          const msg = error instanceof Error ? error.message : '';
-          showBootstrapError(msg || 'We could not load your account profile. Please try again.');
-        }
+      } else {
         currentUser = null;
         onUserChanged(null);
-        try { await signOut(auth); } catch {}
-      } finally {
-        hideLoading();
       }
-    } else {
-      currentUser = null;
-      onUserChanged(null);
-    }
+    })().catch((err) => {
+      console.error('Auth state handler failed', err);
+      try {
+        hideLoading();
+      } catch {
+        /* ignore */
+      }
+    });
   });
 }
 
@@ -177,7 +336,9 @@ export async function signUp(
       } catch {
         try {
           await signOut(auth);
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
     }
 
