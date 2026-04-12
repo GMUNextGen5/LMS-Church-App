@@ -1841,6 +1841,36 @@
         background: #0284c7 !important;
       }
 
+      /* Mobile drawer: keep Sign out above home indicator; compact user chip if short viewport */
+      @media (max-width: 1024px) {
+        .lms-sidebar-footer .sidebar-user-info {
+          padding: 0.5rem 0.625rem;
+          margin-bottom: 0.5rem;
+        }
+        .lms-sidebar-footer .sidebar-user-info .w-10 {
+          width: 2.25rem;
+          height: 2.25rem;
+        }
+        .lms-sidebar-signout {
+          min-height: 44px;
+          padding-top: 0.5rem;
+          padding-bottom: 0.5rem;
+        }
+        .lms-sidebar-signout .w-9 {
+          width: 2rem;
+          height: 2rem;
+        }
+      }
+      @media (max-width: 1024px) and (max-height: 520px) {
+        .lms-sidebar-header {
+          padding: 0.75rem 1rem;
+        }
+        .lms-nav-item {
+          padding: 0.5rem 0.75rem;
+          font-size: 0.85rem;
+        }
+      }
+
       /* --- History section: status badge colors (WCAG AA on white) --- */
       [data-theme='light'] .text-green-400 {
         color: #047857 !important;
@@ -3527,14 +3557,17 @@
       }
 
       .lms-sidebar-header {
+        flex-shrink: 0;
         padding: 1.5rem 1.25rem;
         border-bottom: 1px solid var(--lms-chrome-rule);
       }
 
       .lms-sidebar-nav {
-        flex: 1;
+        flex: 1 1 0;
+        min-height: 0;
         padding: 1rem 0;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         scrollbar-gutter: stable;
         scrollbar-width: thin;
       }
@@ -3671,6 +3704,7 @@
       }
 
       .lms-sidebar-footer {
+        flex-shrink: 0;
         padding: 0.875rem 0.75rem;
         padding-bottom: max(0.875rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)));
         border-top: 1px solid var(--lms-footer-rule);
@@ -4249,6 +4283,9 @@
         .lms-sidebar {
           transform: translateX(-100%);
           z-index: 1000;
+          height: 100dvh;
+          max-height: 100dvh;
+          padding-top: env(safe-area-inset-top, 0px);
         }
 
         .lms-sidebar.open {
@@ -7518,8 +7555,8 @@
             </div>
 
             <!-- Attendance Tab -->
-            <div id="attendance-content" class="tab-content hide">
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div id="attendance-content" class="tab-content hide min-w-0 max-w-full overflow-x-hidden">
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
                 <!-- Learner personal attendance overview (students only; staff use class roll metrics below) -->
                 <div
                   id="attendance-personal-metrics-row"
@@ -7607,16 +7644,20 @@
                 </div>
 
                 <!-- Mark Attendance Form (Teacher/Admin Only) -->
-                <div class="teacher-only admin-only glass-effect rounded-2xl p-6 hide">
-                  <h3 class="text-xl font-bold text-white mb-4">Mark Attendance</h3>
-                  <form id="mark-attendance-form" class="space-y-4">
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">Student</label>
+                <div
+                  class="teacher-only admin-only glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 hide min-w-0 max-w-full overflow-hidden border border-white/5"
+                >
+                  <h3 class="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Mark Attendance</h3>
+                  <form id="mark-attendance-form" class="space-y-3 sm:space-y-4 min-w-0">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
+                        >Student</label
+                      >
                       <input
                         type="text"
                         id="attendance-student-search"
                         placeholder="Search by name or email..."
-                        class="w-full px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 text-sm mb-2"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 mb-2"
                         aria-label="Search students by name or email"
                       />
                       <p
@@ -7627,25 +7668,29 @@
                       <select
                         id="attendance-student-select"
                         required
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm sm:text-base focus:outline-none focus:border-primary-500 input-glow transition-all"
                       >
                         <option value="">-- Select a student --</option>
                       </select>
                     </div>
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">Date</label>
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
+                        >Date</label
+                      >
                       <input
                         type="date"
                         id="attendance-date"
                         name="date"
                         required
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">Status</label>
-                      <div class="grid grid-cols-2 gap-2">
-                        <label class="attendance-status-option">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
+                        >Status</label
+                      >
+                      <div class="grid grid-cols-2 gap-2 min-w-0">
+                        <label class="attendance-status-option min-w-0">
                           <input
                             type="radio"
                             name="status"
@@ -7654,10 +7699,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-green-500 peer-checked:bg-green-500/20 hover:border-dark-500 flex flex-col items-center justify-center"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-green-500 peer-checked:bg-green-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-5 h-5 mx-auto mb-1 text-green-400"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-green-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7669,10 +7714,12 @@
                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-white text-sm font-semibold">Present</span>
+                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                              >Present</span
+                            >
                           </div>
                         </label>
-                        <label class="attendance-status-option">
+                        <label class="attendance-status-option min-w-0">
                           <input
                             type="radio"
                             name="status"
@@ -7681,10 +7728,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-red-500 peer-checked:bg-red-500/20 hover:border-dark-500 flex flex-col items-center justify-center"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-red-500 peer-checked:bg-red-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-5 h-5 mx-auto mb-1 text-red-400"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-red-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7696,10 +7743,12 @@
                                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-white text-sm font-semibold">Absent</span>
+                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                              >Absent</span
+                            >
                           </div>
                         </label>
-                        <label class="attendance-status-option">
+                        <label class="attendance-status-option min-w-0">
                           <input
                             type="radio"
                             name="status"
@@ -7708,10 +7757,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-yellow-500 peer-checked:bg-yellow-500/20 hover:border-dark-500 flex flex-col items-center justify-center"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-yellow-500 peer-checked:bg-yellow-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-5 h-5 mx-auto mb-1 text-yellow-400"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-yellow-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7723,10 +7772,12 @@
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-white text-sm font-semibold">Late</span>
+                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                              >Late</span
+                            >
                           </div>
                         </label>
-                        <label class="attendance-status-option">
+                        <label class="attendance-status-option min-w-0">
                           <input
                             type="radio"
                             name="status"
@@ -7735,10 +7786,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-500/20 hover:border-dark-500 flex flex-col items-center justify-center"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-5 h-5 mx-auto mb-1 text-blue-400"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-blue-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7750,82 +7801,91 @@
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                               ></path>
                             </svg>
-                            <span class="text-white text-sm font-semibold">Excused</span>
+                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                              >Excused</span
+                            >
                           </div>
                         </label>
                       </div>
                     </div>
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2"
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
                         >Notes (Optional)</label
                       >
                       <textarea
                         name="notes"
                         rows="2"
                         placeholder="Additional notes..."
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       ></textarea>
                     </div>
-                    <div id="mark-attendance-error" class="text-red-400 text-sm hide"></div>
-                    <div id="mark-attendance-success" class="text-green-400 text-sm hide"></div>
+                    <div id="mark-attendance-error" class="text-red-400 text-xs sm:text-sm hide"></div>
+                    <div id="mark-attendance-success" class="text-green-400 text-xs sm:text-sm hide"></div>
                     <button
                       type="submit"
-                      class="w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
+                      class="w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-sm sm:text-base font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
                     >
                       Mark Attendance
                     </button>
                   </form>
                   <div
                     id="attendance-roll-call-root"
-                    class="teacher-only admin-only mt-8 pt-6 border-t border-dark-600/60 space-y-5"
+                    class="teacher-only admin-only mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-dark-600/60 space-y-4 sm:space-y-5 min-w-0 max-w-full overflow-hidden"
                   >
-                    <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
-                      <div class="space-y-2 min-w-0">
-                        <p class="text-xs font-bold tracking-widest text-cyan-400/90">
+                    <div
+                      class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between min-w-0"
+                    >
+                      <div class="space-y-1.5 sm:space-y-2 min-w-0 flex-1">
+                        <p class="text-[0.65rem] sm:text-xs font-bold tracking-widest text-cyan-400/90">
                           ACTIVE CLASS
                         </p>
-                        <h4 id="attendance-active-class-title" class="text-xl font-bold text-white">
+                        <h4
+                          id="attendance-active-class-title"
+                          class="text-lg sm:text-xl font-bold text-white break-words"
+                        >
                           All students
                         </h4>
                         <p
                           id="attendance-active-class-meta"
-                          class="text-slate-400 text-sm flex flex-wrap gap-x-2 gap-y-1"
+                          class="text-slate-400 text-xs sm:text-sm flex flex-wrap gap-x-2 gap-y-1 min-w-0"
                         >
-                          <span id="attendance-meta-date"></span>
-                          <span id="attendance-meta-extra"></span>
+                          <span id="attendance-meta-date" class="break-words"></span>
+                          <span id="attendance-meta-extra" class="break-words min-w-0"></span>
                         </p>
                       </div>
-                      <div class="flex flex-col sm:flex-row gap-3 shrink-0 w-full xl:w-auto">
+                      <div
+                        class="grid grid-cols-1 sm:grid-cols-2 xl:flex xl:flex-row xl:flex-wrap gap-2 sm:gap-3 w-full min-w-0 xl:max-w-none xl:shrink-0 xl:justify-end"
+                      >
                         <label class="sr-only" for="attendance-class-select">Switch class</label>
                         <select
                           id="attendance-class-select"
-                          class="min-h-[48px] w-full sm:min-w-[14rem] px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+                          class="min-h-[48px] w-full sm:col-span-2 xl:w-auto xl:min-w-[12rem] px-3 sm:px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
                         >
                           <option value="">All students</option>
                         </select>
                         <button
                           type="button"
                           id="mark-all-present-btn"
-                          class="min-h-[48px] px-5 rounded-xl border-2 border-emerald-500/70 text-emerald-300 font-semibold text-sm hover:bg-emerald-500/10 transition-all whitespace-nowrap"
+                          class="min-h-[48px] w-full sm:w-auto justify-center px-4 sm:px-5 rounded-xl border-2 border-emerald-500/70 text-emerald-300 font-semibold text-xs sm:text-sm hover:bg-emerald-500/10 transition-all whitespace-normal sm:whitespace-nowrap text-center leading-snug inline-flex items-center"
                         >
                           Mark all present
                         </button>
                         <button
                           type="button"
                           id="save-bulk-attendance-btn"
-                          class="min-h-[48px] px-6 rounded-xl bg-cyan-500 text-slate-950 font-bold text-sm hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20 whitespace-nowrap"
+                          class="min-h-[48px] w-full sm:w-auto justify-center px-4 sm:px-6 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs sm:text-sm hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20 whitespace-normal sm:whitespace-nowrap text-center leading-snug inline-flex items-center"
                         >
                           Save attendance
                         </button>
                       </div>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <label class="sr-only" for="roll-call-student-search">Search roster</label>
                       <input
                         type="search"
                         id="roll-call-student-search"
                         placeholder="Search student by name or ID…"
-                        class="w-full min-h-[48px] px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+                        class="w-full min-w-0 max-w-full min-h-[48px] px-3 sm:px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                       />
                     </div>
                     <div
@@ -7910,18 +7970,20 @@
                     </div>
                     <div
                       id="attendance-roster-cards"
-                      class="md:hidden space-y-3 max-h-[min(28rem,60vh)] overflow-y-auto overscroll-contain pr-1"
+                      class="md:hidden space-y-3 max-h-[min(22rem,50dvh)] sm:max-h-[min(28rem,55dvh)] overflow-y-auto overscroll-contain pr-1 min-w-0 -mx-0.5 px-0.5"
                     ></div>
                   </div>
                 </div>
 
                 <!-- Attendance History (full width at lg — no empty column beside staff tools) -->
-                <div class="lg:col-span-3 glass-effect rounded-2xl p-6">
-                  <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold text-white">Attendance History</h3>
+                <div
+                  class="lg:col-span-3 glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 min-w-0 max-w-full overflow-hidden"
+                >
+                  <div class="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 min-w-0">
+                    <h3 class="text-lg sm:text-xl font-bold text-white min-w-0">Attendance History</h3>
                     <button
                       id="refresh-attendance-btn"
-                      class="px-4 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all flex items-center gap-2"
+                      class="shrink-0 px-3 sm:px-4 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 text-sm transition-all flex items-center gap-2"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
@@ -7935,19 +7997,23 @@
                     </button>
                   </div>
 
-                  <div class="overflow-x-auto">
-                    <table class="w-full">
+                  <div class="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x min-w-0">
+                    <table class="w-full min-w-[280px] text-xs sm:text-sm">
                       <caption class="sr-only">
                         Attendance history. Select a student to load dated entries.
                       </caption>
                       <thead>
                         <tr class="text-left border-b border-dark-700">
-                          <th scope="col" class="pb-3 text-dark-300 font-semibold">Date</th>
-                          <th scope="col" class="pb-3 text-dark-300 font-semibold">Student</th>
-                          <th scope="col" class="pb-3 text-dark-300 font-semibold text-center">
+                          <th scope="col" class="pb-2 sm:pb-3 pr-2 text-dark-300 font-semibold whitespace-nowrap">
+                            Date
+                          </th>
+                          <th scope="col" class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold">Student</th>
+                          <th scope="col" class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold text-center">
                             Status
                           </th>
-                          <th scope="col" class="pb-3 text-dark-300 font-semibold">Notes</th>
+                          <th scope="col" class="pb-2 sm:pb-3 pl-2 text-dark-300 font-semibold min-w-[4rem]">
+                            Notes
+                          </th>
                         </tr>
                       </thead>
                       <tbody id="attendance-history-body">
@@ -7974,14 +8040,19 @@
             </div>
 
             <!-- Student Registration Tab (Admin + Teacher) -->
-            <div id="registration-content" class="tab-content admin-only teacher-only hide">
-              <div class="glass-effect rounded-2xl p-6">
-                <h3 class="text-2xl font-bold text-white mb-6">Student Registration</h3>
+            <div
+              id="registration-content"
+              class="tab-content admin-only teacher-only hide min-w-0 max-w-full overflow-x-hidden space-y-4 md:space-y-6"
+            >
+              <div
+                class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 overflow-hidden min-w-0 max-md:max-h-[min(calc(100dvh-6.5rem),36rem)] max-md:overflow-y-auto max-md:overscroll-contain"
+              >
+                <h3 class="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-6">Student Registration</h3>
 
                 <!-- Instructions -->
-                <div class="mb-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                  <h4 class="text-blue-400 font-semibold mb-2 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="mb-3 sm:mb-6 p-3 sm:p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                  <h4 class="text-blue-400 font-semibold text-sm sm:text-base mb-1.5 sm:mb-2 flex items-center gap-2">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -7991,7 +8062,7 @@
                     </svg>
                     Registration Instructions
                   </h4>
-                  <p class="text-sm text-dark-300">
+                  <p class="text-xs sm:text-sm text-dark-300 leading-relaxed">
                     Fill in the student information below to register a new student in the system.
                     All fields marked with <span class="text-red-400">*</span>
                     are required.
@@ -7999,11 +8070,11 @@
                 </div>
 
                 <!-- Registration Form -->
-                <form id="student-registration-form" class="space-y-6">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form id="student-registration-form" class="space-y-3 sm:space-y-6 min-w-0">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 min-w-0">
                     <!-- Student Name -->
                     <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Student Name <span class="text-red-400">*</span>
                       </label>
                       <input
@@ -8011,26 +8082,26 @@
                         name="studentName"
                         required
                         placeholder="John Smith"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Membership ID (optional) -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Membership ID
                       </label>
                       <input
                         type="text"
                         name="memberId"
                         placeholder="STU001 (optional)"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Year of Birth -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Year of Birth <span class="text-red-400">*</span>
                       </label>
                       <input
@@ -8040,13 +8111,13 @@
                         min="1990"
                         max="2025"
                         placeholder="2010"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Contact Info (Phone) -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Contact Phone <span class="text-red-400">*</span>
                       </label>
                       <input
@@ -8054,13 +8125,13 @@
                         name="contactPhone"
                         required
                         placeholder="+1 (555) 123-4567"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Contact Email -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Contact Email <span class="text-red-400">*</span>
                       </label>
                       <input
@@ -8068,25 +8139,25 @@
                         name="contactEmail"
                         required
                         placeholder="parent@example.com"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Link to Student Account -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0 md:col-span-2">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Link to Student Account <span class="text-red-400">*</span>
                       </label>
 
                       <!-- Dropdown Method (requires Cloud Functions) -->
-                      <div id="dropdown-method" class="space-y-2">
-                        <div class="flex gap-2 items-stretch">
+                      <div id="dropdown-method" class="space-y-2 min-w-0">
+                        <div class="flex flex-col sm:flex-row gap-2 items-stretch min-w-0">
                           <div
                             id="student-account-dropdown"
-                            class="account-dropdown flex-1 relative"
+                            class="account-dropdown flex-1 relative min-w-0"
                           >
                             <div
-                              class="account-dropdown-trigger flex items-center justify-between w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all"
+                              class="account-dropdown-trigger flex items-center justify-between w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all"
                               tabindex="0"
                               role="combobox"
                               aria-expanded="false"
@@ -8129,7 +8200,7 @@
                           <button
                             type="button"
                             id="refresh-accounts-btn"
-                            class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
+                            class="w-full sm:w-auto sm:shrink-0 min-h-[44px] px-4 py-2.5 sm:py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all inline-flex items-center justify-center"
                             title="Refresh accounts list"
                           >
                             <svg
@@ -8162,7 +8233,7 @@
                           type="text"
                           id="manual-student-uid"
                           placeholder="Paste Firebase Auth UID here"
-                          class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all font-mono"
+                          class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all font-mono"
                         />
                         <button
                           type="button"
@@ -8172,10 +8243,10 @@
                           Back to dropdown
                         </button>
                         <div
-                          class="text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded p-2"
+                          class="text-[11px] sm:text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded p-2 leading-snug"
                         >
-                          📋 <strong>How to get UID:</strong>
-                          <ol class="ml-4 mt-1 list-decimal">
+                          <strong>How to get UID:</strong>
+                          <ol class="ml-3 sm:ml-4 mt-1 list-decimal space-y-0.5">
                             <li>
                               Go to
                               <a
@@ -8199,28 +8270,28 @@
                   </div>
 
                   <!-- Additional Notes -->
-                  <div>
-                    <label class="block text-dark-200 text-sm font-semibold mb-2">
+                  <div class="min-w-0">
+                    <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                       Additional Notes (Optional)
                     </label>
                     <textarea
                       name="notes"
-                      rows="3"
+                      rows="2"
                       placeholder="Any additional information about the student..."
-                      class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                      class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all md:min-h-[5.5rem]"
                     ></textarea>
                   </div>
 
                   <!-- Error Message -->
-                  <div id="registration-error" class="text-red-400 text-sm hide"></div>
+                  <div id="registration-error" class="text-red-400 text-xs sm:text-sm hide"></div>
 
                   <!-- Success Message -->
-                  <div id="registration-success" class="text-green-400 text-sm hide"></div>
+                  <div id="registration-success" class="text-green-400 text-xs sm:text-sm hide"></div>
 
                   <!-- Submit Button -->
                   <button
                     type="submit"
-                    class="w-full py-4 px-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg text-lg"
+                    class="w-full min-h-[48px] py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg text-base sm:text-lg"
                   >
                     Register Student
                   </button>
@@ -8228,28 +8299,32 @@
               </div>
 
               <!-- Registered Students List -->
-              <div class="glass-effect rounded-2xl p-6 mt-6">
-                <h3 class="text-xl font-bold text-white mb-4">Registered Students</h3>
-                <div class="mb-4">
+              <div class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 mt-0 md:mt-6 min-w-0 overflow-hidden">
+                <h3 class="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Registered Students</h3>
+                <div class="mb-3 sm:mb-4 min-w-0">
                   <input
                     type="text"
                     id="registered-students-search"
                     placeholder="Search by Member ID, name, or email..."
-                    class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                    class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                     aria-label="Search registered students"
                   />
                 </div>
-                <div class="overflow-x-auto">
-                  <table class="w-full">
+                <div class="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x">
+                  <table class="w-full min-w-[520px] text-xs sm:text-sm">
                     <thead>
                       <tr class="border-b border-dark-600">
-                        <th class="text-left py-3 px-4 text-dark-200 font-semibold">Member ID</th>
-                        <th class="text-left py-3 px-4 text-dark-200 font-semibold">Name</th>
-                        <th class="text-center py-3 px-4 text-dark-200 font-semibold">
-                          Year of Birth
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                          Member ID
                         </th>
-                        <th class="text-left py-3 px-4 text-dark-200 font-semibold">Contact</th>
-                        <th class="text-center py-3 px-4 text-dark-200 font-semibold">Actions</th>
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Name</th>
+                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                          Year
+                        </th>
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Contact</th>
+                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody id="registered-students-table-body">
@@ -8265,14 +8340,19 @@
             </div>
 
             <!-- Teacher Registration Tab (Admin Only) - Same layout as Student Registration -->
-            <div id="teacher-registration-content" class="tab-content admin-only hide">
-              <div class="glass-effect rounded-2xl p-6">
-                <h3 class="text-2xl font-bold text-white mb-6">Teacher Registration</h3>
+            <div
+              id="teacher-registration-content"
+              class="tab-content admin-only hide min-w-0 max-w-full overflow-x-hidden space-y-4 md:space-y-6"
+            >
+              <div
+                class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 overflow-hidden min-w-0 max-md:max-h-[min(calc(100dvh-6.5rem),36rem)] max-md:overflow-y-auto max-md:overscroll-contain"
+              >
+                <h3 class="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-6">Teacher Registration</h3>
 
                 <!-- Instructions (same style as Student Registration) -->
-                <div class="mb-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                  <h4 class="text-blue-400 font-semibold mb-2 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="mb-3 sm:mb-6 p-3 sm:p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                  <h4 class="text-blue-400 font-semibold text-sm sm:text-base mb-1.5 sm:mb-2 flex items-center gap-2">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -8282,18 +8362,18 @@
                     </svg>
                     Registration Instructions
                   </h4>
-                  <p class="text-sm text-dark-300">
+                  <p class="text-xs sm:text-sm text-dark-300 leading-relaxed">
                     Fill in the teacher information below to register a new teacher in the system.
                     All fields marked with <span class="text-red-400">*</span> are required.
                   </p>
                 </div>
 
                 <!-- Registration Form -->
-                <form id="teacher-registration-form" class="space-y-6">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form id="teacher-registration-form" class="space-y-3 sm:space-y-6 min-w-0">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 min-w-0">
                     <!-- Teacher Name -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Teacher Name <span class="text-red-400">*</span>
                       </label>
                       <input
@@ -8301,26 +8381,26 @@
                         name="teacherName"
                         required
                         placeholder="Jane Doe"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Membership ID (optional) -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Membership ID
                       </label>
                       <input
                         type="text"
                         name="teacherMemberId"
                         placeholder="TCH001 (optional)"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Year of Birth / Year Joined (optional, same column position as student) -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Year of Birth
                       </label>
                       <input
@@ -8329,13 +8409,13 @@
                         min="1950"
                         max="2010"
                         placeholder="1985 (optional)"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Contact Phone -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Contact Phone <span class="text-red-400">*</span>
                       </label>
                       <input
@@ -8343,13 +8423,13 @@
                         name="teacherPhone"
                         required
                         placeholder="+1 (555) 123-4567"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Contact Email -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Contact Email <span class="text-red-400">*</span>
                       </label>
                       <input
@@ -8357,23 +8437,23 @@
                         name="teacherEmail"
                         required
                         placeholder="teacher@example.com"
-                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                       />
                     </div>
 
                     <!-- Link to Teacher Account -->
-                    <div>
-                      <label class="block text-dark-200 text-sm font-semibold mb-2">
+                    <div class="min-w-0 md:col-span-2">
+                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                         Link to Teacher Account <span class="text-red-400">*</span>
                       </label>
-                      <div id="teacher-dropdown-method" class="space-y-2">
-                        <div class="flex gap-2 items-stretch">
+                      <div id="teacher-dropdown-method" class="space-y-2 min-w-0">
+                        <div class="flex flex-col sm:flex-row gap-2 items-stretch min-w-0">
                           <div
                             id="teacher-account-dropdown"
-                            class="account-dropdown flex-1 relative"
+                            class="account-dropdown flex-1 relative min-w-0"
                           >
                             <div
-                              class="account-dropdown-trigger flex items-center justify-between w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all"
+                              class="account-dropdown-trigger flex items-center justify-between w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all"
                               tabindex="0"
                               role="combobox"
                               aria-expanded="false"
@@ -8416,7 +8496,7 @@
                           <button
                             type="button"
                             id="refresh-teacher-accounts-btn"
-                            class="px-4 py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all"
+                            class="w-full sm:w-auto sm:shrink-0 min-h-[44px] px-4 py-2.5 sm:py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all inline-flex items-center justify-center"
                             title="Refresh accounts list"
                           >
                             <svg
@@ -8447,7 +8527,7 @@
                           type="text"
                           id="manual-teacher-uid"
                           placeholder="Paste Firebase Auth UID here"
-                          class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all font-mono"
+                          class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all font-mono"
                         />
                         <button
                           type="button"
@@ -8457,10 +8537,10 @@
                           Back to dropdown
                         </button>
                         <div
-                          class="text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded p-2"
+                          class="text-[11px] sm:text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded p-2 leading-snug"
                         >
-                          📋 <strong>How to get UID:</strong> Firebase Console → Authentication →
-                          copy User UID.
+                          <strong>How to get UID:</strong> Firebase Console → Authentication → copy
+                          User UID.
                         </div>
                       </div>
                       <input type="hidden" name="teacherUid" id="final-teacher-uid" required />
@@ -8468,24 +8548,24 @@
                   </div>
 
                   <!-- Additional Notes (Optional) -->
-                  <div>
-                    <label class="block text-dark-200 text-sm font-semibold mb-2">
+                  <div class="min-w-0">
+                    <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
                       Additional Notes (Optional)
                     </label>
                     <textarea
                       name="teacherNotes"
-                      rows="3"
+                      rows="2"
                       placeholder="Any additional information about the teacher..."
-                      class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                      class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all md:min-h-[5.5rem]"
                     ></textarea>
                   </div>
 
-                  <div id="teacher-registration-error" class="text-red-400 text-sm hide"></div>
-                  <div id="teacher-registration-success" class="text-green-400 text-sm hide"></div>
+                  <div id="teacher-registration-error" class="text-red-400 text-xs sm:text-sm hide"></div>
+                  <div id="teacher-registration-success" class="text-green-400 text-xs sm:text-sm hide"></div>
 
                   <button
                     type="submit"
-                    class="w-full py-4 px-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg text-lg"
+                    class="w-full min-h-[48px] py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg text-base sm:text-lg"
                   >
                     Register Teacher
                   </button>
@@ -8493,28 +8573,32 @@
               </div>
 
               <!-- Registered Teachers List (same structure as Registered Students) -->
-              <div class="glass-effect rounded-2xl p-6 mt-6">
-                <h3 class="text-xl font-bold text-white mb-4">Registered Teachers</h3>
-                <div class="mb-4">
+              <div class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 mt-0 md:mt-6 min-w-0 overflow-hidden">
+                <h3 class="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Registered Teachers</h3>
+                <div class="mb-3 sm:mb-4 min-w-0">
                   <input
                     type="text"
                     id="registered-teachers-search"
                     placeholder="Search by Member ID, name, or email..."
-                    class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                    class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
                     aria-label="Search registered teachers"
                   />
                 </div>
-                <div class="overflow-x-auto">
-                  <table class="w-full">
+                <div class="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x">
+                  <table class="w-full min-w-[520px] text-xs sm:text-sm">
                     <thead>
                       <tr class="border-b border-dark-600">
-                        <th class="text-left py-3 px-4 text-dark-200 font-semibold">Member ID</th>
-                        <th class="text-left py-3 px-4 text-dark-200 font-semibold">Name</th>
-                        <th class="text-center py-3 px-4 text-dark-200 font-semibold">
-                          Year of Birth
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                          Member ID
                         </th>
-                        <th class="text-left py-3 px-4 text-dark-200 font-semibold">Contact</th>
-                        <th class="text-center py-3 px-4 text-dark-200 font-semibold">Actions</th>
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Name</th>
+                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                          Year
+                        </th>
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Contact</th>
+                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody id="registered-teachers-table-body">
