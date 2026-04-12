@@ -109,7 +109,7 @@ import type { ChartConfiguration, TooltipItem } from 'chart.js';
 
 type AnyChartInstance = InstanceType<typeof Chart>;
 import { initAssessments, loadAssessments } from './ui/assessment-ui';
-import { initClasses, loadClasses } from './ui/classes-ui';
+import { dismissClassesModals, initClasses, loadClasses } from './ui/classes-ui';
 import {
   initAttendanceBulkUI,
   refreshAttendanceBulkRoster,
@@ -127,6 +127,8 @@ import { setupProfilePasswordStrengthMeter } from './ui/profile-password-strengt
 import { evaluatePasswordStrength } from './core/password-strength';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './core/legal-versions';
 import { LMS_SEARCH_DEBOUNCE_MS } from './core/input-timing';
+import { escapeHtmlAttr, prefersReducedMotion } from './core/a11y';
+import { activateModalLayer } from './core/modal-focus';
 import {
   finiteToFixed,
   initialsForAvatarLabel,
@@ -156,6 +158,17 @@ let particleSystem: ParticleSystem | null = null;
 let sessionDataBoundUid: string | null = null;
 let sessionFirestoreTeardownRegistered = false;
 let gradesAccessDeniedUiWired = false;
+
+let editStudentModalCleanup: (() => void) | null = null;
+let changeRoleModalCleanup: (() => void) | null = null;
+
+function closeEditStudentModal(): void {
+  editStudentModalCleanup?.();
+  editStudentModalCleanup = null;
+  const modal = document.getElementById('edit-student-modal');
+  modal?.classList.add('hide');
+  modal?.setAttribute('aria-hidden', 'true');
+}
 
 const LMS_LAST_ATTENDANCE_CLASS_KEY = 'lms-attendance-last-class-id';
 const GO_LIVE_BUTTON_LABEL = 'GO LIVE';
@@ -382,6 +395,20 @@ function debounce<Args extends unknown[]>(
   };
 }
 
+/** Moves keyboard focus into `<main>` after "Skip to main content" (WCAG 2.4.1). */
+function wireSkipToMainContent(): void {
+  const main = document.getElementById('lms-main-content');
+  const skip = document.querySelector<HTMLAnchorElement>('a.skip-link[href="#lms-main-content"]');
+  if (!main || !skip || (skip as HTMLElement & { __lmsSkip?: boolean }).__lmsSkip) return;
+  (skip as HTMLElement & { __lmsSkip?: boolean }).__lmsSkip = true;
+  skip.addEventListener('click', () => {
+    window.setTimeout(() => {
+      if (main.tabIndex < 0) main.tabIndex = -1;
+      main.focus();
+    }, 0);
+  });
+}
+
 /** Delegated clicks for dashboard tables (avoids inline onclick / quoted-ID XSS issues). */
 function setupLmsDelegatedActions(): void {
   const app = document.getElementById('app-container');
@@ -423,6 +450,32 @@ function setupLmsDelegatedActions(): void {
     if (action === 'dashboard-open-assessments') {
       const w = window as unknown as { switchToTab?: (t: string) => void };
       w.switchToTab?.('assessments');
+      return;
+    }
+    if (action === 'dashboard-open-grades-reports') {
+      const w = window as unknown as { switchToTab?: (t: string) => void };
+      w.switchToTab?.('grades');
+      window.setTimeout(() => {
+        const scrollBehavior: ScrollBehavior = prefersReducedMotion() ? 'auto' : 'smooth';
+        document.getElementById('pdf-report-section')?.scrollIntoView({
+          behavior: scrollBehavior,
+          block: 'start',
+        });
+      }, 80);
+      return;
+    }
+    if (action === 'dashboard-scroll-student-picker') {
+      const w = window as unknown as { switchToTab?: (t: string) => void };
+      w.switchToTab?.('dashboard');
+      window.setTimeout(() => {
+        const scrollBehavior: ScrollBehavior = prefersReducedMotion() ? 'auto' : 'smooth';
+        document.getElementById('dashboard-educator-student-picker')?.scrollIntoView({
+          behavior: scrollBehavior,
+          block: 'start',
+        });
+        const inp = document.getElementById('dashboard-student-search') as HTMLInputElement | null;
+        inp?.focus();
+      }, 80);
       return;
     }
     if (action === 'switch-tab') {
@@ -648,6 +701,7 @@ async function init(): Promise<void> {
   }
   try {
     setupLmsDelegatedActions();
+    wireSkipToMainContent();
   } catch {
     /* delegated actions */
   }
@@ -1262,7 +1316,7 @@ function setupAppForms(): void {
           contactEmail: (formData.get('contactEmail') as string)?.trim() ?? '',
           notes: (formData.get('notes') as string)?.trim() ?? '',
         });
-        editStudentModal.classList.add('hide');
+        closeEditStudentModal();
         await Promise.all([initDashboard(), loadRegisteredStudents()]);
         showAppToast('Student updated successfully.', 'success');
       } catch (err: unknown) {
@@ -1274,10 +1328,15 @@ function setupAppForms(): void {
     });
   }
   if (editStudentModalClose && editStudentModal) {
-    editStudentModalClose.addEventListener('click', () => editStudentModal.classList.add('hide'));
+    editStudentModalClose.addEventListener('click', () => closeEditStudentModal());
   }
   if (editStudentCancel && editStudentModal) {
-    editStudentCancel.addEventListener('click', () => editStudentModal.classList.add('hide'));
+    editStudentCancel.addEventListener('click', () => closeEditStudentModal());
+  }
+  if (editStudentModal) {
+    editStudentModal.addEventListener('click', (e) => {
+      if (e.target === editStudentModal) closeEditStudentModal();
+    });
   }
 
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement | null;
@@ -2852,6 +2911,8 @@ lmsWin.handleEditStudent = (studentId: string) => {
   const emailEl = document.getElementById('edit-student-contactEmail') as HTMLInputElement;
   const notesEl = document.getElementById('edit-student-notes') as HTMLInputElement;
   if (!modal || !idEl || !nameEl) return;
+  editStudentModalCleanup?.();
+  editStudentModalCleanup = null;
   idEl.value = studentId;
   nameEl.value = student.name;
   memberIdEl.value = student.memberId || '';
@@ -2860,6 +2921,14 @@ lmsWin.handleEditStudent = (studentId: string) => {
   emailEl.value = student.contactEmail || '';
   notesEl.value = student.notes || '';
   modal.classList.remove('hide');
+  modal.setAttribute('aria-hidden', 'false');
+  const panel = document.getElementById('edit-student-modal-panel');
+  if (panel instanceof HTMLElement) {
+    editStudentModalCleanup = activateModalLayer(panel, {
+      onEscape: closeEditStudentModal,
+      initialFocus: nameEl,
+    });
+  }
 };
 
 lmsWin.handleDeleteTeacher = async (userId: string) => {
@@ -2893,6 +2962,8 @@ function openChangeRoleModal(userId: string, currentRole: string): void {
   const userIdEl = document.getElementById('change-role-user-id') as HTMLInputElement | null;
   const currentLabel = document.getElementById('change-role-current-label');
   if (!modal || !userIdEl) return;
+  changeRoleModalCleanup?.();
+  changeRoleModalCleanup = null;
   const cr = currentRole.trim().toLowerCase();
   const valid = cr === 'admin' || cr === 'teacher' || cr === 'student';
   changeRoleSelected = valid ? cr : 'student';
@@ -2901,15 +2972,27 @@ function openChangeRoleModal(userId: string, currentRole: string): void {
   if (currentLabel) currentLabel.textContent = currentRole.trim() || currentRole;
   syncChangeRoleSegments();
   modal.classList.remove('hide');
-  document.body.style.overflow = 'hidden';
+  modal.setAttribute('aria-hidden', 'false');
+  const panel = document.getElementById('change-role-modal-panel');
+  const closeBtn = document.getElementById('change-role-modal-close');
+  if (panel instanceof HTMLElement) {
+    changeRoleModalCleanup = activateModalLayer(panel, {
+      onEscape: () => {
+        closeChangeRoleModal();
+      },
+      initialFocus: closeBtn instanceof HTMLElement ? closeBtn : null,
+    });
+  }
 }
 
 function closeChangeRoleModal(): void {
+  changeRoleModalCleanup?.();
+  changeRoleModalCleanup = null;
   const modal = document.getElementById('change-role-modal');
   const userIdEl = document.getElementById('change-role-user-id') as HTMLInputElement | null;
   if (userIdEl) userIdEl.value = '';
   modal?.classList.add('hide');
-  document.body.style.overflow = '';
+  modal?.setAttribute('aria-hidden', 'true');
   changeRoleContext = null;
 }
 
@@ -2958,13 +3041,6 @@ function wireChangeRoleModal(): void {
       hideLoading();
     }
   });
-
-  document.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Escape') return;
-    const m = document.getElementById('change-role-modal');
-    if (!m || m.classList.contains('hide')) return;
-    onClose();
-  });
 }
 
 lmsWin.handleChangeRole = async (userId: string, currentRole: string) => {
@@ -2991,10 +3067,18 @@ type InstitutionalSnapshot =
 
 let institutionalSnapshot: InstitutionalSnapshot = { role: 'student' };
 
+/** Wisdom lines in the Ethiopian Orthodox Tewahedo tradition (English renderings). */
 const ETHIOPIAN_ORTHODOX_PROVERBS = [
   'Patience is a tree whose root is bitter, but its fruit is very sweet.',
   'Do not forget the small, and do not fear the big.',
   'One who has a teacher is a child; one who has no teacher is an old man.',
+  'When the heart is humble, God draws near.',
+  'Prayer without humility is a voice without ears.',
+  'Fasting strengthens the soul; prayer lifts it toward heaven.',
+  'He who forgives gathers peace; he who nurses offense builds walls.',
+  'In the Lord’s house, the smallest light is still a light.',
+  'Wisdom begins in silence before the holy mysteries.',
+  'Walk with the Church in love, and the path will not grow dark.',
 ] as const;
 
 let dashboardProverbRotateTimer: number | null = null;
@@ -3044,10 +3128,15 @@ function startDashboardProverbRotation(): void {
   let i = 0;
   setDashboardProverbText(ETHIOPIAN_ORTHODOX_PROVERBS[i]);
   if (dashboardProverbRotateTimer != null) window.clearInterval(dashboardProverbRotateTimer);
+  /** Auto-rotation can distract some users; respect system reduced-motion (WCAG 2.2). */
+  if (prefersReducedMotion()) {
+    dashboardProverbRotateTimer = null;
+    return;
+  }
   dashboardProverbRotateTimer = window.setInterval(() => {
     i = (i + 1) % ETHIOPIAN_ORTHODOX_PROVERBS.length;
     setDashboardProverbText(ETHIOPIAN_ORTHODOX_PROVERBS[i]);
-  }, 12000);
+  }, 60_000);
 }
 
 function stopDashboardProverbRotation(): void {
@@ -3262,6 +3351,12 @@ function buildAdminMobileDashboardHtml(
 <p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
 <p class="text-sm text-on-surface-muted mt-1">Institutional snapshot</p>
 </div>
+<div class="grid grid-cols-1 gap-2">
+<button type="button" data-lms-action="dashboard-open-grades-reports" aria-label="Open grades and official PDF downloads" class="w-full min-h-[48px] rounded-xl border border-surface-default bg-surface-container px-4 py-3 text-left text-sm font-semibold text-on-surface shadow-sm shadow-slate-200/20 hover:bg-slate-100 dark:hover:bg-dark-800/80 dark:shadow-none transition-colors flex items-center justify-between gap-2">
+<span>Reports &amp; PDF downloads</span>
+<span class="text-slate-400 dark:text-dark-500 shrink-0" aria-hidden="true">›</span>
+</button>
+</div>
 <div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none">
 <div class="flex items-start justify-between gap-2">
 <div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div>
@@ -3295,8 +3390,9 @@ function buildTeacherMobileDashboardHtml(
             const dueLabel = overdue
               ? `${formatAssessmentDueMobileLabel(q.dueDateTime)} · Overdue`
               : formatAssessmentDueMobileLabel(q.dueDateTime);
+            const queueAria = `${q.title}. ${dueLabel}. ${q.pendingCount} pending submission${q.pendingCount === 1 ? '' : 's'}. ${q.courseName}. Opens assessments.`;
             return `
-<button type="button" data-lms-action="switch-tab" data-lms-tab="assessments" class="w-full flex items-center gap-3 rounded-xl border-surface-default bg-surface-container p-3 text-left hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors shadow-sm shadow-slate-200/20 dark:shadow-none">
+<button type="button" data-lms-action="switch-tab" data-lms-tab="assessments" aria-label="${escapeHtmlAttr(queueAria)}" class="w-full flex items-center gap-3 rounded-xl border-surface-default bg-surface-container p-3 text-left hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors shadow-sm shadow-slate-200/20 dark:shadow-none">
 <div class="shrink-0 w-11 h-11 rounded-xl bg-secondary-100 text-secondary-800 dark:bg-secondary-500/20 dark:text-secondary-200 flex items-center justify-center" aria-hidden="true">
 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
 </div>
@@ -3335,7 +3431,7 @@ function buildTeacherMobileDashboardHtml(
 <p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
 <p class="text-sm text-on-surface-muted mt-1">Classes, grading, and latest submissions.</p>
 </div>
-<div class="grid grid-cols-2 gap-3">
+<div class="grid grid-cols-2 gap-3" role="group" aria-label="Class and grading summary">
 <div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
 <div class="p-2 w-fit rounded-xl bg-violet-100 text-violet-900 dark:bg-violet-500/15 dark:text-violet-300 mb-2">${adminKpiSvg('book')}</div>
 <p class="text-2xl font-bold text-on-surface font-display tabular-nums">${snapshot.myClasses}</p>
@@ -3347,15 +3443,23 @@ function buildTeacherMobileDashboardHtml(
 <p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">Grading queue</p>
 </div>
 </div>
-<div>
+<div class="grid grid-cols-2 gap-2" role="group" aria-label="Quick navigation">
+<button type="button" data-lms-action="dashboard-open-grades-reports" aria-label="Open grades and official PDF downloads" class="min-h-[48px] rounded-xl border border-surface-default bg-surface-container px-3 py-2.5 text-center text-xs font-semibold text-on-surface shadow-sm hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors">Reports &amp; PDFs</button>
+<button type="button" data-lms-action="dashboard-scroll-student-picker" aria-label="Go to student search to view a learner dashboard" class="min-h-[48px] rounded-xl border border-surface-default bg-surface-container px-3 py-2.5 text-center text-xs font-semibold text-on-surface shadow-sm hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors">View student</button>
+</div>
+<div role="region" aria-labelledby="dashboard-mobile-queue-heading">
 <div class="flex items-center justify-between gap-2 mb-3">
-<h3 class="text-base font-bold text-on-surface font-display">Grading queue</h3>
-<span class="flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-wide text-red-600 dark:text-red-400"><span class="w-2 h-2 rounded-full bg-red-500 lms-urgent-dot" aria-hidden="true"></span>Urgent</span>
+<h3 id="dashboard-mobile-queue-heading" class="text-base font-bold text-on-surface font-display">Grading queue</h3>
+${
+  snapshot.gradingQueue > 0
+    ? `<span class="flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-wide text-red-600 dark:text-red-400"><span class="w-2 h-2 rounded-full bg-red-500 lms-urgent-dot" aria-hidden="true"></span>Urgent</span>`
+    : ''
+}
 </div>
 <div class="space-y-2">${queueItems}</div>
 </div>
-<div>
-<h3 class="text-base font-bold text-on-surface font-display mb-3">Recent activity</h3>
+<div role="region" aria-labelledby="dashboard-mobile-recent-heading">
+<h3 id="dashboard-mobile-recent-heading" class="text-base font-bold text-on-surface font-display mb-3">Recent activity</h3>
 <div class="space-y-2">${recentActivityItems}</div>
 </div>
 </div>`;
@@ -3371,7 +3475,7 @@ async function paintMobileStudentDashboard(): Promise<void> {
   const html = `
 <div class="space-y-6">
 <div id="dashboard-mobile-student-gpa-root"></div>
-<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
+<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20" role="note" aria-label="Reflection from Ethiopian Orthodox tradition">
 <p data-lms-dashboard-proverb class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
 <p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
 </div>
@@ -3725,6 +3829,9 @@ async function loadRecentActivity(): Promise<void> {
 }
 
 function resetAppState(): void {
+  dismissClassesModals();
+  closeEditStudentModal();
+  closeChangeRoleModal();
   stopDashboardProverbRotation();
   lastRenderedMobileNavRole = undefined;
   renderRoleBasedBottomNav(null);

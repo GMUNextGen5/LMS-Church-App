@@ -1,6 +1,7 @@
 /**
  * Classes tab UI. Role-adaptive views (student / teacher / admin). Renders into #classes-content. Modals portaled to body.
  */
+import { activateModalLayer } from '../core/modal-focus';
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchAllUsers, fetchAllStudentProfiles } from '../data/data';
 import { showLoading, hideLoading, showAppToast, formatErrorForUserToast } from './ui';
@@ -143,6 +144,9 @@ function getSelectedStudentIds(owner: 'admin' | 'teacher'): string[] {
 let adminModalEl: HTMLElement | null = null;
 let teacherModalEl: HTMLElement | null = null;
 
+let adminClassModalCleanup: (() => void) | null = null;
+let teacherClassModalCleanup: (() => void) | null = null;
+
 /** Create (once) or return the admin Create/Edit Class modal overlay. */
 function getAdminModal(): HTMLElement {
   if (adminModalEl && document.body.contains(adminModalEl)) return adminModalEl;
@@ -152,7 +156,7 @@ function getAdminModal(): HTMLElement {
   renderTemplate(
     adminModalEl,
     `
-    <div class="classes-modal-box w-full max-w-2xl">
+    <div id="class-form-modal-panel" class="classes-modal-box lms-modal-surface w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="class-form-title">
       <h3 id="class-form-title" class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="class-form" data-course-id="">
         <div class="space-y-4">
@@ -221,11 +225,8 @@ function getAdminModal(): HTMLElement {
   adminModalEl
     .querySelector('#class-form')!
     .addEventListener('submit', handleAdminFormSubmit as EventListener);
-  // Escape key
-  adminModalEl.addEventListener('keydown', (ev) => {
-    if ((ev as KeyboardEvent).key === 'Escape') closeClassFormModal();
-  });
 
+  adminModalEl.setAttribute('aria-hidden', 'true');
   return adminModalEl;
 }
 
@@ -238,8 +239,8 @@ function getTeacherModal(): HTMLElement {
   renderTemplate(
     teacherModalEl,
     `
-    <div class="classes-modal-box w-full max-w-2xl">
-      <h3 class="text-lg font-bold text-white mb-4">Create Class</h3>
+    <div id="teacher-class-form-modal-panel" class="classes-modal-box lms-modal-surface w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="teacher-class-form-title">
+      <h3 id="teacher-class-form-title" class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="teacher-class-form" data-course-id="">
         <div class="space-y-4">
           <div>
@@ -297,18 +298,41 @@ function getTeacherModal(): HTMLElement {
   teacherModalEl
     .querySelector('#teacher-class-form')!
     .addEventListener('submit', handleTeacherFormSubmit as EventListener);
-  teacherModalEl.addEventListener('keydown', (ev) => {
-    if ((ev as KeyboardEvent).key === 'Escape') closeTeacherClassFormModal();
-  });
 
+  teacherModalEl.setAttribute('aria-hidden', 'true');
   return teacherModalEl;
 }
 
-function lockScroll(): void {
-  document.body.classList.add('modal-scroll-lock');
+function bindAdminClassModalLayer(modal: HTMLElement): void {
+  adminClassModalCleanup?.();
+  adminClassModalCleanup = null;
+  const panel = document.getElementById('class-form-modal-panel');
+  const first = modal.querySelector('[name="courseName"]') as HTMLInputElement | null;
+  if (panel instanceof HTMLElement) {
+    adminClassModalCleanup = activateModalLayer(panel, {
+      onEscape: () => {
+        closeClassFormModal();
+      },
+      initialFocus: first ?? null,
+    });
+  }
+  modal.setAttribute('aria-hidden', 'false');
 }
-function unlockScroll(): void {
-  document.body.classList.remove('modal-scroll-lock');
+
+function bindTeacherClassModalLayer(modal: HTMLElement): void {
+  teacherClassModalCleanup?.();
+  teacherClassModalCleanup = null;
+  const panel = document.getElementById('teacher-class-form-modal-panel');
+  const first = modal.querySelector('[name="courseName"]') as HTMLInputElement | null;
+  if (panel instanceof HTMLElement) {
+    teacherClassModalCleanup = activateModalLayer(panel, {
+      onEscape: () => {
+        closeTeacherClassFormModal();
+      },
+      initialFocus: first ?? null,
+    });
+  }
+  modal.setAttribute('aria-hidden', 'false');
 }
 
 function openClassFormModal(editCourseId?: string): void {
@@ -364,13 +388,19 @@ function openClassFormModal(editCourseId?: string): void {
   }
 
   modal.classList.remove('is-hidden');
-  lockScroll();
+  window.requestAnimationFrame(() => bindAdminClassModalLayer(modal));
 }
 
 function closeClassFormModal(): void {
+  if (adminClassModalCleanup) {
+    adminClassModalCleanup();
+    adminClassModalCleanup = null;
+  }
   const modal = document.getElementById('class-form-modal');
-  if (modal) modal.classList.add('is-hidden');
-  unlockScroll();
+  if (modal) {
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
 }
 
 async function openTeacherClassFormModal(): Promise<void> {
@@ -395,7 +425,7 @@ async function openTeacherClassFormModal(): Promise<void> {
   }
 
   modal.classList.remove('is-hidden');
-  lockScroll();
+  window.requestAnimationFrame(() => bindTeacherClassModalLayer(modal));
 }
 
 async function openTeacherClassFormModalForEdit(courseId: string): Promise<void> {
@@ -429,13 +459,25 @@ async function openTeacherClassFormModalForEdit(courseId: string): Promise<void>
   }
 
   modal.classList.remove('is-hidden');
-  lockScroll();
+  window.requestAnimationFrame(() => bindTeacherClassModalLayer(modal));
 }
 
 function closeTeacherClassFormModal(): void {
+  if (teacherClassModalCleanup) {
+    teacherClassModalCleanup();
+    teacherClassModalCleanup = null;
+  }
   const modal = document.getElementById('teacher-class-form-modal');
-  if (modal) modal.classList.add('is-hidden');
-  unlockScroll();
+  if (modal) {
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+}
+
+/** Closes Create/Edit class dialogs and releases focus traps (e.g. sign-out). */
+export function dismissClassesModals(): void {
+  closeClassFormModal();
+  closeTeacherClassFormModal();
 }
 
 // ─── public API ─────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@
 import { User, UserRole } from '../types';
 import DOMPurify from 'dompurify';
 import { renderTemplate } from './dom-render';
+import { activateModalLayer } from '../core/modal-focus';
 
 let domPurifyHooksInstalled = false;
 
@@ -108,6 +109,9 @@ let currentUserRole: UserRole | null = null;
 
 /** Optional hook invoked after the AI modal is hidden (e.g. refresh shell after "Account Created"). */
 let modalOnDismiss: (() => void | Promise<void>) | null = null;
+
+/** Focus trap + scroll lock cleanup for `#ai-modal`. */
+let aiModalLayerCleanup: (() => void) | null = null;
 
 export type ShowModalOptions = {
   onDismiss?: () => void | Promise<void>;
@@ -403,7 +407,12 @@ export function showLoading(): void {
   if (el instanceof HTMLElement) {
     resetLoadingOverlayImportantStyles(el);
     el.classList.remove('hide', 'hidden');
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-busy', 'true');
+    el.setAttribute('aria-hidden', 'false');
   }
+  document.getElementById('app-container')?.setAttribute('aria-busy', 'true');
 }
 
 /** Forces the overlay off the interactive plane even if CSS transitions or classes fail. */
@@ -415,7 +424,10 @@ export function hideLoading(): void {
     el.style.setProperty('visibility', 'hidden', 'important');
     el.style.setProperty('pointer-events', 'none', 'important');
     el.style.setProperty('z-index', '-1', 'important');
+    el.removeAttribute('aria-busy');
+    el.setAttribute('aria-hidden', 'true');
   }
+  document.getElementById('app-container')?.removeAttribute('aria-busy');
 }
 
 export function showError(element: HTMLElement | null, message: string): void {
@@ -563,6 +575,10 @@ export function showModal(title: string, content: string, options?: ShowModalOpt
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       try {
+        if (aiModalLayerCleanup) {
+          aiModalLayerCleanup();
+          aiModalLayerCleanup = null;
+        }
         if (aiModal instanceof HTMLElement) {
           aiModal.style.removeProperty('display');
           aiModal.style.removeProperty('pointer-events');
@@ -572,6 +588,17 @@ export function showModal(title: string, content: string, options?: ShowModalOpt
           renderTemplate(aiModalContent, sanitizeHTML(typeof content === 'string' ? content : ''));
         }
         aiModal?.classList.remove('hide');
+        aiModal?.setAttribute('aria-hidden', 'false');
+        const panel = document.getElementById('ai-modal-panel');
+        const closeBtn = document.getElementById('ai-modal-close');
+        if (panel instanceof HTMLElement) {
+          aiModalLayerCleanup = activateModalLayer(panel, {
+            onEscape: () => {
+              closeModal();
+            },
+            initialFocus: closeBtn instanceof HTMLElement ? closeBtn : null,
+          });
+        }
       } catch {
         /* DOM not ready */
       }
@@ -580,7 +607,12 @@ export function showModal(title: string, content: string, options?: ShowModalOpt
 }
 
 function runModalDismissPipeline(): void {
+  if (aiModalLayerCleanup) {
+    aiModalLayerCleanup();
+    aiModalLayerCleanup = null;
+  }
   aiModal?.classList.add('hide');
+  aiModal?.setAttribute('aria-hidden', 'true');
   const modalEl = aiModal;
   if (modalEl instanceof HTMLElement) {
     modalEl.style.setProperty('display', 'none', 'important');

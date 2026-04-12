@@ -3,6 +3,7 @@
  */
 
 import { getAppTheme, registerThemeRefreshHandler } from '../core/theme-events';
+import { activateModalLayer } from '../core/modal-focus';
 import { sanitizeHTML } from './ui';
 import { renderTemplate } from './dom-render';
 
@@ -75,6 +76,9 @@ const BODY_HTML: Record<LegalDocumentId, string> = {
 
 let initialized = false;
 
+/** Focus trap + scroll lock cleanup for the legal dialog. */
+let legalModalLayerCleanup: (() => void) | null = null;
+
 /**
  * Syncs `data-app-theme` on legal modal host nodes so panel/backdrop/title CSS tracks the active theme.
  */
@@ -114,18 +118,29 @@ function getLegalElements(): {
 export function openLegalModal(doc: LegalDocumentId): void {
   const els = getLegalElements();
   if (!els) return;
+  legalModalLayerCleanup?.();
+  legalModalLayerCleanup = null;
   els.title.textContent = TITLES[doc];
   renderTemplate(els.body, sanitizeHTML(BODY_HTML[doc]));
   applyLegalModalTheme();
   els.root.classList.remove('hide');
   els.root.setAttribute('aria-hidden', 'false');
-  els.closeBtn.focus();
+  legalModalLayerCleanup = activateModalLayer(els.panel, {
+    onEscape: () => {
+      closeLegalModal();
+    },
+    initialFocus: els.closeX,
+  });
 }
 
 /** Closes the legal modal and clears injected body HTML. */
 export function closeLegalModal(): void {
   const els = getLegalElements();
   if (!els) return;
+  if (legalModalLayerCleanup) {
+    legalModalLayerCleanup();
+    legalModalLayerCleanup = null;
+  }
   els.root.classList.add('hide');
   els.root.setAttribute('aria-hidden', 'true');
   els.body.replaceChildren();
@@ -167,10 +182,4 @@ export function initLegalModals(): void {
   els.closeBtn.addEventListener('click', close);
   els.closeX.addEventListener('click', close);
   els.backdrop.addEventListener('click', close);
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    if (els.root.classList.contains('hide')) return;
-    close();
-  });
 }

@@ -1294,14 +1294,38 @@
         }
       }
 
-      /* Reduced Motion */
+      /* Motion: suppress decorative animations; keep short opacity/transform for UI feedback (WCAG 2.3.3). */
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
         *::after {
           animation-duration: 0.01ms !important;
           animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
+        }
+        html {
+          scroll-behavior: auto !important;
+        }
+      }
+
+      /* Apple-like easing — smooth, not bouncy */
+      :root {
+        --lms-ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+        --lms-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        --lms-modal-duration: 0.32s;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      .lms-modal-surface {
+        transition:
+          opacity var(--lms-modal-duration) var(--lms-ease-default),
+          transform var(--lms-modal-duration) var(--lms-ease-out-expo);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .lms-modal-surface {
+          transition: none;
         }
       }
 
@@ -5375,6 +5399,13 @@
       .lms-urgent-dot {
         animation: lms-urgent-pulse 1.5s ease-in-out infinite;
       }
+      @media (prefers-reduced-motion: reduce) {
+        .lms-urgent-dot {
+          animation: none;
+          opacity: 1;
+          transform: none;
+        }
+      }
 
       .lms-mobile-app-bar {
         background: rgba(6, 14, 32, 0.92);
@@ -5842,6 +5873,7 @@
 
     <!-- Main Application Container (Initially Hidden) -->
     <div id="app-container" class="hide">
+      <a href="#lms-main-content" class="skip-link">Skip to main content</a>
       <div id="app-mount" class="lms-layout gradient-bg">
         <!-- Sidebar Overlay for Mobile -->
         <div id="lms-sidebar-overlay" class="lms-sidebar-overlay"></div>
@@ -6067,6 +6099,8 @@
 
         <!-- Main Content Area -->
         <main
+          id="lms-main-content"
+          tabindex="-1"
           class="lms-main min-w-0 max-w-full overflow-x-clip pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0"
         >
           <!-- Mobile top bar: menu, initial avatar, DSKM LMS, notifications -->
@@ -6565,6 +6599,8 @@
               <div class="student-only hide mt-8 max-w-2xl hidden md:block">
                 <div
                   class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20"
+                  role="note"
+                  aria-label="Reflection from Ethiopian Orthodox tradition"
                 >
                   <p
                     data-lms-dashboard-proverb
@@ -6905,19 +6941,25 @@
                     <h3 class="text-xl font-bold text-white mb-4">Grade Records</h3>
                     <div class="overflow-x-auto">
                       <table id="grades-table" class="w-full">
+                        <caption class="sr-only">
+                          Grade records for the selected student. Choose a student above to load rows.
+                        </caption>
                         <thead>
                           <tr class="border-b border-dark-600">
-                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">
+                            <th scope="col" class="text-left py-3 px-4 text-dark-200 font-semibold">
                               Assignment
                             </th>
-                            <th class="text-left py-3 px-4 text-dark-200 font-semibold">
+                            <th scope="col" class="text-left py-3 px-4 text-dark-200 font-semibold">
                               Category
                             </th>
-                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">Score</th>
-                            <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                            <th scope="col" class="text-center py-3 px-4 text-dark-200 font-semibold">
+                              Score
+                            </th>
+                            <th scope="col" class="text-center py-3 px-4 text-dark-200 font-semibold">
                               Percentage
                             </th>
                             <th
+                              scope="col"
                               class="text-center py-3 px-4 text-dark-200 font-semibold teacher-only admin-only hide"
                             >
                               Actions
@@ -7491,12 +7533,17 @@
 
                   <div class="overflow-x-auto">
                     <table class="w-full">
+                      <caption class="sr-only">
+                        Attendance history. Select a student to load dated entries.
+                      </caption>
                       <thead>
                         <tr class="text-left border-b border-dark-700">
-                          <th class="pb-3 text-dark-300 font-semibold">Date</th>
-                          <th class="pb-3 text-dark-300 font-semibold">Student</th>
-                          <th class="pb-3 text-dark-300 font-semibold text-center">Status</th>
-                          <th class="pb-3 text-dark-300 font-semibold">Notes</th>
+                          <th scope="col" class="pb-3 text-dark-300 font-semibold">Date</th>
+                          <th scope="col" class="pb-3 text-dark-300 font-semibold">Student</th>
+                          <th scope="col" class="pb-3 text-dark-300 font-semibold text-center">
+                            Status
+                          </th>
+                          <th scope="col" class="pb-3 text-dark-300 font-semibold">Notes</th>
                         </tr>
                       </thead>
                       <tbody id="attendance-history-body">
@@ -8995,20 +9042,31 @@
     <!-- Loading Overlay -->
     <div
       id="loading-overlay"
-      class="lms-fixed-overlay-safe fixed inset-0 bg-dark-900/80 backdrop-blur-sm flex items-center justify-center z-50 hide"
+      class="lms-fixed-overlay-safe fixed inset-0 bg-dark-900/80 backdrop-blur-md flex items-center justify-center z-50 hide"
+      role="status"
+      aria-live="polite"
+      aria-busy="false"
+      aria-hidden="true"
     >
-      <div class="text-center">
-        <div class="loading-spinner mx-auto mb-4"></div>
-        <p class="text-white font-semibold">Loading...</p>
+      <div class="text-center lms-modal-surface">
+        <div class="loading-spinner mx-auto mb-4" aria-hidden="true"></div>
+        <p class="text-white font-semibold text-[0.9375rem] tracking-tight">Loading…</p>
       </div>
     </div>
 
     <!-- Modal for AI Results -->
     <div
       id="ai-modal"
-      class="lms-fixed-overlay-safe fixed inset-0 bg-dark-900/80 backdrop-blur-sm flex items-center justify-center z-50 hide"
+      class="lms-fixed-overlay-safe fixed inset-0 bg-dark-900/85 backdrop-blur-md flex items-center justify-center z-50 hide"
+      aria-hidden="true"
     >
-      <div class="glass-effect rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+      <div
+        id="ai-modal-panel"
+        class="lms-modal-surface glass-effect rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl shadow-black/40"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-modal-title"
+      >
         <div class="flex justify-between items-start mb-4">
           <h3 id="ai-modal-title" class="text-2xl font-bold text-white">AI Results</h3>
           <button
@@ -9039,7 +9097,7 @@
     <!-- Privacy & Terms (auth footer; opened via src/ui/legal.ts) -->
     <div
       id="legal-modal"
-      class="lms-fixed-overlay-safe fixed inset-0 z-[60] hide flex items-center justify-center backdrop-blur-sm"
+      class="lms-fixed-overlay-safe fixed inset-0 z-[60] hide flex items-center justify-center backdrop-blur-md"
       aria-hidden="true"
     >
       <div
@@ -9050,7 +9108,7 @@
       ></div>
       <div
         id="legal-modal-panel"
-        class="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-2xl"
+        class="lms-modal-surface relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="legal-modal-title"
@@ -9107,11 +9165,18 @@
     <!-- Edit Student Modal (Teacher/Admin) -->
     <div
       id="edit-student-modal"
-      class="lms-fixed-overlay-safe fixed inset-0 bg-dark-900/80 backdrop-blur-sm flex items-center justify-center z-50 hide"
+      class="lms-fixed-overlay-safe fixed inset-0 bg-dark-900/85 backdrop-blur-md flex items-center justify-center z-50 hide"
+      aria-hidden="true"
     >
-      <div class="glass-effect rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div
+        id="edit-student-modal-panel"
+        class="lms-modal-surface glass-effect rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/35"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-student-modal-title"
+      >
         <div class="flex justify-between items-start mb-4">
-          <h3 class="text-2xl font-bold text-white">Edit Student</h3>
+          <h3 id="edit-student-modal-title" class="text-2xl font-bold text-white">Edit Student</h3>
           <button
             type="button"
             id="edit-student-modal-close"
@@ -9220,6 +9285,7 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="change-role-modal-title"
+      aria-hidden="true"
     >
       <div
         class="absolute inset-0 bg-slate-950/65 backdrop-blur-md transition-opacity dark:bg-black/55"
@@ -9227,7 +9293,8 @@
         aria-hidden="true"
       ></div>
       <div
-        class="relative z-10 w-full max-w-[22rem] overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white/85 shadow-[0_20px_60px_-12px_rgba(15,23,42,0.2),inset_0_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/15 dark:bg-gradient-to-b dark:from-white/[0.12] dark:to-white/[0.03] dark:shadow-[0_12px_48px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
+        id="change-role-modal-panel"
+        class="lms-modal-surface relative z-10 w-full max-w-[22rem] overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white/85 shadow-[0_20px_60px_-12px_rgba(15,23,42,0.2),inset_0_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/15 dark:bg-gradient-to-b dark:from-white/[0.12] dark:to-white/[0.03] dark:shadow-[0_12px_48px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
       >
         <div class="rounded-[1.5rem] px-5 pt-5 pb-4 dark:bg-gradient-to-b dark:from-white/[0.04] dark:to-transparent">
           <div class="mb-4 flex items-start justify-between gap-2">
