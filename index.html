@@ -1639,9 +1639,9 @@
           0 4px 12px rgba(15, 23, 42, 0.08);
       }
 
-      /* ── Attendance: light-mode overrides ── */
+      /* ── Attendance: light-mode overrides (comprehensive) ── */
 
-      /* Stat cards */
+      /* --- Stat cards (both student + teacher) --- */
       [data-theme='light'] .lms-att-stat-card {
         background: #ffffff !important;
         border-color: #e2e8f0 !important;
@@ -1663,7 +1663,31 @@
       [data-theme='light'] #attendance-absent  { color: #be123c !important; }
       [data-theme='light'] #attendance-rate    { color: #0369a1 !important; }
 
-      /* Filter buttons */
+      /* --- Stat card icon containers (WCAG-safe on white) --- */
+      [data-theme='light'] .lms-att-stat-icon.text-blue-400,
+      [data-theme='light'] .lms-att-stat-icon.text-cyan-300 {
+        color: #0369a1 !important;
+        background: #e0f2fe !important;
+      }
+      [data-theme='light'] .lms-att-stat-icon.text-green-400 {
+        color: #047857 !important;
+        background: #d1fae5 !important;
+      }
+      [data-theme='light'] .lms-att-stat-icon.text-red-400,
+      [data-theme='light'] .lms-att-stat-icon.text-rose-300 {
+        color: #be123c !important;
+        background: #ffe4e6 !important;
+      }
+      [data-theme='light'] .lms-att-stat-icon.text-primary-400 {
+        color: #0369a1 !important;
+        background: #e0f2fe !important;
+      }
+      [data-theme='light'] .lms-att-stat-icon.text-amber-300 {
+        color: #b45309 !important;
+        background: #fef3c7 !important;
+      }
+
+      /* --- Filter buttons --- */
       [data-theme='light'] [data-roll-filter] {
         background: #ffffff !important;
         border-color: #cbd5e1 !important;
@@ -1679,7 +1703,7 @@
         box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
       }
 
-      /* Roster cards */
+      /* --- Roster cards (mobile) --- */
       [data-theme='light'] .lms-att-roster-card {
         background: #ffffff !important;
         border-color: #e2e8f0 !important;
@@ -1698,8 +1722,12 @@
         border-color: #cbd5e1 !important;
         color: #64748b !important;
       }
+      [data-theme='light'] .lms-att-roster-card [data-roll-reset]:hover {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+      }
 
-      /* Pick buttons */
+      /* --- Pick buttons --- */
       [data-theme='light'] .lms-att-pick-btn {
         background: #ffffff !important;
         border-color: #cbd5e1 !important;
@@ -1730,7 +1758,13 @@
         color: #475569 !important;
       }
 
-      /* Desktop roster table */
+      /* --- Desktop roster table --- */
+      [data-theme='light'] #attendance-roll-call-root .attendance-roster-row {
+        border-color: #e2e8f0 !important;
+      }
+      [data-theme='light'] #attendance-roll-call-root .attendance-roster-row:hover {
+        background: #f1f5f9 !important;
+      }
       [data-theme='light'] #attendance-roll-call-root .attendance-roster-row td .text-white,
       [data-theme='light'] #attendance-roll-call-root .attendance-roster-row .font-semibold.truncate {
         color: #0f172a !important;
@@ -1743,12 +1777,20 @@
         border-color: #cbd5e1 !important;
         color: #64748b !important;
       }
-      [data-theme='light'] #attendance-roll-call-root table th {
+      [data-theme='light'] #attendance-roll-call-root .attendance-roster-row [data-roll-reset]:hover {
         background: #f1f5f9 !important;
+        color: #0f172a !important;
+      }
+      [data-theme='light'] #attendance-roll-call-root table thead {
+        background: #f8fafc !important;
+        border-color: #e2e8f0 !important;
+      }
+      [data-theme='light'] #attendance-roll-call-root table th {
+        background: #f8fafc !important;
         color: #334155 !important;
       }
 
-      /* Scrollable container + search/select */
+      /* --- Scrollable container + search/select --- */
       [data-theme='light'] #attendance-roll-call-root .rounded-xl[class*="bg-slate-900"],
       [data-theme='light'] #attendance-roll-call-root .bg-slate-900\/30 {
         background: #f8fafc !important;
@@ -1761,6 +1803,14 @@
         border-color: #cbd5e1 !important;
         color: #0f172a !important;
       }
+      [data-theme='light'] #attendance-roll-call-root input::placeholder {
+        color: #94a3b8 !important;
+      }
+
+      /* --- Roll-call root: text colors + border separator --- */
+      [data-theme='light'] #attendance-roll-call-root {
+        border-color: #e2e8f0 !important;
+      }
       [data-theme='light'] #attendance-roll-call-root .text-white {
         color: #0f172a !important;
       }
@@ -1768,6 +1818,53 @@
       [data-theme='light'] #attendance-roll-call-root .text-slate-400,
       [data-theme='light'] #attendance-roll-call-root .text-slate-500 {
         color: #64748b !important;
+      }
+      [data-theme='light'] #attendance-roll-call-root .text-cyan-400\/90,
+      [data-theme='light'] #attendance-roll-call-root .text-cyan-400 {
+        color: #0369a1 !important;
+      }
+
+      /* --- Action bar buttons --- */
+      [data-theme='light'] #mark-all-present-btn {
+        border-color: #10b981 !important;
+        color: #047857 !important;
+      }
+      [data-theme='light'] #mark-all-present-btn:hover {
+        background: #ecfdf5 !important;
+      }
+      [data-theme='light'] #save-bulk-attendance-btn {
+        background: #0ea5e9 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25) !important;
+      }
+      [data-theme='light'] #save-bulk-attendance-btn:hover {
+        background: #0284c7 !important;
+      }
+
+      /* --- History section: status badge colors (WCAG AA on white) --- */
+      [data-theme='light'] .text-green-400 {
+        color: #047857 !important;
+      }
+      [data-theme='light'] .text-red-400 {
+        color: #be123c !important;
+      }
+      [data-theme='light'] .text-yellow-400 {
+        color: #a16207 !important;
+      }
+      [data-theme='light'] .text-blue-400 {
+        color: #1d4ed8 !important;
+      }
+      [data-theme='light'] .bg-green-500\/20 {
+        background: #d1fae5 !important;
+      }
+      [data-theme='light'] .bg-red-500\/20 {
+        background: #ffe4e6 !important;
+      }
+      [data-theme='light'] .bg-yellow-500\/20 {
+        background: #fef3c7 !important;
+      }
+      [data-theme='light'] .bg-blue-500\/20 {
+        background: #dbeafe !important;
       }
 
       .input-glow:focus {
@@ -7215,7 +7312,7 @@
                         <p class="text-dark-400 text-sm">Total Days</p>
                         <p id="attendance-total" class="text-2xl font-bold text-white mt-1">0</p>
                       </div>
-                      <div class="p-3 rounded-lg bg-blue-500/20"><svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-blue-500/20 text-blue-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
@@ -7224,7 +7321,7 @@
                         <p class="text-dark-400 text-sm">Present</p>
                         <p id="attendance-present" class="text-2xl font-bold text-green-400 mt-1">0</p>
                       </div>
-                      <div class="p-3 rounded-lg bg-green-500/20"><svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-green-500/20 text-green-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
@@ -7233,7 +7330,7 @@
                         <p class="text-dark-400 text-sm">Absent</p>
                         <p id="attendance-absent" class="text-2xl font-bold text-red-400 mt-1">0</p>
                       </div>
-                      <div class="p-3 rounded-lg bg-red-500/20"><svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-red-500/20 text-red-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
@@ -7242,7 +7339,7 @@
                         <p class="text-dark-400 text-sm">Attendance Rate</p>
                         <p id="attendance-rate" class="text-2xl font-bold text-primary-400 mt-1 min-w-0 tabular-nums break-words">0%</p>
                       </div>
-                      <div class="p-3 rounded-lg bg-primary-500/20"><svg class="w-6 h-6 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-primary-500/20 text-primary-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg></div>
                     </div>
                   </div>
                 </div>
@@ -7252,48 +7349,40 @@
                   id="attendance-class-metrics-row"
                   class="teacher-only admin-only lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4 hide"
                 >
-                  <div class="lms-att-stat-card rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
-                    <div class="flex items-center justify-between gap-2">
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
+                    <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-slate-400 text-xs font-semibold tracking-wide">TOTAL STUDENTS</p>
+                        <p class="text-dark-400 text-sm">Total Students</p>
                         <p id="roll-call-stat-total" class="text-2xl font-bold text-white mt-1">0</p>
                       </div>
-                      <div class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      </div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
                     </div>
                   </div>
-                  <div class="lms-att-stat-card rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
-                    <div class="flex items-center justify-between gap-2">
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
+                    <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-slate-400 text-xs font-semibold tracking-wide">PRESENT</p>
+                        <p class="text-dark-400 text-sm">Present</p>
                         <p id="roll-call-stat-present" class="text-2xl font-bold text-cyan-400 mt-1">0</p>
                       </div>
-                      <div class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      </div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/20 text-cyan-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
                     </div>
                   </div>
-                  <div class="lms-att-stat-card rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
-                    <div class="flex items-center justify-between gap-2">
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
+                    <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-slate-400 text-xs font-semibold tracking-wide">ABSENT</p>
+                        <p class="text-dark-400 text-sm">Absent</p>
                         <p id="roll-call-stat-absent" class="text-2xl font-bold text-rose-400 mt-1">0</p>
                       </div>
-                      <div class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      </div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-rose-500/20 text-rose-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
                     </div>
                   </div>
-                  <div class="lms-att-stat-card rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
-                    <div class="flex items-center justify-between gap-2">
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
+                    <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-slate-400 text-xs font-semibold tracking-wide">LATE</p>
+                        <p class="text-dark-400 text-sm">Late</p>
                         <p id="roll-call-stat-late" class="text-2xl font-bold text-amber-400 mt-1">0</p>
                       </div>
-                      <div class="w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      </div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-amber-500/20 text-amber-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
                     </div>
                   </div>
                 </div>
