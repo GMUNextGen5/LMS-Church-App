@@ -1167,14 +1167,17 @@ function setupAppForms(): void {
   if (usersSearch) {
     const runUsersFilter = debounce((q: string) => {
       const tbody = document.getElementById('users-table-body');
-      if (!tbody) return;
-      tbody.querySelectorAll('.user-management-row').forEach((row) => {
-        const el = row as HTMLElement;
+      const mobileList = document.getElementById('users-mobile-list');
+      const apply = (el: HTMLElement) => {
         const email = (el.getAttribute('data-email') || '').toLowerCase();
         const name = (el.getAttribute('data-name') || '').toLowerCase();
         const show = !q || email.includes(q) || name.includes(q);
         el.style.display = show ? '' : 'none';
-      });
+      };
+      tbody?.querySelectorAll('.user-management-row').forEach((row) => apply(row as HTMLElement));
+      mobileList
+        ?.querySelectorAll('.user-management-card')
+        .forEach((row) => apply(row as HTMLElement));
     }, LMS_SEARCH_DEBOUNCE_MS);
     usersSearch.addEventListener('input', () => {
       runUsersFilter((usersSearch.value || '').toLowerCase().trim());
@@ -2030,15 +2033,80 @@ async function loadRegisteredTeachers(): Promise<void> {
   }
 }
 
+function userManagementInitials(displayLabel: string, email: string): string {
+  const s = displayLabel.trim();
+  if (s && s !== '—') {
+    const parts = s.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      const a = parts[0][0] ?? '';
+      const b = parts[parts.length - 1][0] ?? '';
+      return (a + b).toUpperCase();
+    }
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  }
+  const e = email.trim();
+  if (e.length >= 2) return e.slice(0, 2).toUpperCase();
+  return '?';
+}
+
+function userManagementAvatarPaletteClass(uid: string): string {
+  const palettes = [
+    'bg-primary-500/25 text-primary-100 ring-1 ring-inset ring-primary-400/35',
+    'bg-secondary-600/30 text-secondary-100 ring-1 ring-inset ring-secondary-400/40',
+    'bg-teal-500/25 text-teal-100 ring-1 ring-inset ring-teal-400/35',
+    'bg-amber-500/25 text-amber-100 ring-1 ring-inset ring-amber-400/35',
+  ];
+  let h = 0;
+  for (let i = 0; i < uid.length; i++) h = (h + uid.charCodeAt(i) * (i + 1)) % 2147483647;
+  return palettes[Math.abs(h) % palettes.length];
+}
+
+function setUsersMobileShellState(
+  kind: 'loading' | 'ready' | 'empty' | 'error',
+  count?: number
+): void {
+  const ul = document.getElementById('users-mobile-list');
+  const badge = document.getElementById('users-mobile-count');
+  if (ul) {
+    ul.setAttribute('aria-busy', kind === 'loading' ? 'true' : 'false');
+    ul.setAttribute('data-users-mobile-state', kind);
+  }
+  if (badge) {
+    if (kind === 'loading') badge.textContent = '…';
+    else if (count !== undefined) badge.textContent = String(count);
+    else badge.textContent = '—';
+  }
+}
+
+const USERS_MOBILE_SKELETON_LI = `
+<li class="list-none">
+  <div class="rounded-2xl border border-surface-default bg-surface-container-tonal p-4 motion-safe:animate-pulse" aria-hidden="true">
+    <div class="flex gap-3">
+      <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/20 dark:bg-white/10"></div>
+      <div class="min-w-0 flex-1 space-y-2 pt-0.5">
+        <div class="h-3 w-24 rounded bg-slate-300/25 dark:bg-white/15"></div>
+        <div class="h-4 w-full max-w-[14rem] rounded bg-slate-300/20 dark:bg-white/10"></div>
+        <div class="h-3 w-40 rounded bg-slate-300/15 dark:bg-white/10"></div>
+        <div class="mt-3 h-11 w-full rounded-xl bg-slate-300/15 dark:bg-white/10"></div>
+      </div>
+    </div>
+  </div>
+</li>`;
+
 async function loadAllUsers(): Promise<void> {
   const tableBody = document.getElementById('users-table-body');
+  const mobileList = document.getElementById('users-mobile-list');
   if (!tableBody) return;
+  const loadingTableHtml =
+    '<tr><td colspan="4" class="text-center py-8 text-dark-300"><div class="loading-spinner mx-auto mb-2"></div>Loading users...</td></tr>';
+  const loadingMobileHtml = `${USERS_MOBILE_SKELETON_LI}${USERS_MOBILE_SKELETON_LI}`;
   try {
     if (getCurrentUserRole() !== 'admin') return;
-    renderTemplate(
-      tableBody,
-      '<tr><td colspan="4" class="text-center py-8 text-dark-300"><div class="loading-spinner mx-auto mb-2"></div>Loading users...</td></tr>'
-    );
+    renderTemplate(tableBody, loadingTableHtml);
+    if (mobileList) {
+      setUsersMobileShellState('loading');
+      renderTemplate(mobileList, loadingMobileHtml);
+    }
     const users = await fetchAllUsers();
     if (users.length === 0) {
       renderTemplate(
@@ -2050,18 +2118,33 @@ async function loadAllUsers(): Promise<void> {
           ''
         )
       );
+      if (mobileList) {
+        setUsersMobileShellState('empty', 0);
+        renderTemplate(
+          mobileList,
+          `<li class="list-none">
+  <div class="rounded-2xl border border-dashed border-surface-default bg-surface-container-tonal px-5 py-12 text-center">
+    <svg class="mx-auto h-11 w-11 text-slate-400 dark:text-slate-500 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+    <p class="mt-4 text-base font-semibold text-on-surface">No accounts in the directory</p>
+    <p class="mt-2 text-sm text-on-surface-muted max-w-sm mx-auto leading-relaxed">User records will appear here as administrators, teachers, and learners are provisioned.</p>
+  </div>
+</li>`
+        );
+      }
       return;
     }
     const getRoleBadgeClass = (role: string) => {
       switch (role) {
         case 'admin':
-          return 'bg-red-500/20 text-red-400';
+          return 'bg-red-500/20 text-red-400 ring-1 ring-inset ring-red-400/25';
         case 'teacher':
-          return 'bg-blue-500/20 text-blue-400';
+          return 'bg-blue-500/20 text-blue-400 ring-1 ring-inset ring-blue-400/25';
         case 'student':
-          return 'bg-green-500/20 text-green-400';
+          return 'bg-green-500/20 text-green-400 ring-1 ring-inset ring-green-400/25';
         default:
-          return 'bg-gray-500/20 text-gray-400';
+          return 'bg-gray-500/20 text-gray-400 ring-1 ring-inset ring-gray-400/25';
       }
     };
     const usersRowsHtml = users
@@ -2090,11 +2173,72 @@ async function loadAllUsers(): Promise<void> {
       })
       .join('');
     renderTemplate(tableBody, usersRowsHtml);
+    if (mobileList) {
+      setUsersMobileShellState('ready', users.length);
+      const mobileCardsHtml = users
+        .map((user: User) => {
+          const accountLabel = userProfileDisplayLabel(user);
+          const emailAttr = escapeHtmlText((user.email || '').toLowerCase());
+          const nameAttr = escapeHtmlText(accountLabel.toLowerCase());
+          const uidAttr = escapeHtmlText(user.uid);
+          const roleAttr = escapeHtmlText(user.role);
+          const roleLabel = escapeHtmlText(user.role.charAt(0).toUpperCase() + user.role.slice(1));
+          const emailSafe = escapeHtmlText(user.email);
+          const accountSafe = escapeHtmlText(accountLabel);
+          const initials = escapeHtmlText(userManagementInitials(accountLabel, user.email || ''));
+          const avatarPalette = userManagementAvatarPaletteClass(user.uid);
+          return `
+<li class="user-management-card list-none" data-email="${emailAttr}" data-name="${nameAttr}">
+  <article class="relative overflow-hidden rounded-2xl border border-surface-default bg-surface-container shadow-sm transition-[transform,box-shadow] duration-200 motion-safe:active:scale-[0.99] dark:shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
+    <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary-400/40 to-transparent opacity-60" aria-hidden="true"></div>
+    <div class="flex gap-3.5 p-4">
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarPalette}" aria-hidden="true">${initials}</div>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <p class="text-[0.65rem] font-semibold uppercase tracking-wide text-on-surface-subtle">Account</p>
+            <p class="mt-0.5 text-base font-semibold leading-snug text-on-surface truncate" title="${accountSafe}">${accountSafe}</p>
+            <p class="mt-1 text-xs leading-relaxed text-on-surface-muted break-all" title="${emailSafe}">${emailSafe}</p>
+          </div>
+          <span class="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[0.7rem] font-semibold leading-none ${getRoleBadgeClass(user.role)}">
+            ${roleLabel}
+          </span>
+        </div>
+        <button type="button" data-lms-action="change-role" data-user-id="${uidAttr}" data-user-role="${roleAttr}"
+          class="mt-4 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-primary-500/35 bg-primary-500/15 px-4 py-3 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent dark:text-primary-300 dark:hover:bg-primary-500/20 touch-manipulation">
+          <span>Change role</span>
+          <svg class="h-4 w-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </article>
+</li>`;
+        })
+        .join('');
+      renderTemplate(mobileList, mobileCardsHtml);
+    }
   } catch (error: unknown) {
     if (tableBody) {
       renderTemplate(
         tableBody,
         '<tr><td colspan="4" class="text-center py-8 text-dark-300">Could not load the user list. Use Refresh or try again shortly.</td></tr>'
+      );
+    }
+    if (mobileList) {
+      setUsersMobileShellState('error');
+      renderTemplate(
+        mobileList,
+        `<li class="list-none">
+  <div class="rounded-2xl border border-red-500/35 bg-red-500/[0.06] px-5 py-8 text-center">
+    <svg class="mx-auto h-10 w-10 text-red-400/90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+    <p class="mt-3 text-sm font-semibold text-on-surface">Could not load users</p>
+    <p class="mt-2 text-xs text-on-surface-muted leading-relaxed">Tap <span class="font-medium text-primary-600 dark:text-primary-300">Refresh</span> at the top to try again.</p>
+  </div>
+</li>`
       );
     }
     showAppToast(formatErrorForUserToast(error, 'Could not load users.'), 'error');
