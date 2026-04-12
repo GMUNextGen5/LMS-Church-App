@@ -562,6 +562,41 @@ export async function markAttendance(
   return docId;
 }
 
+/**
+ * Parallel reads of `students/{id}/attendance/{dateKey}` for roll-call hydration (same doc id as {@link markAttendance}).
+ */
+export async function fetchAttendanceStatusesForDate(
+  studentIds: string[],
+  dateKey: string
+): Promise<Map<string, Attendance['status']>> {
+  const user = getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+  if (user.role !== 'admin' && user.role !== 'teacher') {
+    throw new Error('Not authorized to load class attendance.');
+  }
+  const key = dateKey.trim();
+  const unique = [...new Set(studentIds)].filter(Boolean);
+  const out = new Map<string, Attendance['status']>();
+  if (unique.length === 0 || !key) return out;
+
+  await Promise.all(
+    unique.map(async (studentId) => {
+      try {
+        const snap = await getDoc(doc(db, 'students', studentId, 'attendance', key));
+        if (!snap.exists()) return;
+        const row = snap.data() as Record<string, unknown>;
+        const st = row.status;
+        if (st === 'present' || st === 'absent' || st === 'late' || st === 'excused') {
+          out.set(studentId, st);
+        }
+      } catch (e) {
+        reportClientFault(e);
+      }
+    })
+  );
+  return out;
+}
+
 export async function fetchCourses(): Promise<Course[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');

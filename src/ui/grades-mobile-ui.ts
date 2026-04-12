@@ -1,6 +1,7 @@
 /**
  * Mobile gradebook: card layout (< md) with local quick-grade state before Firestore save.
  */
+import { localDateKey } from '../data/attendance-data';
 import { finitePctForBar, finiteToFixed, safeAssignmentTitle } from '../core/display-fallbacks';
 import { emptyStateBlockHtml, escapeHtmlText as esc, renderTemplate } from './dom-render';
 import type { Attendance, Grade } from '../types';
@@ -348,7 +349,7 @@ export function initGradesMobileUI(opts: InitGradesMobileOptions): void {
     if (absBtn && panel.contains(absBtn)) {
       const studentId = opts.getStudentId();
       if (!studentId) return;
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateKey();
       void (async () => {
         try {
           opts.showLoading();

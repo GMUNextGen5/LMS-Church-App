@@ -73,6 +73,7 @@ import {
   listenToGrades,
   exportGradesToCSV,
   fetchAttendance,
+  fetchAttendanceStatusesForDate,
   markAttendance,
   createStudent,
   deleteStudent,
@@ -112,6 +113,7 @@ import { initAssessments, loadAssessments } from './ui/assessment-ui';
 import { dismissClassesModals, initClasses, loadClasses } from './ui/classes-ui';
 import {
   initAttendanceBulkUI,
+  applyRollCallAttendanceHydration,
   refreshAttendanceBulkRoster,
   renderAttendanceHistoryRows,
   attendanceHistoryEmptyRowHtml,
@@ -152,6 +154,7 @@ let currentGrades: Grade[] = [];
 let currentAttendance: Attendance[] = [];
 let selectedStudentId: string | null = null;
 let attendanceRollCourses: Course[] = [];
+let rollCallHydrateGeneration = 0;
 let gradesUnsubscribe: (() => void) | null = null;
 let particleSystem: ParticleSystem | null = null;
 /** Last UID session data was bound to; when it changes, in-memory caches must reset before new loads. */
@@ -768,7 +771,7 @@ async function init(): Promise<void> {
     const tab = (e as CustomEvent<TabSwitchedDetail>).detail?.tab;
     if (tab === 'classes') await loadClasses();
     else if (tab === 'attendance') {
-      refreshAttendanceBulkRoster();
+      syncAttendanceRollCallRoster();
       if (selectedStudentId) await loadStudentAttendance(selectedStudentId);
     } else if (tab === 'dashboard') {
       await refreshInstitutionalDashboardMetrics();
@@ -827,7 +830,8 @@ function purgePrivilegedDashboardDomForStudent(): void {
     'registered-students-table-body',
     'attendance-history-body',
     'attendance-roster-table-body',
-    'attendance-roll-call-root',
+    'attendance-roster-cards',
+    /* Do not replace attendance-roll-call-root: it holds static filters, search, and action buttons. */
   ];
   for (const id of mountIds) {
     document.getElementById(id)?.replaceChildren();
@@ -1502,6 +1506,7 @@ function setupAppForms(): void {
         }
         markAttendanceForm.reset();
         dateInput.valueAsDate = new Date();
+        void hydrateRollCallRosterFromBackend();
         if (selectedStudentId === attendanceStudentId)
           await loadStudentAttendance(attendanceStudentId);
       } catch (err: unknown) {
@@ -1546,6 +1551,9 @@ function setupAppForms(): void {
     onBulkSaved: async () => {
       const sel = document.getElementById('attendance-student-select') as HTMLSelectElement | null;
       if (sel?.value) await loadStudentAttendance(sel.value);
+      await hydrateRollCallRosterFromBackend();
+      await refreshInstitutionalDashboardMetrics();
+      await loadRecentActivity();
     },
   });
 
@@ -1562,10 +1570,13 @@ function setupAppForms(): void {
       }
     }
     updateAttendanceClassChrome();
-    refreshAttendanceBulkRoster();
+    syncAttendanceRollCallRoster();
   });
   const attendanceDateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
-  attendanceDateInput?.addEventListener('change', () => updateAttendanceClassChrome());
+  attendanceDateInput?.addEventListener('change', () => {
+    updateAttendanceClassChrome();
+    void hydrateRollCallRosterFromBackend();
+  });
 
   initGradesMobileUI({
     getStudentId: () => selectedStudentId,
@@ -1865,7 +1876,7 @@ function setupGoLiveButton(): void {
         classSel.value = classId;
         updateAttendanceClassChrome();
       }
-      refreshAttendanceBulkRoster();
+      syncAttendanceRollCallRoster();
 
       const histSel = document.getElementById(
         'attendance-student-select'
@@ -1907,6 +1918,31 @@ function getRosterStudentsForAttendance(): Student[] {
   if (!c?.studentIds?.length) return currentStudents;
   const allowed = new Set(c.studentIds);
   return currentStudents.filter((s) => allowed.has(s.id));
+}
+
+async function hydrateRollCallRosterFromBackend(): Promise<void> {
+  const role = getCurrentUserRole();
+  if (role !== 'teacher' && role !== 'admin') return;
+  if (!document.getElementById('attendance-roll-call-root')) return;
+  const dateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
+  const dateKey = dateInput?.value?.trim();
+  if (!dateKey) return;
+  const students = getRosterStudentsForAttendance();
+  const ids = students.map((s) => s.id).filter(Boolean);
+  if (ids.length === 0) return;
+  const gen = ++rollCallHydrateGeneration;
+  try {
+    const map = await fetchAttendanceStatusesForDate(ids, dateKey);
+    if (gen !== rollCallHydrateGeneration) return;
+    applyRollCallAttendanceHydration(map);
+  } catch (e) {
+    reportClientFault(e);
+  }
+}
+
+function syncAttendanceRollCallRoster(): void {
+  refreshAttendanceBulkRoster();
+  void hydrateRollCallRosterFromBackend();
 }
 
 function updateAttendanceClassChrome(): void {
@@ -2002,7 +2038,7 @@ async function initDashboard(): Promise<void> {
       populateStudentAccountDropdown(),
     ]);
     await populateAttendanceClassSelect();
-    refreshAttendanceBulkRoster();
+    syncAttendanceRollCallRoster();
     updateAttendanceClassChrome();
   } catch (e: unknown) {
     reportClientFault(e);
@@ -2560,7 +2596,7 @@ function updateStudentSelect(): void {
       document.getElementById('dashboard-student-filter-empty')
     );
   }
-  refreshAttendanceBulkRoster();
+  syncAttendanceRollCallRoster();
 
   const userRole = getCurrentUserRole();
   if (userRole === 'student' && currentStudents.length === 1) {

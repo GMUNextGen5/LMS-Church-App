@@ -95,7 +95,7 @@ function statusPill(status: Attendance['status']): string {
 
 function pickButton(st: Attendance['status'], letter: string): string {
   return `<button type="button" data-roll-pick="${st}" aria-pressed="false" aria-label="Mark ${st}"
-    class="lms-att-pick-btn min-w-[48px] min-h-[48px] w-12 h-12 shrink-0 rounded-xl border-2 border-slate-600 bg-slate-800/90 text-white text-sm font-bold hover:border-cyan-400/60 hover:bg-slate-700/90 active:scale-[0.97] transition-all touch-manipulation">${letter}</button>`;
+    class="lms-att-pick-btn min-w-[48px] min-h-[48px] w-12 h-12 shrink-0 rounded-xl border-2 border-slate-600 bg-slate-800/90 text-white text-sm font-bold hover:border-cyan-400/60 hover:bg-slate-700/90 active:scale-[0.97] transition-all touch-manipulation cursor-pointer">${letter}</button>`;
 }
 
 function rosterAvatarCell(student: Student): string {
@@ -219,7 +219,7 @@ function applyRollCallSearchAndFilter(root: HTMLElement, mode: 'all' | Attendanc
         mount,
         emptyStateBlockHtml(
           'No roster matches this filter',
-          'DSKM filters are working—try different search words, choose All, or clear the search box to see every enrolled learner.'
+          'Filters apply to the roster below—try different search words, choose All, or clear the search box to see every enrolled learner.'
         )
       );
     } else {
@@ -326,6 +326,7 @@ export interface InitAttendanceBulkOptions {
 
 let bulkOptions: InitAttendanceBulkOptions | null = null;
 let rollCallFilterMode: 'all' | Attendance['status'] = 'all';
+let attendanceBulkUiWired = false;
 
 function syncTwinRosterRows(
   container: HTMLElement,
@@ -336,6 +337,22 @@ function syncTwinRosterRows(
   container.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`).forEach((r) => {
     if (r !== source && r.dataset.studentId === studentId) setRosterRowStatus(r, status);
   });
+}
+
+/** Apply Firestore same-day statuses to table + mobile card rows; keeps stats and filters in sync. */
+export function applyRollCallAttendanceHydration(
+  statuses: ReadonlyMap<string, Attendance['status']>
+): void {
+  const root = document.getElementById('attendance-roll-call-root');
+  if (!root) return;
+  root.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`).forEach((row) => {
+    const sid = row.dataset.studentId;
+    if (!sid) return;
+    const st = statuses.get(sid);
+    setRosterRowStatus(row, st ?? 'present');
+  });
+  syncRollCallSessionStats(root);
+  applyRollCallSearchAndFilter(root, rollCallFilterMode);
 }
 
 export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
@@ -363,111 +380,118 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
     }
   };
 
-  rosterMount.addEventListener('click', handlePick);
+  if (!attendanceBulkUiWired) {
+    attendanceBulkUiWired = true;
 
-  rosterMount.addEventListener('click', (e) => {
-    const t = (e.target as HTMLElement).closest('[data-roll-reset]') as HTMLButtonElement | null;
-    if (!t || !rosterMount.contains(t)) return;
-    const row = t.closest(`.${ROSTER_ROW}`) as HTMLElement | null;
-    if (!row) return;
-    const twinId = row.dataset.studentId;
-    setRosterRowStatus(row, 'present');
-    if (twinId && root) syncTwinRosterRows(root, twinId, row, 'present');
+    rosterMount.addEventListener('click', handlePick);
+
+    rosterMount.addEventListener('click', (e) => {
+      const t = (e.target as HTMLElement).closest('[data-roll-reset]') as HTMLButtonElement | null;
+      if (!t || !rosterMount.contains(t)) return;
+      const row = t.closest(`.${ROSTER_ROW}`) as HTMLElement | null;
+      if (!row) return;
+      const twinId = row.dataset.studentId;
+      setRosterRowStatus(row, 'present');
+      if (twinId && root) syncTwinRosterRows(root, twinId, row, 'present');
+      if (root) {
+        syncRollCallSessionStats(root);
+        applyRollCallSearchAndFilter(root, rollCallFilterMode);
+      }
+    });
+
+    markAllBtn.addEventListener('click', () => {
+      rosterMount
+        .querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`)
+        .forEach((row) => setRosterRowStatus(row, 'present'));
+      if (root) {
+        syncRollCallSessionStats(root);
+        applyRollCallSearchAndFilter(root, rollCallFilterMode);
+      }
+      bulkOptions?.showToast('All students set to Present. Save attendance when ready.', 'success');
+    });
+
+    const searchEl = document.getElementById('roll-call-student-search') as HTMLInputElement | null;
+    searchEl?.addEventListener('input', () => {
+      if (root) applyRollCallSearchAndFilter(root, rollCallFilterMode);
+    });
+
     if (root) {
-      syncRollCallSessionStats(root);
-      applyRollCallSearchAndFilter(root, rollCallFilterMode);
-    }
-  });
-
-  markAllBtn.addEventListener('click', () => {
-    rosterMount
-      .querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`)
-      .forEach((row) => setRosterRowStatus(row, 'present'));
-    if (root) {
-      syncRollCallSessionStats(root);
-      applyRollCallSearchAndFilter(root, rollCallFilterMode);
-    }
-    opts.showToast('All students set to Present. Save attendance when ready.', 'success');
-  });
-
-  const searchEl = document.getElementById('roll-call-student-search') as HTMLInputElement | null;
-  searchEl?.addEventListener('input', () => {
-    if (root) applyRollCallSearchAndFilter(root, rollCallFilterMode);
-  });
-
-  if (root) {
-    root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const f = btn.dataset.rollFilter;
-        rollCallFilterMode =
-          f === 'all' || f === 'present' || f === 'absent' || f === 'late' || f === 'excused'
-            ? (f as typeof rollCallFilterMode)
-            : 'all';
+      root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const f = btn.dataset.rollFilter;
+          rollCallFilterMode =
+            f === 'all' || f === 'present' || f === 'absent' || f === 'late' || f === 'excused'
+              ? (f as typeof rollCallFilterMode)
+              : 'all';
+          root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((b) => {
+            b.classList.remove('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
+            b.classList.add('border-slate-600', 'text-slate-300');
+          });
+          btn.classList.add('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
+          btn.classList.remove('border-slate-600', 'text-slate-300');
+          applyRollCallSearchAndFilter(root, rollCallFilterMode);
+        });
+      });
+      const firstFilter = root.querySelector<HTMLButtonElement>('[data-roll-filter="all"]');
+      if (firstFilter) {
         root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((b) => {
           b.classList.remove('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
           b.classList.add('border-slate-600', 'text-slate-300');
         });
-        btn.classList.add('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
-        btn.classList.remove('border-slate-600', 'text-slate-300');
-        applyRollCallSearchAndFilter(root, rollCallFilterMode);
-      });
-    });
-    const firstFilter = root.querySelector<HTMLButtonElement>('[data-roll-filter="all"]');
-    if (firstFilter) {
-      root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((b) => {
-        b.classList.remove('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
-        b.classList.add('border-slate-600', 'text-slate-300');
-      });
-      firstFilter.classList.add('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
-      firstFilter.classList.remove('border-slate-600', 'text-slate-300');
+        firstFilter.classList.add('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
+        firstFilter.classList.remove('border-slate-600', 'text-slate-300');
+      }
     }
+
+    saveBtn.addEventListener('click', async () => {
+      const o = bulkOptions;
+      if (!o) return;
+      const dateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
+      const date = dateInput?.value?.trim();
+      if (!date) {
+        o.showToast('Choose a date in the form above first.', 'error');
+        return;
+      }
+      const rows = rosterMount.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`);
+      if (rows.length === 0) {
+        o.showToast('No students on the roster to save.', 'error');
+        return;
+      }
+      saveBtn.disabled = true;
+      try {
+        o.showLoading();
+        let ok = 0;
+        let fail = 0;
+        const seen = new Set<string>();
+        for (const row of rows) {
+          const sid = row.dataset.studentId;
+          const status = row.dataset.status as Attendance['status'] | undefined;
+          if (!sid || !status || seen.has(sid)) continue;
+          seen.add(sid);
+          try {
+            await o.markOne(sid, { date, status, notes: '', markedBy: '' });
+            ok++;
+          } catch (err) {
+            fail++;
+            const msg = o.formatError(err, 'Could not save.');
+            if (fail === 1) o.showToast(msg, 'error');
+          }
+        }
+        if (ok > 0)
+          o.showToast(`Saved attendance for ${ok} student${ok !== 1 ? 's' : ''}.`, 'success');
+        await o.onBulkSaved?.();
+      } catch (err) {
+        reportClientFault(err);
+        const o2 = bulkOptions;
+        if (o2) o2.showToast(o2.formatError(err, 'Attendance save did not complete.'), 'error');
+      } finally {
+        bulkOptions?.hideLoading();
+        saveBtn.disabled = false;
+      }
+    });
   }
 
   renderBulkAttendanceRoster(opts.getStudents());
-
-  saveBtn.addEventListener('click', async () => {
-    const dateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
-    const date = dateInput?.value?.trim();
-    if (!date) {
-      opts.showToast('Choose a date in the form above first.', 'error');
-      return;
-    }
-    const rows = rosterMount.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`);
-    if (rows.length === 0) {
-      opts.showToast('No students on the roster to save.', 'error');
-      return;
-    }
-    saveBtn.disabled = true;
-    try {
-      opts.showLoading();
-      let ok = 0;
-      let fail = 0;
-      const seen = new Set<string>();
-      for (const row of rows) {
-        const sid = row.dataset.studentId;
-        const status = row.dataset.status as Attendance['status'] | undefined;
-        if (!sid || !status || seen.has(sid)) continue;
-        seen.add(sid);
-        try {
-          await opts.markOne(sid, { date, status, notes: '', markedBy: '' });
-          ok++;
-        } catch (err) {
-          fail++;
-          const msg = opts.formatError(err, 'Could not save.');
-          if (fail === 1) opts.showToast(msg, 'error');
-        }
-      }
-      if (ok > 0)
-        opts.showToast(`Saved attendance for ${ok} student${ok !== 1 ? 's' : ''}.`, 'success');
-      await opts.onBulkSaved?.();
-    } catch (err) {
-      reportClientFault(err);
-      opts.showToast(opts.formatError(err, 'Attendance save did not complete.'), 'error');
-    } finally {
-      opts.hideLoading();
-      saveBtn.disabled = false;
-    }
-  });
 }
 
 /** Call when the student list changes (e.g. after dashboard load). */

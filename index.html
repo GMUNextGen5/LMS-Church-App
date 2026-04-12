@@ -7828,13 +7828,49 @@
                         class="w-full min-h-[48px] px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                       />
                     </div>
-                    <div class="flex flex-wrap gap-2 items-center" role="group" aria-label="Filter attendance by status">
-                      <span class="text-xs font-semibold text-slate-500 w-full sm:w-auto">FILTER STATUS</span>
-                      <button type="button" data-roll-filter="all" class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation active:scale-[0.97] transition-all">All</button>
-                      <button type="button" data-roll-filter="present" class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation active:scale-[0.97] transition-all">Present</button>
-                      <button type="button" data-roll-filter="absent" class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation active:scale-[0.97] transition-all">Absent</button>
-                      <button type="button" data-roll-filter="late" class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation active:scale-[0.97] transition-all">Late</button>
-                      <button type="button" data-roll-filter="excused" class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation active:scale-[0.97] transition-all">Excused</button>
+                    <div
+                      class="flex flex-nowrap sm:flex-wrap gap-2 items-center overflow-x-auto sm:overflow-visible pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none touch-pan-x [-webkit-overflow-scrolling:touch]"
+                      role="group"
+                      aria-label="Filter attendance by status"
+                    >
+                      <span class="text-xs font-semibold text-slate-500 shrink-0 snap-start pr-1 sm:pr-0 sm:w-auto"
+                        >FILTER STATUS</span
+                      >
+                      <button
+                        type="button"
+                        data-roll-filter="all"
+                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        data-roll-filter="present"
+                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                      >
+                        Present
+                      </button>
+                      <button
+                        type="button"
+                        data-roll-filter="absent"
+                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                      >
+                        Absent
+                      </button>
+                      <button
+                        type="button"
+                        data-roll-filter="late"
+                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                      >
+                        Late
+                      </button>
+                      <button
+                        type="button"
+                        data-roll-filter="excused"
+                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                      >
+                        Excused
+                      </button>
                     </div>
                     <div
                       id="roll-call-filter-empty-mount"
