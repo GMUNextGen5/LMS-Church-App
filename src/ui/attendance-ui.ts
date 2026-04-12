@@ -84,18 +84,18 @@ export function renderAttendanceHistoryRows(
 
 function statusPill(status: Attendance['status']): string {
   const map: Record<Attendance['status'], { cls: string; label: string }> = {
-    present: { cls: 'bg-emerald-600 text-white', label: '✓ PRESENT' },
-    absent: { cls: 'bg-rose-600 text-white', label: '✗ ABSENT' },
-    late: { cls: 'bg-amber-500 text-white', label: '⏱ LATE' },
-    excused: { cls: 'bg-blue-600 text-white', label: '📄 EXCUSED' },
+    present: { cls: 'bg-cyan-500 text-slate-950', label: '✓ PRESENT' },
+    absent: { cls: 'bg-rose-500 text-white', label: '✗ ABSENT' },
+    late: { cls: 'bg-amber-500 text-slate-950', label: '⏱ LATE' },
+    excused: { cls: 'bg-slate-500 text-white', label: '📄 EXCUSED' },
   };
   const m = map[status];
-  return `<span class="roll-status-pill inline-flex items-center px-3 py-1 rounded-full text-[0.65rem] font-extrabold uppercase tracking-wider ${m.cls} shadow-sm">${m.label}</span>`;
+  return `<span class="roll-status-pill inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold tracking-wide ${m.cls}">${m.label}</span>`;
 }
 
 function pickButton(st: Attendance['status'], letter: string): string {
   return `<button type="button" data-roll-pick="${st}" aria-pressed="false" aria-label="Mark ${st}"
-    class="lms-att-pick-btn min-w-[48px] min-h-[48px] w-12 h-12 shrink-0 rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800/90 text-slate-700 dark:text-white text-sm font-bold hover:border-sky-400 dark:hover:border-cyan-400/60 hover:bg-slate-50 dark:hover:bg-slate-700/90 active:scale-[0.97] transition-all touch-manipulation focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1">${letter}</button>`;
+    class="lms-att-pick-btn min-w-[48px] min-h-[48px] w-12 h-12 shrink-0 rounded-xl border-2 border-slate-600 bg-slate-800/90 text-white text-sm font-bold hover:border-cyan-400/60 hover:bg-slate-700/90 active:scale-[0.97] transition-all touch-manipulation">${letter}</button>`;
 }
 
 function rosterAvatarCell(student: Student): string {
@@ -109,14 +109,14 @@ function rosterTableRowHtml(student: Student): string {
   const id = esc(student.id);
   const name = esc(displayName);
   const sid = esc(student.memberId || student.id);
-  return `<tr class="${ROSTER_ROW} border-b border-slate-200 dark:border-slate-700/70 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors" data-student-id="${id}" data-status="present">
+  return `<tr class="${ROSTER_ROW} border-b border-slate-700/70 hover:bg-white/[0.04] transition-colors" data-student-id="${id}" data-status="present">
     <td class="py-3 px-3 align-middle">
       <div class="flex items-center gap-3 min-w-0">
         ${rosterAvatarCell(student)}
-        <span class="text-slate-900 dark:text-white font-semibold truncate">${name}</span>
+        <span class="text-white font-semibold truncate">${name}</span>
       </div>
     </td>
-    <td class="py-3 px-3 align-middle text-slate-500 dark:text-slate-300 text-sm font-mono">${sid}</td>
+    <td class="py-3 px-3 align-middle text-slate-300 text-sm font-mono">${sid}</td>
     <td class="py-3 px-2 align-middle">
       <div class="flex flex-wrap items-center gap-2">
         <div class="flex flex-wrap gap-1.5" role="group" aria-label="Attendance status">
@@ -129,7 +129,7 @@ function rosterTableRowHtml(student: Student): string {
       </div>
     </td>
     <td class="py-3 px-2 align-middle text-right">
-      <button type="button" data-roll-reset class="min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors touch-manipulation" aria-label="Reset row to present" title="Reset to present">
+      <button type="button" data-roll-reset class="min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors touch-manipulation" aria-label="Reset row to present" title="Reset to present">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
     </td>
@@ -141,26 +141,24 @@ function rosterCardHtml(student: Student): string {
   const id = esc(student.id);
   const name = esc(displayName);
   const sid = esc(student.memberId || student.id);
-  return `<div class="${ROSTER_ROW} lms-att-roster-card rounded-2xl border border-slate-200 dark:border-slate-600/80 bg-white dark:bg-slate-900/50 p-5 space-y-4 shadow-sm dark:shadow-lg dark:shadow-black/20" data-student-id="${id}" data-status="present">
+  return `<div class="${ROSTER_ROW} lms-att-roster-card rounded-xl border border-slate-600/80 bg-slate-900/50 p-4 space-y-3 shadow-lg shadow-black/20" data-student-id="${id}" data-status="present">
     <div class="flex items-start gap-3">
       ${rosterAvatarCell(student)}
       <div class="min-w-0 flex-1">
-        <p class="text-slate-900 dark:text-white font-bold truncate">${name}</p>
-        <p class="text-slate-500 dark:text-slate-400 text-xs font-mono mt-0.5">${sid}</p>
+        <p class="text-white font-bold truncate">${name}</p>
+        <p class="text-slate-400 text-xs font-mono mt-0.5">${sid}</p>
         <div class="mt-2"><span class="roll-pill-slot">${statusPill('present')}</span></div>
       </div>
     </div>
-    <div class="grid grid-cols-4 gap-2" role="group" aria-label="Attendance status">
+    <div class="flex flex-wrap gap-1.5 justify-between" role="group" aria-label="Attendance status">
       ${pickButton('present', 'P')}
       ${pickButton('absent', 'A')}
       ${pickButton('late', 'L')}
       ${pickButton('excused', 'E')}
     </div>
-    <button type="button" data-roll-reset class="w-full min-h-[44px] rounded-xl border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white active:scale-[0.98] transition-all touch-manipulation">Reset to present</button>
+    <button type="button" data-roll-reset class="w-full min-h-[48px] rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition-colors touch-manipulation active:scale-[0.98]">Reset to present</button>
   </div>`;
 }
-
-const PICK_RING_CLASSES = ['ring-2', 'ring-emerald-500', 'ring-rose-500', 'ring-amber-500', 'ring-blue-400', 'bg-emerald-100', 'dark:bg-cyan-500/20', 'bg-rose-100', 'dark:bg-rose-500/20', 'bg-amber-100', 'dark:bg-amber-500/20', 'bg-blue-100', 'dark:bg-slate-600/40'] as const;
 
 function setRosterRowStatus(row: HTMLElement, status: Attendance['status']): void {
   row.dataset.status = status;
@@ -168,13 +166,16 @@ function setRosterRowStatus(row: HTMLElement, status: Attendance['status']): voi
     const v = btn.dataset.rollPick as Attendance['status'];
     const on = v === status;
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    PICK_RING_CLASSES.forEach((c) => btn.classList.remove(c));
+    btn.classList.remove(
+      'ring-2', 'ring-cyan-400', 'ring-rose-400', 'ring-amber-400', 'ring-slate-300',
+      'bg-cyan-500/20', 'bg-rose-500/20', 'bg-amber-500/20', 'bg-slate-600/40'
+    );
     if (on) {
       btn.classList.add('ring-2');
-      if (status === 'present') { btn.classList.add('ring-emerald-500', 'bg-emerald-100', 'dark:bg-cyan-500/20'); }
-      else if (status === 'absent') { btn.classList.add('ring-rose-500', 'bg-rose-100', 'dark:bg-rose-500/20'); }
-      else if (status === 'late') { btn.classList.add('ring-amber-500', 'bg-amber-100', 'dark:bg-amber-500/20'); }
-      else if (status === 'excused') { btn.classList.add('ring-blue-400', 'bg-blue-100', 'dark:bg-slate-600/40'); }
+      if (status === 'present') btn.classList.add('ring-cyan-400', 'bg-cyan-500/20');
+      else if (status === 'absent') btn.classList.add('ring-rose-400', 'bg-rose-500/20');
+      else if (status === 'late') btn.classList.add('ring-amber-400', 'bg-amber-500/20');
+      else if (status === 'excused') btn.classList.add('ring-slate-300', 'bg-slate-600/40');
     }
   });
   const slot = row.querySelector('.roll-pill-slot');
@@ -194,13 +195,14 @@ function applyRollCallSearchAndFilter(root: HTMLElement, mode: 'all' | Attendanc
   });
   let visibleCount = 0;
   const totalStudents = byId.size;
-  for (const [sid, rows] of byId) {
+  for (const [, rows] of byId) {
     const sample = rows[0];
     const name =
       sample.querySelector('.font-semibold.truncate')?.textContent?.trim().toLowerCase() ??
       sample.querySelector('.font-bold.truncate')?.textContent?.trim().toLowerCase() ??
       '';
     const idText = sample.querySelector('.font-mono')?.textContent?.trim().toLowerCase() ?? '';
+    const sid = sample.dataset.studentId ?? '';
     const matchSearch =
       !q || name.includes(q) || idText.includes(q) || sid.toLowerCase().includes(q);
     const st = sample.dataset.status as Attendance['status'];
@@ -393,31 +395,6 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
     if (root) applyRollCallSearchAndFilter(root, rollCallFilterMode);
   });
 
-  const FILTER_ACTIVE = [
-    'ring-2',
-    'ring-cyan-400/60',
-    'bg-sky-600',
-    'dark:bg-cyan-500/20',
-    'text-white',
-    'dark:text-cyan-200',
-    'border-sky-600',
-    'dark:border-cyan-500/50',
-    'shadow-md',
-    'shadow-sky-500/20',
-  ];
-  const FILTER_INACTIVE = ['border-slate-300', 'dark:border-slate-600', 'text-slate-700', 'dark:text-slate-300'];
-
-  const deactivateFilters = () => {
-    root?.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((b) => {
-      FILTER_ACTIVE.forEach((c) => b.classList.remove(c));
-      FILTER_INACTIVE.forEach((c) => b.classList.add(c));
-    });
-  };
-  const activateFilter = (btn: HTMLButtonElement) => {
-    FILTER_INACTIVE.forEach((c) => btn.classList.remove(c));
-    FILTER_ACTIVE.forEach((c) => btn.classList.add(c));
-  };
-
   if (root) {
     root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -426,15 +403,23 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
           f === 'all' || f === 'present' || f === 'absent' || f === 'late' || f === 'excused'
             ? (f as typeof rollCallFilterMode)
             : 'all';
-        deactivateFilters();
-        activateFilter(btn);
+        root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((b) => {
+          b.classList.remove('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
+          b.classList.add('border-slate-600', 'text-slate-300');
+        });
+        btn.classList.add('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
+        btn.classList.remove('border-slate-600', 'text-slate-300');
         applyRollCallSearchAndFilter(root, rollCallFilterMode);
       });
     });
     const firstFilter = root.querySelector<HTMLButtonElement>('[data-roll-filter="all"]');
     if (firstFilter) {
-      deactivateFilters();
-      activateFilter(firstFilter);
+      root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((b) => {
+        b.classList.remove('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
+        b.classList.add('border-slate-600', 'text-slate-300');
+      });
+      firstFilter.classList.add('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
+      firstFilter.classList.remove('border-slate-600', 'text-slate-300');
     }
   }
 

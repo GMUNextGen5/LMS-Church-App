@@ -556,13 +556,10 @@ export async function markAttendance(
   const user = getCurrentUser();
   if (!user || (user.role !== 'teacher' && user.role !== 'admin'))
     throw new Error('Only teachers and administrators can mark attendance');
-  const attendanceRef = collection(db, 'students', studentId, 'attendance');
-  const docRef = await addDoc(attendanceRef, {
-    ...attendance,
-    studentId,
-    markedBy: user.uid,
-  });
-  return docRef.id;
+  const docId = attendance.date;
+  const ref = doc(db, 'students', studentId, 'attendance', docId);
+  await setDoc(ref, { ...attendance, id: docId, studentId, markedBy: user.uid }, { merge: true });
+  return docId;
 }
 
 export async function fetchCourses(): Promise<Course[]> {
