@@ -339,7 +339,7 @@ async function renderStudentList(_uid: string): Promise<void> {
             ${a.timeLimit ? `<span>${a.timeLimit} min</span>` : ''}
           </div>
           <div>
-            ${renderStudentAction(a, r, sub, profileIds)}
+            ${renderStudentAction(a, r, sub)}
           </div>
         </div>
       </div>`;
@@ -358,7 +358,7 @@ async function renderStudentList(_uid: string): Promise<void> {
         <td class="py-3 px-4 text-dark-300 text-sm">${esc(safeCourseDisplayName(r.courseName))}</td>
         <td class="py-3 px-4 text-center">${statusBadgeHtml(status)}</td>
         <td class="py-3 px-4 text-dark-300 text-sm whitespace-nowrap">${formatDate(a.dueDateTime)}</td>
-        <td class="py-3 px-4 text-right">${renderStudentAction(a, r, sub, profileIds)}</td>
+        <td class="py-3 px-4 text-right">${renderStudentAction(a, r, sub)}</td>
       </tr>`;
     })
     .join('');
@@ -434,10 +434,9 @@ function statusBadgeHtml(status: string): string {
 function renderStudentAction(
   a: Assessment,
   r: StudentAssessmentRow,
-  sub: Submission | undefined,
-  profileIds: string[]
+  sub: Submission | undefined
 ): string {
-  const spId = profileIds[0] || '';
+  const spId = r.activeStudentProfileId || '';
   if (sub?.status === 'graded' && sub.released) {
     return `<button data-action="view-results" data-class-id="${esc(r.courseId)}" data-id="${esc(a.id)}" data-sp="${esc(spId)}"
               class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500/20 text-green-400 hover:bg-green-500/30">View Grade</button>`;

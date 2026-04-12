@@ -43,10 +43,9 @@ service cloud.firestore {
       let pid = userStudentProfileId();
       let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
       return isStudentRole() &&
-        pid != null &&
         course.keys().hasAll(['studentIds']) &&
-        (course.studentIds.hasAny([pid]) ||
-          course.studentIds.hasAny([request.auth.uid]));
+        (course.studentIds.hasAny([request.auth.uid]) ||
+          (pid != null && course.studentIds.hasAny([pid])));
     }
 
     function assessmentPublished(courseId, assessmentId) {
@@ -90,16 +89,22 @@ service cloud.firestore {
       /** Shared schema for self-service and teacher-led student `users/{uid}` creates (no extra top-level or nested keys). */
       function validNewStudentUserFields() {
         return request.resource.data.role == 'student' &&
-          request.resource.data.keys().hasOnly(['email', 'role', 'createdAt', 'legalAcceptance']) &&
+          request.resource.data.keys().hasOnly(['email', 'role', 'createdAt', 'legalAcceptance', 'studentProfileId']) &&
           request.resource.data.legalAcceptance.keys().hasOnly(['termsVersion', 'privacyVersion', 'userAgent', 'acceptedAt']) &&
           request.resource.data.legalAcceptance.acceptedAt == request.time;
       }
 
-      /** Teacher creates another account's student profile (e.g. merge-create before link, or full onboarding write). */
+      /**
+       * Teacher creates another account's student profile (e.g. merge-create before link, or full onboarding write).
+       * If `studentProfileId` is included in the initial create, the referenced `students/{id}` doc must
+       * list the calling teacher and have `studentUid` matching this user doc (prevents profile hijacking).
+       */
       function teacherCreatesStudentUser() {
         return isTeacher() &&
           request.auth.uid != uid &&
-          validNewStudentUserFields();
+          validNewStudentUserFields() &&
+          (!request.resource.data.keys().hasAll(['studentProfileId']) ||
+            studentProfileDocAuthorizesTeacher(request.resource.data.studentProfileId, uid));
       }
 
       /**

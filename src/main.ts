@@ -1078,6 +1078,309 @@ function setupAuthForms(): void {
   }
 }
 
+// --- CSV bulk registration (Registration tab; IDs match index.html) ---
+interface CsvStudentRow {
+  name: string;
+  memberId: string;
+  yearOfBirth: number;
+  contactPhone: string;
+  contactEmail: string;
+  notes: string;
+  _status?: 'pending' | 'success' | 'error';
+  _error?: string;
+}
+
+let csvParsedRows: CsvStudentRow[] = [];
+
+function csvToast(message: string, type: 'warning' | 'success' | 'error'): void {
+  showAppToast(message, type === 'warning' ? 'info' : type);
+}
+
+function csvUserLinkLabel(u: User): string {
+  if (typeof u.displayName === 'string' && u.displayName.trim()) return u.displayName.trim();
+  if (typeof u.name === 'string' && u.name.trim()) return u.name.trim();
+  if (typeof u.fullName === 'string' && u.fullName.trim()) return u.fullName.trim();
+  return '';
+}
+
+function setupCsvUpload(): void {
+  const dropZone = document.getElementById('csv-drop-zone');
+  const fileInput = document.getElementById('csv-file-input') as HTMLInputElement | null;
+  const templateBtn = document.getElementById('csv-download-template-btn');
+  const clearBtn = document.getElementById('csv-clear-btn');
+  const uploadBtn = document.getElementById('csv-upload-btn');
+  const previewContainer = document.getElementById('csv-preview-container');
+  if (!dropZone || !fileInput || !previewContainer) return;
+
+  if (templateBtn) {
+    templateBtn.addEventListener('click', () => {
+      const tpl =
+        'Student Name,Membership ID,Year of Birth,Contact Phone,Contact Email,Notes\n' +
+        'John Smith,STU001,2010,+1 555-123-4567,parent@example.com,Optional notes\n' +
+        'Jane Doe,STU002,2011,+1 555-987-6543,parent2@example.com,';
+      const blob = new Blob([tpl], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'student_registration_template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-primary-500', 'bg-primary-500/10');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('border-primary-500', 'bg-primary-500/10');
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-primary-500', 'bg-primary-500/10');
+    const file = (e as DragEvent).dataTransfer?.files[0];
+    if (file && (file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv')) {
+      handleCsvFile(file);
+    }
+  });
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) handleCsvFile(file);
+  });
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      csvParsedRows = [];
+      previewContainer.classList.add('hide');
+      const progressEl = document.getElementById('csv-progress-container');
+      progressEl?.classList.add('hide');
+      fileInput.value = '';
+    });
+  }
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', async () => {
+      if (csvParsedRows.length === 0) return;
+      await executeCsvBulkUpload();
+    });
+  }
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else if (ch === '"') inQuotes = false;
+      else current += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') {
+        result.push(current.trim());
+        current = '';
+      } else current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function handleCsvFile(file: File): void {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target?.result as string;
+    if (!text) return;
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) {
+      csvToast('CSV file must have a header row and at least one data row.', 'warning');
+      return;
+    }
+    const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const nameIdx = headers.findIndex((h) => h.includes('name') || h.includes('student'));
+    const memberIdx = headers.findIndex((h) => h.includes('member') || h.includes('id'));
+    const yearIdx = headers.findIndex((h) => h.includes('year') || h.includes('birth') || h.includes('dob'));
+    const phoneIdx = headers.findIndex(
+      (h) => h.includes('phone') || (h.includes('contact') && !h.includes('email'))
+    );
+    const emailIdx = headers.findIndex((h) => h.includes('email'));
+    const notesIdx = headers.findIndex((h) => h.includes('note'));
+    if (nameIdx === -1 || memberIdx === -1) {
+      csvToast('CSV must have at least "Student Name" and "Membership ID" columns.', 'warning');
+      return;
+    }
+    csvParsedRows = [];
+    const errors: string[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      const name = cols[nameIdx] || '';
+      const memberId = cols[memberIdx] || '';
+      const yearRaw = yearIdx >= 0 ? cols[yearIdx] : '';
+      const phone = phoneIdx >= 0 ? cols[phoneIdx] : '';
+      const email = emailIdx >= 0 ? cols[emailIdx] : '';
+      const notes = notesIdx >= 0 ? cols[notesIdx] : '';
+      if (!name && !memberId) continue;
+      const year = parseInt(yearRaw, 10) || 0;
+      if (name && !memberId) errors.push(`Row ${i}: missing Membership ID`);
+      if (memberId && !name) errors.push(`Row ${i}: missing Student Name`);
+      csvParsedRows.push({
+        name,
+        memberId,
+        yearOfBirth: year,
+        contactPhone: phone,
+        contactEmail: email,
+        notes,
+        _status: 'pending',
+      });
+    }
+    renderCsvPreview(errors);
+  };
+  reader.readAsText(file);
+}
+
+function renderCsvPreview(errors: string[] = []): void {
+  const container = document.getElementById('csv-preview-container');
+  const tbody = document.getElementById('csv-preview-body');
+  const countEl = document.getElementById('csv-row-count');
+  const errorSummary = document.getElementById('csv-error-summary');
+  if (!container || !tbody || !countEl || !errorSummary) return;
+  container.classList.remove('hide');
+  countEl.textContent = String(csvParsedRows.length);
+  tbody.replaceChildren();
+  csvParsedRows.forEach((row, i) => {
+    const statusIcon =
+      row._status === 'success'
+        ? '<span class="text-green-400" aria-label="Registered">&#10003;</span>'
+        : row._status === 'error'
+          ? `<span class="text-red-400" title="${escapeHtmlAttr(row._error || '')}" aria-label="Error">&#10007;</span>`
+          : '<span class="text-dark-500" aria-hidden="true">&mdash;</span>';
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-dark-700/50 hover:bg-dark-800/40 transition-colors';
+    tr.innerHTML = `
+      <td class="py-2 px-3 text-dark-300">${i + 1}</td>
+      <td class="py-2 px-3 text-dark-100 font-medium">${escapeHtmlText(row.name)}</td>
+      <td class="py-2 px-3 text-dark-300 font-mono text-xs">${escapeHtmlText(row.memberId)}</td>
+      <td class="py-2 px-3 text-dark-300">${row.yearOfBirth ? escapeHtmlText(String(row.yearOfBirth)) : '—'}</td>
+      <td class="py-2 px-3 text-dark-300">${escapeHtmlText(row.contactPhone || '—')}</td>
+      <td class="py-2 px-3 text-dark-300">${escapeHtmlText(row.contactEmail || '—')}</td>
+      <td class="py-2 px-3 text-center">${statusIcon}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (errors.length > 0) {
+    errorSummary.innerHTML = `<strong>Warnings:</strong><br>${errors.map((x) => escapeHtmlText(x)).join('<br>')}`;
+    errorSummary.classList.remove('hide');
+  } else {
+    errorSummary.textContent = '';
+    errorSummary.classList.add('hide');
+  }
+}
+
+async function executeCsvBulkUpload(): Promise<void> {
+  const progressContainer = document.getElementById('csv-progress-container');
+  const progressBar = document.getElementById('csv-progress-bar');
+  const progressPct = document.getElementById('csv-progress-pct');
+  const progressLabel = document.getElementById('csv-progress-label');
+  const uploadBtn = document.getElementById('csv-upload-btn') as HTMLButtonElement | null;
+  if (!progressContainer || !progressBar || !progressPct || !progressLabel) return;
+
+  progressContainer.classList.remove('hide');
+  if (uploadBtn) uploadBtn.disabled = true;
+
+  for (const r of csvParsedRows) {
+    r._status = 'pending';
+    r._error = undefined;
+  }
+  renderCsvPreview();
+
+  const role = getCurrentUserRole();
+  let studentAccounts: User[] = [];
+  try {
+    const all = await fetchAllUsers();
+    studentAccounts = all.filter((u) => u.role === 'student');
+  } catch (e) {
+    reportClientFault(e);
+    csvToast('Could not load accounts for auto-linking; rows without a UID may fail.', 'warning');
+  }
+
+  let successCount = 0;
+  let errorCount = 0;
+  const n = csvParsedRows.length;
+
+  for (let i = 0; i < n; i++) {
+    const row = csvParsedRows[i];
+    const pct = Math.round(((i + 1) / n) * 100);
+    progressBar.style.width = `${pct}%`;
+    progressPct.textContent = `${pct}%`;
+    progressLabel.textContent = `Registering ${i + 1} of ${n}...`;
+
+    let linkedUid = '';
+    const normalizedName = row.name.trim().toLowerCase();
+    for (const u of studentAccounts) {
+      const label = csvUserLinkLabel(u).trim().toLowerCase();
+      if (label && label === normalizedName) {
+        linkedUid = u.uid;
+        break;
+      }
+      if (!linkedUid && u.email) {
+        const emailName = u.email.split('@')[0]?.replace(/[._-]/g, ' ').toLowerCase() ?? '';
+        const compact = normalizedName.replace(/\s+/g, ' ');
+        if (emailName && emailName.replace(/\s+/g, ' ') === compact) linkedUid = u.uid;
+      }
+    }
+
+    if (!linkedUid && role === 'teacher') {
+      row._status = 'error';
+      row._error =
+        'No matching student account. Each row must match a signed-up student by name or email username.';
+      errorCount++;
+      renderCsvPreview();
+      continue;
+    }
+
+    try {
+      await createStudent({
+        name: row.name,
+        memberId: row.memberId,
+        yearOfBirth: row.yearOfBirth || 2010,
+        contactPhone: row.contactPhone || '',
+        contactEmail: row.contactEmail || '',
+        studentUid: linkedUid,
+        parentUid: linkedUid,
+        notes:
+          row.notes + (linkedUid ? '' : ' [CSV import — not linked to an account yet]'),
+      });
+      row._status = 'success';
+      successCount++;
+    } catch (err: unknown) {
+      row._status = 'error';
+      row._error = err instanceof Error ? err.message : 'Unknown error';
+      errorCount++;
+    }
+    renderCsvPreview();
+  }
+
+  progressLabel.textContent = `Done! ${successCount} registered, ${errorCount} failed.`;
+  if (uploadBtn) uploadBtn.disabled = false;
+
+  try {
+    await initDashboard();
+    await loadRegisteredStudents();
+  } catch {
+    /* optional */
+  }
+
+  if (errorCount === 0) {
+    showAppToast(`Registered ${successCount} student${successCount !== 1 ? 's' : ''} from CSV.`, 'success');
+  } else {
+    showAppToast(
+      `CSV import finished: ${successCount} succeeded, ${errorCount} failed. See preview for details.`,
+      errorCount === n ? 'error' : 'info'
+    );
+  }
+}
+
 // --- App form setup (student/teacher reg, grades, attendance, dashboard) ---
 /** Attaches listeners for dashboard, grades, attendance, AI tools, and admin flows after login. */
 function setupAppForms(): void {
@@ -1789,6 +2092,7 @@ function setupAppForms(): void {
     });
   }
 
+  setupCsvUpload();
   wireProfilePasswordUpdate();
   setupGoLiveButton();
 }
@@ -2937,9 +3241,11 @@ lmsWin.handleDeleteGrade = async (studentId: string, gradeId: string) => {
 };
 
 lmsWin.handleDeleteStudent = async (studentId: string) => {
+  const student = currentStudents.find((s) => s.id === studentId);
+  const label = student ? safeStudentDisplayName(student.name) : 'this student';
   if (
     !confirm(
-      'Are you sure you want to delete this student? This will also delete all their grades and attendance records.'
+      `Delete ${label}? This will also delete all of their grades and attendance records. This action cannot be undone.`
     )
   )
     return;

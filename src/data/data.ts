@@ -115,11 +115,35 @@ export async function fetchStudents(): Promise<Student[]> {
       }
     }
   } else if (user.role === 'student') {
+    /**
+     * Match Firestore rules + auth `resolveStudentProfileForUid`: roster query by `studentUid`,
+     * plus `users/{uid}.studentProfileId` when the doc is not returned by the query (edge cases
+     * after admin linking or roster imports).
+     */
+    const byId = new Map<string, Student>();
     const q = query(studentsRef, where('studentUid', '==', user.uid));
     const snapshot = await getDocs(q);
-    students = snapshot.docs
-      .map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>))
-      .map((s) => studentRosterMinimalForLearner(s, user.uid));
+    snapshot.docs.forEach((d) => {
+      const s = studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>);
+      byId.set(s.id, studentRosterMinimalForLearner(s, user.uid));
+    });
+    try {
+      const uSnap = await getDoc(doc(db, 'users', user.uid));
+      const spRaw = uSnap.exists()
+        ? (uSnap.data() as { studentProfileId?: unknown }).studentProfileId
+        : undefined;
+      const spId = typeof spRaw === 'string' && spRaw.trim() ? spRaw.trim() : '';
+      if (spId && !byId.has(spId)) {
+        const sSnap = await getDoc(doc(db, 'students', spId));
+        if (sSnap.exists()) {
+          const s = studentRecordFromFirestore(sSnap.id, sSnap.data() as Record<string, unknown>);
+          byId.set(s.id, studentRosterMinimalForLearner(s, user.uid));
+        }
+      }
+    } catch (e) {
+      reportClientFault(e);
+    }
+    students = Array.from(byId.values());
   } else {
     throw new Error(`Invalid user role: ${user.role}`);
   }
@@ -158,21 +182,32 @@ export async function createStudent(studentData: {
     throw new Error('Only administrators and teachers can create student records');
 
   const studentUid = cleanText(studentData.studentUid, 128);
-  const userRecordRef = doc(db, 'users', studentUid);
-  const existingUserSnap = await getDoc(userRecordRef);
+  const linked = studentUid.length > 0;
 
-  if (user.role === 'teacher') {
-    if (existingUserSnap.exists()) {
-      const role = existingUserSnap.data()?.role;
-      if (role !== 'student') {
-        throw new Error('Cannot register: selected account is not a student user.');
+  let existingUserSnap: Awaited<ReturnType<typeof getDoc>> | null = null;
+  if (linked) {
+    const userRecordRef = doc(db, 'users', studentUid);
+    existingUserSnap = await getDoc(userRecordRef);
+    if (user.role === 'teacher') {
+      if (existingUserSnap.exists()) {
+        const role = (existingUserSnap.data() as { role?: string }).role;
+        if (role !== 'student') {
+          throw new Error('Cannot register: selected account is not a student user.');
+        }
       }
     }
+  } else if (user.role === 'teacher') {
+    throw new Error(
+      'A linked student account (Firebase UID) is required when teachers register students.'
+    );
   }
 
   const hadStudentUserDoc =
-    existingUserSnap.exists() && existingUserSnap.data()?.role === 'student';
-  if (user.role === 'teacher' && !hadStudentUserDoc) {
+    linked &&
+    existingUserSnap !== null &&
+    existingUserSnap.exists() &&
+    (existingUserSnap.data() as { role?: string }).role === 'student';
+  if (user.role === 'teacher' && linked && !hadStudentUserDoc) {
     const em = cleanEmail(studentData.contactEmail);
     if (!em) {
       throw new Error('Contact email is required when the student has no user profile yet.');
@@ -181,6 +216,7 @@ export async function createStudent(studentData: {
 
   const studentsRef = collection(db, 'students');
   let profileRef: DocumentReference | null = null;
+  let createdUserDoc = false;
   try {
     profileRef = await addDoc(studentsRef, {
       name: cleanText(studentData.name, 120),
@@ -188,8 +224,8 @@ export async function createStudent(studentData: {
       yearOfBirth: studentData.yearOfBirth,
       contactPhone: cleanText(studentData.contactPhone, 40),
       contactEmail: cleanEmail(studentData.contactEmail),
-      parentUid: cleanText(studentData.parentUid, 128),
-      studentUid,
+      parentUid: linked ? cleanText(studentData.parentUid, 128) : '',
+      studentUid: linked ? studentUid : '',
       teacherIds: user.role === 'teacher' ? [user.uid] : [],
       notes: cleanText(studentData.notes || '', 2000),
       createdAt: new Date().toISOString(),
@@ -198,26 +234,30 @@ export async function createStudent(studentData: {
 
     const linkPayload = { studentProfileId: profileRef.id };
 
-    if (user.role === 'admin') {
-      await setDoc(userRecordRef, linkPayload, { merge: true });
-    } else {
-      if (hadStudentUserDoc) {
+    if (linked) {
+      const userRecordRef = doc(db, 'users', studentUid);
+      if (user.role === 'admin') {
         await setDoc(userRecordRef, linkPayload, { merge: true });
       } else {
-        await setDoc(userRecordRef, {
-          email: cleanEmail(studentData.contactEmail),
-          role: 'student',
-          createdAt: new Date().toISOString(),
-          legalAcceptance: {
-            termsVersion: LEGAL_TERMS_VERSION,
-            privacyVersion: LEGAL_PRIVACY_VERSION,
-            userAgent: normalizeLegalUserAgent(
-              typeof navigator !== 'undefined' ? navigator.userAgent : ''
-            ),
-            acceptedAt: serverTimestamp(),
-          },
-        });
-        await setDoc(userRecordRef, linkPayload, { merge: true });
+        if (hadStudentUserDoc) {
+          await setDoc(userRecordRef, linkPayload, { merge: true });
+        } else {
+          createdUserDoc = true;
+          await setDoc(userRecordRef, {
+            email: cleanEmail(studentData.contactEmail),
+            role: 'student',
+            createdAt: new Date().toISOString(),
+            legalAcceptance: {
+              termsVersion: LEGAL_TERMS_VERSION,
+              privacyVersion: LEGAL_PRIVACY_VERSION,
+              userAgent: normalizeLegalUserAgent(
+                typeof navigator !== 'undefined' ? navigator.userAgent : ''
+              ),
+              acceptedAt: serverTimestamp(),
+            },
+            studentProfileId: profileRef.id,
+          });
+        }
       }
     }
 
@@ -229,6 +269,13 @@ export async function createStudent(studentData: {
         await deleteDoc(profileRef);
       } catch {
         /* best-effort rollback */
+      }
+    }
+    if (createdUserDoc && linked) {
+      try {
+        await deleteDoc(doc(db, 'users', studentUid));
+      } catch {
+        /* best-effort: admin may need to clean orphan user doc manually */
       }
     }
     const code =

@@ -3883,6 +3883,33 @@
         animation: classModalIn 0.2s ease-out;
       }
 
+      /* Liquid glass panel (create/edit class) — desktop polish + readable on mobile */
+      .classes-modal-box--glass {
+        background: rgba(15, 23, 42, 0.78);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 1.25rem;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.06) inset,
+          0 24px 64px rgba(0, 0, 0, 0.55),
+          0 0 0 1px rgba(6, 182, 212, 0.12);
+      }
+      @media (min-width: 768px) {
+        .classes-modal-box--glass {
+          border-radius: 1.5rem;
+          padding: 1.75rem 2rem;
+        }
+      }
+      [data-theme='light'] .classes-modal-box--glass {
+        background: rgba(255, 255, 255, 0.88);
+        border-color: rgba(15, 23, 42, 0.1);
+        color: #1e293b;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.95) inset,
+          0 24px 48px rgba(15, 23, 42, 0.12);
+      }
+
       [data-theme='light'] .classes-modal-box {
         background: #ffffff;
         border-color: #cbd5e1;
@@ -3922,14 +3949,19 @@
         left: 0;
         right: 0;
         z-index: 50;
-        max-height: 180px;
+        max-height: min(50vh, 320px);
+        overflow-x: hidden;
         overflow-y: auto;
-        background: #1e293b;
-        border: 1px solid rgba(6, 182, 212, 0.2);
-        border-radius: 0.5rem;
-        margin-top: 4px;
-        padding: 4px 0;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        background: rgba(30, 41, 59, 0.96);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(6, 182, 212, 0.22);
+        border-radius: 0.75rem;
+        margin-top: 6px;
+        padding: 0 0 6px 0;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.04) inset,
+          0 12px 40px rgba(0, 0, 0, 0.45);
       }
       .student-dropdown-menu.hidden {
         display: none;
@@ -8356,6 +8388,151 @@
                     Register Student
                   </button>
                 </form>
+              </div>
+
+              <!-- Bulk CSV Upload -->
+              <div
+                class="glass-effect rounded-xl md:rounded-3xl p-4 sm:p-6 md:p-8 mt-4 md:mt-6 min-w-0 overflow-hidden border border-white/5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.4)] md:shadow-[0_12px_48px_-8px_rgba(0,0,0,0.5)]"
+              >
+                <h3 class="text-lg sm:text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                  <svg
+                    class="w-6 h-6 sm:w-7 sm:h-7 text-primary-400 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  Bulk CSV Upload
+                </h3>
+                <p class="text-xs sm:text-sm text-dark-300 mb-4 leading-relaxed">
+                  Upload a CSV to register multiple students. Rows are matched to existing
+                  <span class="text-dark-200 font-medium">student</span> accounts by display name or email
+                  username when possible. Admins may import rows with no match as roster-only records;
+                  teachers must have a matching account per row.
+                </p>
+                <div class="mb-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    id="csv-download-template-btn"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-500/15 text-primary-400 font-semibold text-sm hover:bg-primary-500/25 transition-all border border-primary-500/30 min-h-[44px]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    Download CSV Template
+                  </button>
+                </div>
+                <div
+                  id="csv-drop-zone"
+                  class="relative border-2 border-dashed border-dark-600 rounded-xl sm:rounded-2xl p-4 sm:p-8 text-center cursor-pointer hover:border-primary-500/70 hover:bg-primary-500/5 transition-all group min-h-[8rem]"
+                >
+                  <input
+                    type="file"
+                    id="csv-file-input"
+                    accept=".csv,text/csv"
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    aria-label="Choose CSV file"
+                  />
+                  <div class="pointer-events-none">
+                    <svg
+                      class="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-dark-500 group-hover:text-primary-400 transition-colors"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    <p class="text-dark-200 font-medium text-sm sm:text-base">Drag &amp; drop your CSV file here</p>
+                    <p class="text-dark-500 text-xs sm:text-sm mt-1">or click to browse</p>
+                  </div>
+                </div>
+                <div id="csv-preview-container" class="hide mt-4">
+                  <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h4 class="text-dark-100 font-semibold text-sm sm:text-base flex items-center gap-2">
+                      <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      Preview (<span id="csv-row-count">0</span> students)
+                    </h4>
+                    <button type="button" id="csv-clear-btn" class="text-sm text-red-400 hover:text-red-300 underline min-h-[44px] px-1">
+                      Clear
+                    </button>
+                  </div>
+                  <div class="overflow-x-auto max-h-72 overflow-y-auto rounded-xl border border-dark-600">
+                    <table class="w-full text-xs sm:text-sm min-w-[640px]">
+                      <thead class="sticky top-0 bg-dark-900/95 backdrop-blur-sm z-[1]">
+                        <tr class="border-b border-dark-600">
+                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">#</th>
+                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Name</th>
+                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Member ID</th>
+                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Year of Birth</th>
+                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Phone</th>
+                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Email</th>
+                          <th class="py-2 px-3 text-center text-dark-300 font-semibold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody id="csv-preview-body"></tbody>
+                    </table>
+                  </div>
+                  <div
+                    id="csv-error-summary"
+                    class="hide mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs sm:text-sm"
+                    role="alert"
+                  ></div>
+                  <button
+                    type="button"
+                    id="csv-upload-btn"
+                    class="w-full mt-4 min-h-[48px] py-3.5 px-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
+                  >
+                    <span class="flex items-center justify-center gap-2">
+                      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                      Register All Students
+                    </span>
+                  </button>
+                  <div id="csv-progress-container" class="hide mt-3">
+                    <div class="flex items-center justify-between text-xs sm:text-sm mb-1">
+                      <span class="text-dark-300" id="csv-progress-label">Registering...</span>
+                      <span class="text-primary-400 font-semibold" id="csv-progress-pct">0%</span>
+                    </div>
+                    <div class="h-2 bg-dark-700 rounded-full overflow-hidden">
+                      <div
+                        id="csv-progress-bar"
+                        class="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-300"
+                        style="width: 0%"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Registered Students List -->

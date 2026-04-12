@@ -58,13 +58,17 @@ export async function fetchStudentClasses(studentProfileIds: string[]): Promise<
   const courses: Course[] = [];
   await Promise.all(
     studentProfileIds.map(async (profileId) => {
-      const q = query(coursesRef, where('studentIds', 'array-contains', profileId));
-      const snapshot = await getDocs(q);
-      snapshot.docs.forEach((d) => {
-        if (seen.has(d.id)) return;
-        seen.add(d.id);
-        courses.push({ id: d.id, ...d.data() } as Course);
-      });
+      try {
+        const q = query(coursesRef, where('studentIds', 'array-contains', profileId));
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach((d) => {
+          if (seen.has(d.id)) return;
+          seen.add(d.id);
+          courses.push({ id: d.id, ...d.data() } as Course);
+        });
+      } catch {
+        /* Profile ID may not match rules-visible roster; continue with remaining IDs. */
+      }
     })
   );
   return courses;

@@ -177,6 +177,8 @@ export interface StudentAssessmentRow {
   courseId: string;
   courseName: string;
   submission?: Submission;
+  /** Roster profile id for this class (for submissions / take URL when a user has multiple profiles). */
+  activeStudentProfileId: string;
 }
 
 /** Fetch assessments visible to the current student. */
@@ -189,33 +191,57 @@ export async function fetchStudentAssessments(
 
   const results: StudentAssessmentRow[] = [];
   for (const courseDoc of enrolled) {
-    const courseName = courseDoc.courseName;
-    const aRef = collection(db, 'courses', courseDoc.id, 'assessments');
-    const aSnap = await getDocs(query(aRef, where('status', '==', 'published')));
-
-    for (const aDoc of aSnap.docs) {
-      const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
-
-      // If assigned individually, skip if student not in list
-      if (
-        assessment.assignedMode === 'individual' &&
-        !(assessment.assignedStudentIds ?? []).some((id) => studentProfileIds.includes(id))
-      )
-        continue;
-
-      // Look for existing submission
-      let submission: Submission | undefined;
+    try {
+      const courseName = courseDoc.courseName;
+      const roster = courseDoc.studentIds ?? [];
+      let activeStudentProfileId = studentProfileIds[0] || '';
       for (const spId of studentProfileIds) {
-        const subSnap = await getDoc(
-          doc(db, 'courses', courseDoc.id, 'assessments', aDoc.id, 'submissions', spId)
-        );
-        if (subSnap.exists()) {
-          submission = { id: subSnap.id, ...subSnap.data() } as Submission;
+        if (roster.includes(spId)) {
+          activeStudentProfileId = spId;
           break;
         }
       }
+      const aRef = collection(db, 'courses', courseDoc.id, 'assessments');
+      const aSnap = await getDocs(query(aRef, where('status', '==', 'published')));
 
-      results.push({ assessment, courseId: courseDoc.id, courseName, submission });
+      for (const aDoc of aSnap.docs) {
+        const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
+
+        if (
+          assessment.assignedMode === 'individual' &&
+          !(assessment.assignedStudentIds ?? []).some((id) => studentProfileIds.includes(id))
+        )
+          continue;
+
+        let submission: Submission | undefined;
+        let submissionProfileId = '';
+        for (const spId of studentProfileIds) {
+          try {
+            const subSnap = await getDoc(
+              doc(db, 'courses', courseDoc.id, 'assessments', aDoc.id, 'submissions', spId)
+            );
+            if (subSnap.exists()) {
+              submission = { id: subSnap.id, ...subSnap.data() } as Submission;
+              submissionProfileId = spId;
+              break;
+            }
+          } catch {
+            /* submission read denied for this profileId; try next */
+          }
+        }
+
+        const rowProfileId = submissionProfileId || activeStudentProfileId;
+
+        results.push({
+          assessment,
+          courseId: courseDoc.id,
+          courseName,
+          submission,
+          activeStudentProfileId: rowProfileId,
+        });
+      }
+    } catch {
+      /* Assessment query denied for this course; continue with remaining courses. */
     }
   }
   return results;
@@ -263,42 +289,50 @@ export async function fetchNextStudentDeadline(
   let bestDue = Infinity;
 
   for (const course of courses) {
-    const aSnap = await getDocs(
-      query(collection(db, 'courses', course.id, 'assessments'), where('status', '==', 'published'))
-    );
-    for (const aDoc of aSnap.docs) {
-      const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
-      const dueMs = parseAssessmentDueInstantMs(assessment.dueDateTime);
-      if (dueMs === null || dueMs <= nowMs) continue;
+    try {
+      const aSnap = await getDocs(
+        query(collection(db, 'courses', course.id, 'assessments'), where('status', '==', 'published'))
+      );
+      for (const aDoc of aSnap.docs) {
+        const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
+        const dueMs = parseAssessmentDueInstantMs(assessment.dueDateTime);
+        if (dueMs === null || dueMs <= nowMs) continue;
 
-      if (
-        assessment.assignedMode === 'individual' &&
-        !(assessment.assignedStudentIds ?? []).some((id) => profileIds.includes(id))
-      ) {
-        continue;
-      }
+        if (
+          assessment.assignedMode === 'individual' &&
+          !(assessment.assignedStudentIds ?? []).some((id) => profileIds.includes(id))
+        ) {
+          continue;
+        }
 
-      let submission: Submission | undefined;
-      for (const spId of profileIds) {
-        const subSnap = await getDoc(
-          doc(db, 'courses', course.id, 'assessments', aDoc.id, 'submissions', spId)
-        );
-        if (subSnap.exists()) {
-          submission = { id: subSnap.id, ...subSnap.data() } as Submission;
-          break;
+        let submission: Submission | undefined;
+        for (const spId of profileIds) {
+          try {
+            const subSnap = await getDoc(
+              doc(db, 'courses', course.id, 'assessments', aDoc.id, 'submissions', spId)
+            );
+            if (subSnap.exists()) {
+              submission = { id: subSnap.id, ...subSnap.data() } as Submission;
+              break;
+            }
+          } catch {
+            /* submission read denied for this profileId */
+          }
+        }
+        if (!submissionStillActionable(submission)) continue;
+
+        if (dueMs < bestDue) {
+          bestDue = dueMs;
+          best = {
+            assessment,
+            courseId: course.id,
+            courseName: course.courseName,
+            dueDateTime: assessment.dueDateTime,
+          };
         }
       }
-      if (!submissionStillActionable(submission)) continue;
-
-      if (dueMs < bestDue) {
-        bestDue = dueMs;
-        best = {
-          assessment,
-          courseId: course.id,
-          courseName: course.courseName,
-          dueDateTime: assessment.dueDateTime,
-        };
-      }
+    } catch {
+      /* assessment query denied for this course */
     }
   }
   return best;

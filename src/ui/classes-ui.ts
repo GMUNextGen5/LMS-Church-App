@@ -5,6 +5,7 @@ import { activateModalLayer } from '../core/modal-focus';
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents, fetchAllUsers, fetchAllStudentProfiles } from '../data/data';
 import { showLoading, hideLoading, showAppToast, formatErrorForUserToast } from './ui';
+import { escapeHtmlAttr } from '../core/a11y';
 import { escapeHtmlText as esc, renderTemplate, renderErrorPanel } from './dom-render';
 import {
   fetchStudentClasses,
@@ -65,7 +66,7 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
  */
 function populateStudentDropdown(
   owner: 'admin' | 'teacher',
-  students: { id: string; name: string }[],
+  students: { id: string; name: string; memberId?: string }[],
   preselected?: Set<string>
 ): void {
   const modal =
@@ -80,17 +81,31 @@ function populateStudentDropdown(
   const menuHtml =
     students.length === 0
       ? '<p class="px-3 py-2 text-dark-500 text-sm">No students available</p>'
-      : students
-          .map((s) => {
-            const checked = preselected?.has(s.id) ? 'checked' : '';
-            return `<label class="student-dropdown-item flex items-center gap-2 px-3 py-1.5 hover:bg-dark-600/60 cursor-pointer text-sm text-white">
-          <input type="checkbox" value="${esc(s.id)}" ${checked} class="accent-primary-500" /> ${esc(safeStudentDisplayName(s.name))}
+      : `<input type="search" class="student-dropdown-filter w-[calc(100%-1rem)] mx-2 mt-2 mb-1 px-3 py-2 rounded-lg border border-dark-600 bg-dark-800 text-white text-sm placeholder-dark-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40" placeholder="Search by name or member ID…" autocomplete="off" aria-label="Filter students by name" />
+      ${students
+        .map((s) => {
+          const checked = preselected?.has(s.id) ? 'checked' : '';
+          const hay = `${safeStudentDisplayName(s.name)} ${s.memberId || ''} ${s.id}`.trim().toLowerCase();
+          const mid = s.memberId ? ` <span class="text-dark-500 text-xs">(${esc(s.memberId)})</span>` : '';
+          return `<label class="student-dropdown-item flex items-center gap-2 px-3 py-1.5 hover:bg-dark-600/60 cursor-pointer text-sm text-white" data-student-filter="${escapeHtmlAttr(hay)}">
+          <input type="checkbox" value="${esc(s.id)}" ${checked} class="accent-primary-500 shrink-0" /> <span class="min-w-0">${esc(safeStudentDisplayName(s.name))}${mid}</span>
         </label>`;
-          })
-          .join('');
+        })
+        .join('')}`;
   renderTemplate(menu, menuHtml);
 
   updateDropdownLabel(dd, preselected?.size ?? 0);
+
+  const filterEl = menu.querySelector('.student-dropdown-filter') as HTMLInputElement | null;
+  if (filterEl) {
+    filterEl.addEventListener('input', () => {
+      const q = filterEl.value.trim().toLowerCase();
+      menu.querySelectorAll('.student-dropdown-item').forEach((el) => {
+        const hay = (el as HTMLElement).getAttribute('data-student-filter') || '';
+        (el as HTMLElement).classList.toggle('hidden', !!(q && !hay.includes(q)));
+      });
+    });
+  }
 
   // Toggle menu open/close
   const toggleBtn = dd.querySelector('.student-dropdown-toggle') as HTMLElement;
@@ -106,6 +121,54 @@ function populateStudentDropdown(
     const count = menu.querySelectorAll('input[type="checkbox"]:checked').length;
     updateDropdownLabel(dd, count);
   });
+}
+
+function renderAdminTeacherOptions(
+  sel: HTMLSelectElement,
+  filterQuery: string,
+  preserveUid: string
+): void {
+  const q = filterQuery.trim().toLowerCase();
+  const prev = preserveUid;
+  sel.replaceChildren();
+  const optNone = document.createElement('option');
+  optNone.value = '';
+  optNone.textContent = '— Select —';
+  sel.appendChild(optNone);
+  const added = new Set<string>();
+  for (const t of cachedTeachers) {
+    const label = userProfileDisplayLabel(t);
+    const hay = `${label} ${t.email || ''} ${t.memberId || ''} ${t.uid}`.toLowerCase();
+    if (q && !hay.includes(q)) continue;
+    const o = document.createElement('option');
+    o.value = t.uid;
+    o.textContent = t.email ? `${label} · ${t.email}` : label;
+    sel.appendChild(o);
+    added.add(t.uid);
+  }
+  if (prev && !added.has(prev)) {
+    const t = cachedTeachers.find((x) => x.uid === prev);
+    if (t) {
+      const o = document.createElement('option');
+      o.value = t.uid;
+      o.textContent = `${userProfileDisplayLabel(t)}${t.email ? ` · ${t.email}` : ''}`;
+      sel.appendChild(o);
+    }
+  }
+  if (prev && Array.from(sel.options).some((o) => o.value === prev)) sel.value = prev;
+}
+
+function wireAdminTeacherSearch(modal: HTMLElement): void {
+  const input = modal.querySelector('#admin-teacher-filter') as HTMLInputElement | null;
+  const sel = modal.querySelector('[name="teacherId"]') as HTMLSelectElement | null;
+  if (!input || !sel) return;
+  const root = modal.querySelector('#class-form-modal-panel');
+  if (root && !(root as HTMLElement & { __lmsTeacherFilter?: boolean }).__lmsTeacherFilter) {
+    (root as HTMLElement & { __lmsTeacherFilter?: boolean }).__lmsTeacherFilter = true;
+    input.addEventListener('input', () => {
+      renderAdminTeacherOptions(sel, input.value, sel.value);
+    });
+  }
 }
 
 function updateDropdownLabel(dd: HTMLElement, count: number): void {
@@ -156,7 +219,7 @@ function getAdminModal(): HTMLElement {
   renderTemplate(
     adminModalEl,
     `
-    <div id="class-form-modal-panel" class="classes-modal-box lms-modal-surface w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="class-form-title">
+    <div id="class-form-modal-panel" class="classes-modal-box classes-modal-box--glass lms-modal-surface w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="class-form-title">
       <h3 id="class-form-title" class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="class-form" data-course-id="">
         <div class="space-y-4">
@@ -180,8 +243,10 @@ function getAdminModal(): HTMLElement {
           </div>
           <div id="admin-teacher-field">
             <label class="block text-dark-300 text-sm mb-1">Teacher</label>
+            <input type="search" id="admin-teacher-filter" autocomplete="off" placeholder="Search by name, email, or ID…" aria-label="Filter teachers"
+              class="w-full px-3 py-2 mb-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm placeholder-dark-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40 min-h-[44px]" />
             <select name="teacherId"
-              class="w-full px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
+              class="w-full px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm min-h-[44px]">
               <option value="">— Select —</option>
             </select>
           </div>
@@ -239,7 +304,7 @@ function getTeacherModal(): HTMLElement {
   renderTemplate(
     teacherModalEl,
     `
-    <div id="teacher-class-form-modal-panel" class="classes-modal-box lms-modal-surface w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="teacher-class-form-title">
+    <div id="teacher-class-form-modal-panel" class="classes-modal-box classes-modal-box--glass lms-modal-surface w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="teacher-class-form-title">
       <h3 id="teacher-class-form-title" class="text-lg font-bold text-white mb-4">Create Class</h3>
       <form id="teacher-class-form" data-course-id="">
         <div class="space-y-4">
@@ -340,19 +405,11 @@ function openClassFormModal(editCourseId?: string): void {
   const form = modal.querySelector('#class-form') as HTMLFormElement;
   const titleEl = modal.querySelector('#class-form-title')!;
 
-  // Refresh teacher dropdown
   const sel = form.querySelector('[name="teacherId"]') as HTMLSelectElement;
-  sel.replaceChildren();
-  const optNone = document.createElement('option');
-  optNone.value = '';
-  optNone.textContent = '— Select —';
-  sel.appendChild(optNone);
-  for (const t of cachedTeachers) {
-    const o = document.createElement('option');
-    o.value = t.uid;
-    o.textContent = userProfileDisplayLabel(t);
-    sel.appendChild(o);
-  }
+  const teacherFilter = modal.querySelector('#admin-teacher-filter') as HTMLInputElement | null;
+  wireAdminTeacherSearch(modal);
+  if (teacherFilter) teacherFilter.value = '';
+  renderAdminTeacherOptions(sel, '', '');
 
   form.setAttribute('data-course-id', editCourseId || '');
   titleEl.textContent = editCourseId ? 'Edit Class' : 'Create Class';
@@ -367,12 +424,14 @@ function openClassFormModal(editCourseId?: string): void {
         (form.querySelector('[name="schedule"]') as HTMLInputElement).value = c.schedule || '';
         (form.querySelector('[name="description"]') as HTMLTextAreaElement).value =
           c.description || '';
-        sel.value = c.teacherId || '';
+        const tid = c.teacherId || '';
+        if (teacherFilter) teacherFilter.value = '';
+        renderAdminTeacherOptions(sel, '', tid);
         // Populate student dropdown with pre-selected enrolled students
         const enrolledIds = new Set(c.studentIds ?? []);
         populateStudentDropdown(
           'admin',
-          cachedAllStudents.map((s) => ({ id: s.id, name: s.name })),
+          cachedAllStudents.map((s) => ({ id: s.id, name: s.name, memberId: s.memberId })),
           enrolledIds
         );
       }
@@ -380,10 +439,11 @@ function openClassFormModal(editCourseId?: string): void {
   } else {
     form.reset();
     form.setAttribute('data-course-id', '');
-    // Populate student dropdown with no pre-selection
+    if (teacherFilter) teacherFilter.value = '';
+    renderAdminTeacherOptions(sel, '', '');
     populateStudentDropdown(
       'admin',
-      cachedAllStudents.map((s) => ({ id: s.id, name: s.name }))
+      cachedAllStudents.map((s) => ({ id: s.id, name: s.name, memberId: s.memberId }))
     );
   }
 
@@ -417,7 +477,7 @@ async function openTeacherClassFormModal(): Promise<void> {
     const students = await fetchAllStudentProfiles();
     populateStudentDropdown(
       'teacher',
-      students.map((s) => ({ id: s.id, name: s.name }))
+      students.map((s) => ({ id: s.id, name: s.name, memberId: s.memberId }))
     );
   } catch {
     // Fallback: empty dropdown
@@ -451,7 +511,7 @@ async function openTeacherClassFormModalForEdit(courseId: string): Promise<void>
     const enrolled = new Set(course?.studentIds ?? []);
     populateStudentDropdown(
       'teacher',
-      students.map((s) => ({ id: s.id, name: s.name })),
+      students.map((s) => ({ id: s.id, name: s.name, memberId: s.memberId })),
       enrolled
     );
   } catch {
@@ -555,7 +615,7 @@ async function renderStudentView(): Promise<void> {
         ? `${prog.done} / ${prog.total} assessments submitted`
         : 'No published assessments yet';
     return `
-    <div class="bg-dark-800/60 rounded-2xl border border-dark-700 p-5 hover:border-dark-500 transition-all space-y-3">
+    <div class="rounded-2xl border border-white/10 bg-dark-800/55 backdrop-blur-md p-5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.35)] hover:border-primary-500/25 transition-all space-y-3 md:p-6">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="text-white font-semibold text-base truncate">${esc(safeCourseDisplayName(c.courseName))}</h3>
