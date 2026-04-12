@@ -21,7 +21,8 @@
     "dompurify": "^3.3.2",
     "firebase": "^10.13.0",
     "jspdf": "^2.5.2",
-    "jspdf-autotable": "^3.8.4"
+    "jspdf-autotable": "^3.8.4",
+    "lucide": "^1.8.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

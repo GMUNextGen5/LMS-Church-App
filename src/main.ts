@@ -143,6 +143,7 @@ import {
   escapeHtmlText,
   renderTemplate,
 } from './ui/dom-render';
+import { hydrateLmsLucideIcons } from './ui/lucide-hydrate';
 
 let currentStudents: Student[] = [];
 let currentGrades: Grade[] = [];
@@ -454,6 +455,16 @@ async function init(): Promise<void> {
   try {
     initUI();
     hideAllRoleRegionsForAuthHandshake();
+    try {
+      hydrateLmsLucideIcons(document);
+    } catch {
+      /* lucide placeholders */
+    }
+    try {
+      wireChangeRoleModal();
+    } catch {
+      /* role modal */
+    }
   } catch {
     // UI boot should not block Firebase init; fall through to banner-based error handling if needed.
   }
@@ -2124,14 +2135,13 @@ async function loadAllUsers(): Promise<void> {
           mobileList,
           `<li class="list-none">
   <div class="rounded-2xl border border-dashed border-surface-default bg-surface-container-tonal px-5 py-12 text-center">
-    <svg class="mx-auto h-11 w-11 text-slate-400 dark:text-slate-500 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
+    <i data-lucide="users" class="mx-auto block h-11 w-11 text-slate-400 opacity-90 dark:text-slate-500" aria-hidden="true"></i>
     <p class="mt-4 text-base font-semibold text-on-surface">No accounts in the directory</p>
     <p class="mt-2 text-sm text-on-surface-muted max-w-sm mx-auto leading-relaxed">User records will appear here as administrators, teachers, and learners are provisioned.</p>
   </div>
 </li>`
         );
+        hydrateLmsLucideIcons(mobileList);
       }
       return;
     }
@@ -2207,9 +2217,7 @@ async function loadAllUsers(): Promise<void> {
         <button type="button" data-lms-action="change-role" data-user-id="${uidAttr}" data-user-role="${roleAttr}"
           class="mt-4 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-primary-500/35 bg-primary-500/15 px-4 py-3 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent dark:text-primary-300 dark:hover:bg-primary-500/20 touch-manipulation">
           <span>Change role</span>
-          <svg class="h-4 w-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
+          <i data-lucide="chevron-right" class="h-4 w-4 opacity-80" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -2218,6 +2226,7 @@ async function loadAllUsers(): Promise<void> {
         })
         .join('');
       renderTemplate(mobileList, mobileCardsHtml);
+      hydrateLmsLucideIcons(mobileList);
     }
   } catch (error: unknown) {
     if (tableBody) {
@@ -2232,14 +2241,13 @@ async function loadAllUsers(): Promise<void> {
         mobileList,
         `<li class="list-none">
   <div class="rounded-2xl border border-red-500/35 bg-red-500/[0.06] px-5 py-8 text-center">
-    <svg class="mx-auto h-10 w-10 text-red-400/90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-    </svg>
+    <i data-lucide="alert-triangle" class="mx-auto block h-10 w-10 text-red-400/90" aria-hidden="true"></i>
     <p class="mt-3 text-sm font-semibold text-on-surface">Could not load users</p>
     <p class="mt-2 text-xs text-on-surface-muted leading-relaxed">Tap <span class="font-medium text-primary-600 dark:text-primary-300">Refresh</span> at the top to try again.</p>
   </div>
 </li>`
       );
+      hydrateLmsLucideIcons(mobileList);
     }
     showAppToast(formatErrorForUserToast(error, 'Could not load users.'), 'error');
   }
@@ -2868,31 +2876,99 @@ lmsWin.handleDeleteTeacher = async (userId: string) => {
   }
 };
 
+let changeRoleContext: { userId: string; currentRoleNorm: string } | null = null;
+let changeRoleSelected: 'admin' | 'teacher' | 'student' = 'student';
+
+function syncChangeRoleSegments(): void {
+  document.querySelectorAll<HTMLButtonElement>('.change-role-segment[data-change-role-value]').forEach((btn) => {
+    const v = btn.dataset.changeRoleValue;
+    const on = v === changeRoleSelected;
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    btn.classList.toggle('change-role-segment--active', on);
+  });
+}
+
+function openChangeRoleModal(userId: string, currentRole: string): void {
+  const modal = document.getElementById('change-role-modal');
+  const userIdEl = document.getElementById('change-role-user-id') as HTMLInputElement | null;
+  const currentLabel = document.getElementById('change-role-current-label');
+  if (!modal || !userIdEl) return;
+  const cr = currentRole.trim().toLowerCase();
+  const valid = cr === 'admin' || cr === 'teacher' || cr === 'student';
+  changeRoleSelected = valid ? cr : 'student';
+  changeRoleContext = { userId, currentRoleNorm: valid ? cr : 'student' };
+  userIdEl.value = userId;
+  if (currentLabel) currentLabel.textContent = currentRole.trim() || currentRole;
+  syncChangeRoleSegments();
+  modal.classList.remove('hide');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeChangeRoleModal(): void {
+  const modal = document.getElementById('change-role-modal');
+  const userIdEl = document.getElementById('change-role-user-id') as HTMLInputElement | null;
+  if (userIdEl) userIdEl.value = '';
+  modal?.classList.add('hide');
+  document.body.style.overflow = '';
+  changeRoleContext = null;
+}
+
+function wireChangeRoleModal(): void {
+  const modal = document.getElementById('change-role-modal');
+  if (!modal || (modal as HTMLElement & { __lmsWired?: boolean }).__lmsWired) return;
+  (modal as HTMLElement & { __lmsWired?: boolean }).__lmsWired = true;
+
+  document.querySelectorAll<HTMLButtonElement>('.change-role-segment[data-change-role-value]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.changeRoleValue;
+      if (v === 'admin' || v === 'teacher' || v === 'student') {
+        changeRoleSelected = v;
+        syncChangeRoleSegments();
+      }
+    });
+  });
+
+  const onClose = (): void => {
+    closeChangeRoleModal();
+  };
+  document.getElementById('change-role-modal-close')?.addEventListener('click', onClose);
+  document.getElementById('change-role-cancel-btn')?.addEventListener('click', onClose);
+  document.querySelectorAll('[data-change-role-dismiss]').forEach((el) => {
+    el.addEventListener('click', onClose);
+  });
+
+  document.getElementById('change-role-confirm-btn')?.addEventListener('click', async () => {
+    if (!changeRoleContext) return;
+    const { userId, currentRoleNorm } = changeRoleContext;
+    const roleNormalized = changeRoleSelected;
+    if (roleNormalized === currentRoleNorm) {
+      showAppToast('No change — same role.', 'info');
+      closeChangeRoleModal();
+      return;
+    }
+    closeChangeRoleModal();
+    try {
+      showLoading();
+      await updateUserRoleDirect(userId, roleNormalized);
+      await loadAllUsers();
+      showAppToast(`User role changed to ${roleNormalized}.`, 'success');
+    } catch (error: unknown) {
+      showAppToast(formatErrorForUserToast(error, "Could not change this user's role."), 'error');
+    } finally {
+      hideLoading();
+    }
+  });
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    const m = document.getElementById('change-role-modal');
+    if (!m || m.classList.contains('hide')) return;
+    onClose();
+  });
+}
+
 lmsWin.handleChangeRole = async (userId: string, currentRole: string) => {
-  const newRole = prompt(
-    `Change role for this user.\n\nCurrent role: ${currentRole}\n\nEnter new role (admin, teacher, or student):`,
-    currentRole
-  );
-  if (!newRole) return;
-  const roleNormalized = newRole.trim().toLowerCase();
-  if (!['admin', 'teacher', 'student'].includes(roleNormalized)) {
-    showAppToast('Invalid role. Must be: admin, teacher, or student.', 'info');
-    return;
-  }
-  if (roleNormalized === currentRole) {
-    showAppToast('No change — same role.', 'info');
-    return;
-  }
-  try {
-    showLoading();
-    await updateUserRoleDirect(userId, roleNormalized as 'admin' | 'teacher' | 'student');
-    await loadAllUsers();
-    showAppToast(`User role changed to ${roleNormalized}.`, 'success');
-  } catch (error: unknown) {
-    showAppToast(formatErrorForUserToast(error, "Could not change this user's role."), 'error');
-  } finally {
-    hideLoading();
-  }
+  openChangeRoleModal(userId, currentRole);
 };
 
 // --- Dashboard stats & recent activity ---

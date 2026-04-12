@@ -1528,6 +1528,39 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.06);
       }
 
+      /* Change role modal — liquid glass segment */
+      #change-role-modal .change-role-segment {
+        transition:
+          background-color 0.22s ease,
+          box-shadow 0.22s ease,
+          color 0.22s ease,
+          border-color 0.22s ease,
+          transform 0.15s ease;
+      }
+      #change-role-modal .change-role-segment.change-role-segment--active {
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        background: rgba(255, 255, 255, 0.78);
+        color: #0f172a;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.95) inset,
+          0 4px 14px rgba(15, 23, 42, 0.1);
+        border: 1px solid rgba(203, 213, 225, 0.95);
+      }
+      [data-theme='dark'] #change-role-modal .change-role-segment.change-role-segment--active {
+        background: rgba(255, 255, 255, 0.12);
+        color: #f8fafc;
+        border-color: rgba(255, 255, 255, 0.22);
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.12) inset,
+          0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #change-role-modal .change-role-segment {
+          transition: none;
+        }
+      }
+
       /* Premium metric surfaces (LMS shell) */
       .card-blur {
         background: rgba(10, 20, 40, 0.52);
@@ -8776,58 +8809,76 @@
             <!-- User Management Tab (Admin Only) -->
             <div id="users-content" class="tab-content admin-only hide">
               <div
-                class="glass-effect rounded-3xl p-4 md:p-6 max-md:shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:max-md:shadow-[0_12px_48px_rgba(0,0,0,0.45)]"
+                class="lms-users-section glass-effect rounded-[1.35rem] md:rounded-3xl border border-slate-200/70 bg-white/[0.65] p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.85)_inset,0_1px_2px_rgba(15,23,42,0.04),0_8px_28px_-4px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/[0.09] dark:bg-dark-900/35 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_12px_48px_-8px_rgba(0,0,0,0.55)] md:p-8"
               >
                 <div
-                  class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6"
+                  class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6 mb-5 md:mb-7"
                 >
-                  <h3 class="text-xl md:text-2xl font-bold text-white">User Management</h3>
+                  <div class="min-w-0 space-y-1">
+                    <p
+                      class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-primary-600/90 dark:text-primary-400/95"
+                    >
+                      Administration
+                    </p>
+                    <h3
+                      class="font-display text-2xl font-semibold tracking-tight text-slate-900 dark:text-white md:text-[1.65rem] md:leading-tight"
+                    >
+                      User Management
+                    </h3>
+                    <p class="hidden text-sm text-slate-600 dark:text-dark-400 md:block max-w-xl leading-relaxed">
+                      View accounts, search by name or email, and update roles when needed.
+                    </p>
+                  </div>
                   <button
                     id="refresh-users-btn"
-                    class="w-full sm:w-auto px-4 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-all touch-manipulation"
+                    type="button"
+                    class="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-b from-primary-500 to-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_1px_0_0_rgba(255,255,255,0.2)_inset,0_4px_14px_-2px_rgba(20,95,89,0.45)] ring-1 ring-white/15 transition-[transform,box-shadow,background-color] duration-200 hover:from-primary-400 hover:to-primary-500 hover:shadow-[0_8px_24px_-4px_rgba(20,95,89,0.5)] motion-safe:active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-dark-950 touch-manipulation"
                   >
-                    <span class="flex items-center gap-2">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                        ></path>
-                      </svg>
-                      Refresh
-                    </span>
+                    <i
+                      data-lucide="refresh-cw"
+                      class="h-[18px] w-[18px] shrink-0 transition-transform duration-500 motion-safe:group-hover:rotate-180"
+                      aria-hidden="true"
+                    ></i>
+                    <span>Refresh</span>
                   </button>
                 </div>
 
-                <div class="mb-4 hidden md:block p-4 bg-primary-500/10 border border-primary-500/30 rounded-lg">
-                  <p class="text-sm text-primary-300">
-                    <strong>Automated:</strong> New users automatically get "Student" role when they
-                    sign up. Use this panel to promote users to Teacher or Admin.
+                <div
+                  class="mb-4 hidden md:block rounded-2xl border border-primary-500/25 bg-primary-500/[0.06] p-4 dark:border-primary-500/30 dark:bg-primary-500/10"
+                >
+                  <p class="text-sm leading-relaxed text-primary-900/90 dark:text-primary-300">
+                    <strong class="font-semibold text-primary-950 dark:text-primary-200"
+                      >Automated:</strong
+                    >
+                    New users automatically get "Student" role when they sign up. Use this panel to
+                    promote users to Teacher or Admin.
                   </p>
                 </div>
                 <div
-                  class="mb-4 md:hidden flex gap-3 rounded-2xl border border-primary-500/20 bg-primary-500/[0.07] px-3.5 py-3"
+                  class="mb-4 md:hidden flex gap-3 rounded-2xl border border-primary-500/18 bg-gradient-to-br from-primary-500/[0.09] to-primary-600/[0.04] px-3.5 py-3.5 shadow-sm shadow-primary-900/10"
                 >
-                  <span
-                    class="material-symbols-outlined text-primary-400 shrink-0 text-[22px] leading-none"
+                  <i
+                    data-lucide="info"
+                    class="mt-0.5 h-5 w-5 shrink-0 text-primary-600 dark:text-primary-400"
                     aria-hidden="true"
-                    >info</span
-                  >
-                  <p class="text-xs text-primary-200/95 leading-relaxed">
-                    New accounts default to <span class="font-semibold text-primary-100">Student</span>.
-                    Open a card to change role.
+                  ></i>
+                  <p class="text-xs leading-relaxed text-slate-700 dark:text-primary-200/95">
+                    New accounts default to
+                    <span class="font-semibold text-slate-900 dark:text-primary-50">Student</span>. Open
+                    a card to change role.
                   </p>
                 </div>
 
                 <div class="md:hidden mb-3 flex items-center justify-between gap-2 min-h-[1.25rem]">
                   <span
-                    class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-dark-500 dark:text-slate-500"
-                    >Directory</span
+                    class="inline-flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"
                   >
+                    <i data-lucide="users" class="h-3.5 w-3.5 opacity-70" aria-hidden="true"></i>
+                    Directory
+                  </span>
                   <span
                     id="users-mobile-count"
-                    class="inline-flex min-w-[1.75rem] items-center justify-center rounded-full bg-slate-900/60 px-2 py-0.5 text-[0.7rem] font-semibold tabular-nums text-white ring-1 ring-white/10 dark:bg-white/10 dark:ring-white/15"
+                    class="inline-flex min-w-[1.75rem] items-center justify-center rounded-full bg-slate-900/[0.06] px-2.5 py-1 text-[0.7rem] font-semibold tabular-nums text-slate-800 ring-1 ring-slate-900/10 dark:bg-white/10 dark:text-white dark:ring-white/15"
                     aria-live="polite"
                     >—</span
                   >
@@ -8835,30 +8886,17 @@
 
                 <div class="relative mb-4">
                   <span
-                    class="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-dark-500 md:hidden"
+                    class="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-slate-400 dark:text-slate-500 md:hidden"
                     aria-hidden="true"
                   >
-                    <svg
-                      class="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      ></path>
-                    </svg>
+                    <i data-lucide="search" class="h-5 w-5"></i>
                   </span>
                   <input
                     type="search"
                     enterkeyhint="search"
                     id="users-search"
                     placeholder="Search by name or email..."
-                    class="w-full pl-11 pr-4 py-3.5 md:pl-4 rounded-2xl bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/25 input-glow transition-all text-base md:rounded-lg"
+                    class="w-full border border-slate-200/90 bg-white/90 pl-11 pr-4 py-3.5 text-base text-slate-900 shadow-sm shadow-slate-900/5 placeholder:text-slate-400 transition-[border-color,box-shadow] focus:border-primary-400/80 focus:outline-none focus:ring-4 focus:ring-primary-500/15 dark:border-dark-600 dark:bg-dark-800 dark:text-white dark:placeholder-dark-400 dark:shadow-none md:rounded-lg md:pl-4 rounded-2xl md:py-3"
                     aria-label="Search users by name or email"
                     autocomplete="off"
                     autocorrect="off"
@@ -9172,6 +9210,121 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Change user role (Admin) — liquid glass modal -->
+    <div
+      id="change-role-modal"
+      class="lms-fixed-overlay-safe fixed inset-0 z-[60] flex items-center justify-center p-4 hide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="change-role-modal-title"
+    >
+      <div
+        class="absolute inset-0 bg-slate-950/65 backdrop-blur-md transition-opacity dark:bg-black/55"
+        data-change-role-dismiss
+        aria-hidden="true"
+      ></div>
+      <div
+        class="relative z-10 w-full max-w-[22rem] overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white/85 shadow-[0_20px_60px_-12px_rgba(15,23,42,0.2),inset_0_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/15 dark:bg-gradient-to-b dark:from-white/[0.12] dark:to-white/[0.03] dark:shadow-[0_12px_48px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
+      >
+        <div class="rounded-[1.5rem] px-5 pt-5 pb-4 dark:bg-gradient-to-b dark:from-white/[0.04] dark:to-transparent">
+          <div class="mb-4 flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p
+                class="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-primary-600/90 dark:text-primary-400/90"
+              >
+                User role
+              </p>
+              <h3
+                id="change-role-modal-title"
+                class="font-display mt-1 text-xl font-semibold tracking-tight text-slate-900 dark:text-white"
+              >
+                Change role
+              </h3>
+              <p class="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-dark-400">
+                Current:
+                <span
+                  id="change-role-current-label"
+                  class="font-semibold capitalize text-slate-800 dark:text-white"
+                  >—</span
+                >
+              </p>
+            </div>
+            <button
+              type="button"
+              id="change-role-modal-close"
+              class="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-900/5 hover:text-slate-800 dark:text-dark-400 dark:hover:bg-white/10 dark:hover:text-white"
+              aria-label="Close"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+            </button>
+          </div>
+
+          <input type="hidden" id="change-role-user-id" value="" />
+
+          <p class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-dark-500">
+            New role
+          </p>
+          <div
+            class="flex gap-1 rounded-2xl border border-slate-200/90 bg-slate-100/90 p-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.06)] backdrop-blur-md dark:border-white/10 dark:bg-black/35 dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]"
+            role="radiogroup"
+            aria-label="Select new role"
+          >
+            <button
+              type="button"
+              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-offset-dark-950"
+              data-change-role-value="student"
+              role="radio"
+              aria-checked="false"
+            >
+              Student
+            </button>
+            <button
+              type="button"
+              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-offset-dark-950"
+              data-change-role-value="teacher"
+              role="radio"
+              aria-checked="false"
+            >
+              Teacher
+            </button>
+            <button
+              type="button"
+              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-offset-dark-950"
+              data-change-role-value="admin"
+              role="radio"
+              aria-checked="false"
+            >
+              Admin
+            </button>
+          </div>
+
+          <div class="mt-5 flex gap-2">
+            <button
+              type="button"
+              id="change-role-cancel-btn"
+              class="flex-1 rounded-xl border border-slate-200/90 bg-white/50 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-white/80 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              id="change-role-confirm-btn"
+              class="flex-1 rounded-xl bg-gradient-to-b from-primary-500 to-primary-600 py-3 text-sm font-semibold text-white shadow-[0_1px_0_0_rgba(255,255,255,0.2)_inset,0_4px_16px_-2px_rgba(20,95,89,0.45)] ring-1 ring-white/15 transition-[transform,box-shadow] hover:from-primary-400 hover:to-primary-500 motion-safe:active:scale-[0.98]"
+            >
+              Save
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
