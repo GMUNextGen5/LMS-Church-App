@@ -2401,6 +2401,27 @@
         color: white;
       }
 
+      /* Compact theme toggle — mobile app bar (matches header behavior) */
+      .lms-mobile-theme-toggle.theme-toggle {
+        width: 52px;
+        height: 28px;
+        flex-shrink: 0;
+      }
+
+      .lms-mobile-theme-toggle .theme-toggle-slider {
+        width: 22px;
+        height: 22px;
+      }
+
+      .lms-mobile-theme-toggle .theme-icon {
+        width: 12px;
+        height: 12px;
+      }
+
+      [data-theme='light'] .lms-mobile-theme-toggle .theme-toggle-slider {
+        transform: translateX(24px);
+      }
+
       /* Hide scrollbar for Chrome, Safari and Opera */
       .no-scrollbar::-webkit-scrollbar {
         display: none;
@@ -6047,10 +6068,48 @@
             >
             <button
               type="button"
+              id="lms-mobile-theme-toggle-btn"
+              class="lms-mobile-theme-toggle theme-toggle"
+              title="Toggle dark/light mode"
+              aria-label="Toggle theme"
+            >
+              <div class="theme-toggle-slider">
+                <svg
+                  class="theme-icon moon-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                  ></path>
+                </svg>
+                <svg
+                  class="theme-icon sun-icon hide"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                  ></path>
+                </svg>
+              </div>
+            </button>
+            <button
+              type="button"
               id="lms-mobile-notifications-btn"
               class="relative p-2 rounded-xl text-primary-800 hover:bg-primary-500/10 dark:text-primary-300 dark:hover:bg-primary-400/10 transition-colors"
               aria-label="Notifications"
               title="Notifications"
+              aria-expanded="false"
+              aria-controls="lms-notifications-popover"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -6061,7 +6120,8 @@
                 ></path>
               </svg>
               <span
-                class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-dark-950"
+                id="lms-mobile-notifications-dot"
+                class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-dark-950"
                 aria-hidden="true"
               ></span>
             </button>
@@ -6154,6 +6214,8 @@
                 class="relative p-2 rounded-xl text-dark-400 hover:text-primary-300 transition-colors"
                 aria-label="Notifications"
                 title="Notifications"
+                aria-expanded="false"
+                aria-controls="lms-notifications-popover"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -6164,6 +6226,7 @@
                   ></path>
                 </svg>
                 <span
+                  id="lms-header-notifications-dot"
                   class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-dark-950"
                   aria-hidden="true"
                 ></span>
@@ -6232,6 +6295,65 @@
               </button>
             </div>
           </header>
+
+          <!-- Notifications: backdrop + panel (mobile + desktop bells) -->
+          <div
+            id="lms-notifications-backdrop"
+            class="hidden md:hidden fixed inset-0 z-[44] bg-slate-950/40"
+            aria-hidden="true"
+          ></div>
+          <div
+            id="lms-notifications-popover"
+            class="hidden fixed z-[45] flex flex-col left-3 right-3 top-[max(3.75rem,env(safe-area-inset-top,0px)+2.75rem)] md:left-auto md:right-4 md:top-16 md:w-[min(100%-2rem,22rem)] max-h-[min(70vh,26rem)] rounded-2xl border border-slate-200/90 bg-white shadow-xl dark:border-white/10 dark:bg-[#0c1528] dark:shadow-[0_16px_48px_rgba(0,0,0,0.45)]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lms-notifications-title"
+          >
+            <div
+              class="flex items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2.5 dark:border-white/10"
+            >
+              <h2
+                id="lms-notifications-title"
+                class="text-sm font-semibold text-slate-900 dark:text-white font-display"
+              >
+                Notifications
+              </h2>
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  id="lms-notifications-mark-all"
+                  class="text-xs font-medium text-primary-700 hover:text-primary-600 dark:text-primary-300 dark:hover:text-primary-200 px-2 py-1 rounded-lg"
+                >
+                  Mark all read
+                </button>
+                <button
+                  type="button"
+                  id="lms-notifications-close"
+                  class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+                  aria-label="Close notifications"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <ul
+              id="lms-notifications-list"
+              class="overflow-y-auto flex-1 min-h-0 divide-y divide-slate-100 dark:divide-white/10 p-0 list-none m-0"
+            ></ul>
+            <p
+              id="lms-notifications-empty"
+              class="hidden px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
+            >
+              You’re all caught up.
+            </p>
+          </div>
 
           <!-- Hidden elements for backwards compatibility -->
           <div class="hidden">
@@ -9173,6 +9295,12 @@
         if (dashboardToggle) {
           dashboardToggle.addEventListener('click', toggleTheme);
         }
+
+        // Mobile app bar theme toggle (same persistence as desktop)
+        const mobileThemeToggle = document.getElementById('lms-mobile-theme-toggle-btn');
+        if (mobileThemeToggle) {
+          mobileThemeToggle.addEventListener('click', toggleTheme);
+        }
       }
 
       /**
@@ -9182,6 +9310,7 @@
         const toggles = [
           document.getElementById('auth-theme-toggle-btn'),
           document.getElementById('theme-toggle-btn'),
+          document.getElementById('lms-mobile-theme-toggle-btn'),
         ];
 
         toggles.forEach((toggle) => {
@@ -9202,6 +9331,227 @@
 
       // Initialize theme immediately (before DOMContentLoaded for instant theme)
       initTheme();
+
+      /* ---------- In-app notifications (header + mobile bell) ---------- */
+      const LMS_NOTIFICATIONS_STORAGE_KEY = 'lms-notifications-state-v1';
+
+      let lmsNotificationsPanelOpen = false;
+
+      function lmsEscapeHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function loadNotificationsState() {
+        try {
+          const raw = safeGetStorage(LMS_NOTIFICATIONS_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.items)) return parsed;
+          }
+        } catch (e) {
+          /* ignore */
+        }
+        return { items: [] };
+      }
+
+      function saveNotificationsState(state) {
+        safeSetStorage(LMS_NOTIFICATIONS_STORAGE_KEY, JSON.stringify(state));
+      }
+
+      /** First visit only: seed a welcome notification (empty storage key). */
+      function ensureNotificationsSeeded() {
+        try {
+          if (safeGetStorage(LMS_NOTIFICATIONS_STORAGE_KEY) != null) return;
+        } catch (e) {
+          return;
+        }
+        saveNotificationsState({
+          items: [
+            {
+              id: 'welcome',
+              title: 'Welcome to DSKM LMS',
+              body:
+                'Your dashboard shows a snapshot of enrollment and progress. Use the menu for more options.',
+              createdAt: new Date().toISOString(),
+              read: false,
+            },
+          ],
+        });
+      }
+
+      function formatNotificationTime(iso) {
+        try {
+          const d = new Date(iso);
+          if (Number.isNaN(d.getTime())) return '';
+          return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+        } catch (e) {
+          return '';
+        }
+      }
+
+      function syncNotificationDots() {
+        const state = loadNotificationsState();
+        const unread = state.items.filter((i) => !i.read).length;
+        const show = unread > 0;
+        document.getElementById('lms-mobile-notifications-dot')?.classList.toggle('hidden', !show);
+        document.getElementById('lms-header-notifications-dot')?.classList.toggle('hidden', !show);
+      }
+
+      function renderNotificationsList() {
+        const ul = document.getElementById('lms-notifications-list');
+        const empty = document.getElementById('lms-notifications-empty');
+        if (!ul || !empty) return;
+
+        const state = loadNotificationsState();
+        ul.innerHTML = '';
+
+        for (const n of state.items) {
+          const li = document.createElement('li');
+          li.className =
+            'px-3 py-3 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-white/5' +
+            (n.read ? '' : ' bg-primary-500/[0.06] dark:bg-primary-400/10');
+          li.setAttribute('role', 'button');
+          li.setAttribute('tabindex', '0');
+          li.innerHTML =
+            '<p class="text-sm font-semibold text-slate-900 dark:text-white leading-snug">' +
+            lmsEscapeHtml(n.title) +
+            '</p>' +
+            '<p class="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">' +
+            lmsEscapeHtml(n.body) +
+            '</p>' +
+            '<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">' +
+            lmsEscapeHtml(formatNotificationTime(n.createdAt)) +
+            '</p>';
+
+          const markRead = () => {
+            if (n.read) return;
+            const st = loadNotificationsState();
+            const it = st.items.find((x) => x.id === n.id);
+            if (it) it.read = true;
+            saveNotificationsState(st);
+            renderNotificationsList();
+            syncNotificationDots();
+          };
+
+          li.addEventListener('click', markRead);
+          li.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+              ev.preventDefault();
+              markRead();
+            }
+          });
+          ul.appendChild(li);
+        }
+
+        const has = state.items.length > 0;
+        empty.classList.toggle('hidden', has);
+        ul.classList.toggle('hidden', !has);
+      }
+
+      function setLmsNotificationsPanelOpen(open) {
+        lmsNotificationsPanelOpen = open;
+        const pop = document.getElementById('lms-notifications-popover');
+        const backdrop = document.getElementById('lms-notifications-backdrop');
+        const mobileBtn = document.getElementById('lms-mobile-notifications-btn');
+        const headerBtn = document.getElementById('lms-header-notifications-btn');
+
+        pop?.classList.toggle('hidden', !open);
+        backdrop?.classList.toggle('hidden', !open);
+        mobileBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        headerBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+        if (open) {
+          renderNotificationsList();
+          requestAnimationFrame(() => {
+            document.getElementById('lms-notifications-close')?.focus();
+          });
+        }
+      }
+
+      function toggleLmsNotificationsPanel(ev) {
+        if (ev) ev.stopPropagation();
+        setLmsNotificationsPanelOpen(!lmsNotificationsPanelOpen);
+      }
+
+      function markAllNotificationsRead() {
+        const st = loadNotificationsState();
+        st.items.forEach((i) => {
+          i.read = true;
+        });
+        saveNotificationsState(st);
+        renderNotificationsList();
+        syncNotificationDots();
+      }
+
+      /**
+       * Programmatic notification (e.g. from app logic): `{ id?, title, body }`.
+       * Duplicate `id` values are ignored.
+       */
+      function pushLmsNotification(detail) {
+        const title = detail && detail.title ? String(detail.title) : 'Notice';
+        const body = detail && detail.body != null ? String(detail.body) : '';
+        const id = detail && detail.id ? String(detail.id) : 'n-' + Date.now();
+        const state = loadNotificationsState();
+        if (state.items.some((i) => i.id === id)) return;
+        state.items.unshift({
+          id,
+          title,
+          body,
+          createdAt: new Date().toISOString(),
+          read: false,
+        });
+        saveNotificationsState(state);
+        renderNotificationsList();
+        syncNotificationDots();
+      }
+
+      function initLmsNotifications() {
+        ensureNotificationsSeeded();
+        renderNotificationsList();
+        syncNotificationDots();
+
+        const mobileBtn = document.getElementById('lms-mobile-notifications-btn');
+        const headerBtn = document.getElementById('lms-header-notifications-btn');
+        const closeBtn = document.getElementById('lms-notifications-close');
+        const markAll = document.getElementById('lms-notifications-mark-all');
+        const backdrop = document.getElementById('lms-notifications-backdrop');
+        const pop = document.getElementById('lms-notifications-popover');
+
+        mobileBtn?.addEventListener('click', toggleLmsNotificationsPanel);
+        headerBtn?.addEventListener('click', toggleLmsNotificationsPanel);
+        closeBtn?.addEventListener('click', () => setLmsNotificationsPanelOpen(false));
+        markAll?.addEventListener('click', markAllNotificationsRead);
+        backdrop?.addEventListener('click', () => setLmsNotificationsPanelOpen(false));
+        pop?.addEventListener('click', (e) => e.stopPropagation());
+
+        document.addEventListener(
+          'click',
+          (ev) => {
+            if (!lmsNotificationsPanelOpen) return;
+            const t = ev.target;
+            if (!(t instanceof Node)) return;
+            if (pop?.contains(t)) return;
+            if (mobileBtn?.contains(t)) return;
+            if (headerBtn?.contains(t)) return;
+            setLmsNotificationsPanelOpen(false);
+          },
+          true,
+        );
+
+        document.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape' && lmsNotificationsPanelOpen) {
+            setLmsNotificationsPanelOpen(false);
+          }
+        });
+
+        window.pushLmsNotification = pushLmsNotification;
+      }
+
+      initLmsNotifications();
     </script>
 
     <!-- ==================== TAB SWITCHING ANIMATIONS ==================== -->
@@ -10792,11 +11142,7 @@
           });
         });
 
-        const mobileNotify = document.getElementById('lms-mobile-notifications-btn');
-        const headerNotify = document.getElementById('lms-header-notifications-btn');
-        if (mobileNotify && headerNotify) {
-          mobileNotify.addEventListener('click', () => headerNotify.click());
-        }
+        // Notifications: lms-mobile-notifications-btn + lms-header-notifications-btn wired in theme script (initLmsNotifications).
 
         // Sidebar overlay click to close
         const overlay = document.getElementById('lms-sidebar-overlay');

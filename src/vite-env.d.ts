@@ -12,3 +12,8 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Injected by index.html (notifications center). */
+interface Window {
+  pushLmsNotification?: (detail: { id?: string; title?: string; body?: string }) => void;
+}

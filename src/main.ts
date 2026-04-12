@@ -248,7 +248,7 @@ function syncMobileBottomNavActiveState(tabName: string): void {
 /**
  * Rebuilds the fixed mobile bottom bar from `index.html`’s `#lms-mobile-bottom-nav-slot` via `replaceChildren`.
  * Mapping: Teacher → Dashboard / Attendance / Grades / Profile; Student → Dashboard / Classes / Grades / Profile;
- * Admin → Dashboard / Users / Classes / Profile.
+ * Admin → Dashboard / Users / Classes / Profile. (Sign out stays in the mobile menu / desktop chrome.)
  */
 function renderRoleBasedBottomNav(role: UserRole | null): void {
   const slot = document.getElementById('lms-mobile-bottom-nav-slot');
@@ -320,32 +320,6 @@ function renderRoleBasedBottomNav(role: UserRole | null): void {
     btn.append(icon, lab);
     frag.appendChild(btn);
   }
-
-  const signOutBtn = document.createElement('button');
-  signOutBtn.type = 'button';
-  signOutBtn.className = [
-    'lms-mobile-nav-sign-out',
-    'lms-mobile-nav-btn',
-    'flex flex-col items-center justify-center gap-1',
-    'flex-1 min-h-[48px] min-w-[48px]',
-    'rounded-2xl px-2 py-2 transition-colors touch-manipulation',
-    ...LMS_MOBILE_NAV_INACTIVE_CLASSES,
-  ].join(' ');
-  signOutBtn.setAttribute('aria-label', 'Sign out');
-  const soIcon = document.createElement('span');
-  soIcon.className = 'material-symbols-outlined text-[26px] leading-none shrink-0 select-none';
-  soIcon.setAttribute('aria-hidden', 'true');
-  soIcon.textContent = 'logout';
-  const soLab = document.createElement('span');
-  soLab.className = 'text-[9px] font-bold uppercase tracking-wide truncate max-w-full text-center';
-  soLab.textContent = 'Sign out';
-  signOutBtn.append(soIcon, soLab);
-  signOutBtn.addEventListener('click', () => {
-    void logout().catch(() => {
-      showAppToast('Logout failed. Please try again.', 'error');
-    });
-  });
-  frag.appendChild(signOutBtn);
 
   slot.replaceChildren(frag);
   syncMobileBottomNavActiveState(activeTab);
