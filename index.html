@@ -3202,6 +3202,60 @@
         color: #ffffff !important;
       }
 
+      /*
+       * Light theme contrast fixes (logic):
+       * - Near-white primary/secondary accent text is illegible on white or pale tints.
+       * - Solid accent buttons keep both bg-* and text-white on one node; the global .text-white
+       *   rule above would force dark text unless we re-assert white here.
+       * - bg-dark-* with opacity (/xx) often does not match .bg-dark-800 (no slash), so backgrounds
+       *   stayed dark while .text-white became slate → invisible. Flatten only always-on utilities,
+       *   not `dark:bg-dark-*` (those are inactive in light theme and share a class substring).
+       */
+      [data-theme='light'] #app-container [class*='bg-primary-500'][class*='text-white'],
+      [data-theme='light'] #app-container [class*='bg-primary-600'][class*='text-white'],
+      [data-theme='light'] #app-container [class*='bg-green-500'][class*='text-white'],
+      [data-theme='light'] #app-container [class*='bg-green-600'][class*='text-white'],
+      [data-theme='light'] #app-container [class*='bg-red-500'][class*='text-white'],
+      [data-theme='light'] #app-container [class*='bg-red-600'][class*='text-white'] {
+        color: #ffffff !important;
+      }
+
+      [data-theme='light'] #app-container [class*='bg-dark-800/']:not([class*='dark:bg-dark']),
+      [data-theme='light'] #app-container [class*='bg-dark-900/']:not([class*='dark:bg-dark']),
+      [data-theme='light'] #app-container [class*='bg-dark-950/']:not([class*='dark:bg-dark']),
+      [data-theme='light'] #app-container [class*='bg-dark-700/']:not([class*='dark:bg-dark']) {
+        background-color: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      }
+
+      [data-theme='light'] #app-container .text-primary-300 {
+        color: #177f76 !important;
+      }
+
+      [data-theme='light'] #app-container .text-primary-400 {
+        color: #145f59 !important;
+      }
+
+      [data-theme='light'] #app-container .text-secondary-400 {
+        color: #5a3a94 !important;
+      }
+
+      [data-theme='light'] #app-container .text-accent-400 {
+        color: #047857 !important;
+      }
+
+      [data-theme='light'] #app-container input::placeholder,
+      [data-theme='light'] #app-container textarea::placeholder {
+        color: #64748b !important;
+        opacity: 1;
+      }
+
+      /* text-white/xx opacity utilities are not matched by `.text-white` above */
+      [data-theme='light'] #app-container [class*='text-white/'] {
+        color: #334155 !important;
+      }
+
       /* Dark color classes - ADA compliant */
       [data-theme='light'] .text-dark-100 {
         color: #0f172a !important;
