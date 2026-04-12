@@ -542,8 +542,8 @@ async function renderTeacherView(): Promise<void> {
     <div class="space-y-6">
       ${sectionHeader('My Classes', `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
       ${courses.length === 0 ? emptyState(
-        'No classes found',
-        'Create a class or ask an admin to assign you one.',
+        'Welcome to your teaching hub',
+        'This is your first day on DSKM LMS — create your first class here, or ask an administrator to assign courses to you.',
         `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create class</button>`
       ) : `
         <div class="overflow-x-auto rounded-xl border border-dark-700">

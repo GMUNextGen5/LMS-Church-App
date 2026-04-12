@@ -16,7 +16,15 @@ import {
   serverTimestamp,
 } from '../core/firebase';
 import { Student, Grade, Attendance, Course, User } from '../types';
-import { getCurrentUser, normalizeLegalUserAgent } from '../core/auth';
+
+const GRADE_CATEGORIES = new Set<string>(['Quiz', 'Test', 'Homework', 'Project', 'Exam']);
+
+function coerceGradeCategory(value: unknown): Grade['category'] {
+  return typeof value === 'string' && GRADE_CATEGORIES.has(value) ? (value as Grade['category']) : 'Homework';
+}
+import { getCurrentUser, normalizeLegalUserAgent, coerceFirestoreDateToIso } from '../core/auth';
+import { isFirebasePermissionDenied } from '../core/firestore-errors';
+import { notifyGradesFirestoreAccessDenied } from '../core/firestore-ui-bridge';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from '../core/legal-versions';
 import { showAppToast } from '../ui/ui';
 import { reportClientFault } from '../core/client-errors';
@@ -31,14 +39,40 @@ function cleanEmail(value: unknown): string {
   return cleanText(value, 254).toLowerCase();
 }
 
-/** Drops legacy / disallowed photo fields so roster UI stays initial-only and payloads stay minimal. */
+/**
+ * Normalizes `students/{id}` into the client `Student` shape without spreading arbitrary Firestore keys
+ * (prevents surprise PII / internal fields from entering `currentStudents`).
+ */
 function studentRecordFromFirestore(id: string, raw: Record<string, unknown>): Student {
-  const copy = { ...raw };
-  delete copy.profilePhotoUrl;
-  delete copy.photoURL;
-  delete copy.avatarUrl;
-  delete copy.profileImageUrl;
-  return { id, ...copy } as Student;
+  const nameRaw = typeof raw.name === 'string' ? raw.name.trim() : '';
+  const teacherIds = Array.isArray(raw.teacherIds)
+    ? raw.teacherIds.filter((t): t is string => typeof t === 'string')
+    : undefined;
+  return {
+    id,
+    name: nameRaw || 'Student',
+    memberId: typeof raw.memberId === 'string' ? raw.memberId : undefined,
+    yearOfBirth: typeof raw.yearOfBirth === 'number' ? raw.yearOfBirth : undefined,
+    contactPhone: typeof raw.contactPhone === 'string' ? raw.contactPhone : undefined,
+    contactEmail: typeof raw.contactEmail === 'string' ? raw.contactEmail : undefined,
+    parentUid: typeof raw.parentUid === 'string' ? raw.parentUid : '',
+    studentUid: typeof raw.studentUid === 'string' ? raw.studentUid : '',
+    teacherIds,
+    notes: typeof raw.notes === 'string' ? raw.notes : undefined,
+    createdAt: coerceFirestoreDateToIso(raw.createdAt),
+    createdBy: typeof raw.createdBy === 'string' ? raw.createdBy : undefined,
+  };
+}
+
+/** Learner session: keep only roster identity in memory (no contact fields or third-party UIDs). */
+function studentRosterMinimalForLearner(s: Student, authUid: string): Student {
+  return {
+    id: s.id,
+    name: s.name,
+    parentUid: '',
+    studentUid: authUid,
+    createdAt: s.createdAt,
+  };
 }
 
 export async function fetchStudents(): Promise<Student[]> {
@@ -75,7 +109,9 @@ export async function fetchStudents(): Promise<Student[]> {
   } else if (user.role === 'student') {
     const q = query(studentsRef, where('studentUid', '==', user.uid));
     const snapshot = await getDocs(q);
-    students = snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
+    students = snapshot.docs
+      .map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>))
+      .map((s) => studentRosterMinimalForLearner(s, user.uid));
   } else {
     throw new Error(`Invalid user role: ${user.role}`);
   }
@@ -269,9 +305,27 @@ export async function fetchGrades(studentId: string): Promise<Grade[]> {
     const gradesRef = collection(db, 'students', studentId, 'grades');
     const q = query(gradesRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Grade));
+    return snapshot.docs.map((d) => {
+      const row = d.data() as Record<string, unknown>;
+      return {
+        id: d.id,
+        studentId: typeof row.studentId === 'string' ? row.studentId : studentId,
+        assignmentName: typeof row.assignmentName === 'string' ? row.assignmentName : '',
+        category: coerceGradeCategory(row.category),
+        score: Number(row.score),
+        totalPoints: Number(row.totalPoints),
+        date: typeof row.date === 'string' ? row.date : coerceFirestoreDateToIso(row.date),
+        teacherId: typeof row.teacherId === 'string' ? row.teacherId : '',
+      } as Grade;
+    });
   } catch (e) {
     reportClientFault(e);
+    if (isFirebasePermissionDenied(e)) {
+      notifyGradesFirestoreAccessDenied();
+      const err = new Error('permission-denied') as Error & { code?: string };
+      err.code = 'permission-denied';
+      throw err;
+    }
     return [];
   }
 }
@@ -384,7 +438,16 @@ export async function calculateStudentCumulativeGPA(uid: string, forceRefresh = 
   const ids = profiles.map((s) => s.id);
   const merged: Grade[] = [];
   for (const id of ids) {
-    merged.push(...(await fetchGrades(id)));
+    try {
+      merged.push(...(await fetchGrades(id)));
+    } catch (err) {
+      if (isFirebasePermissionDenied(err)) {
+        studentGpaSessionCacheUid = uid;
+        studentGpaSessionCacheValue = null;
+        return null;
+      }
+      /* omit this profile id — remainder still usable */
+    }
   }
   const gpa = computeCumulativeGpaFromGrades(merged);
   studentGpaSessionCacheUid = uid;
@@ -428,9 +491,24 @@ export async function fetchAttendance(studentId: string): Promise<Attendance[]> 
     const attendanceRef = collection(db, 'students', studentId, 'attendance');
     const q = query(attendanceRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance));
+    return snapshot.docs.map((d) => {
+      const row = d.data() as Record<string, unknown>;
+      return {
+        id: d.id,
+        studentId: typeof row.studentId === 'string' ? row.studentId : studentId,
+        date: typeof row.date === 'string' ? row.date : coerceFirestoreDateToIso(row.date),
+        status: row.status as Attendance['status'],
+        notes: typeof row.notes === 'string' ? row.notes : undefined,
+        markedBy: typeof row.markedBy === 'string' ? row.markedBy : '',
+      } as Attendance;
+    });
   } catch (e) {
     reportClientFault(e);
+    if (isFirebasePermissionDenied(e)) {
+      const err = new Error('permission-denied') as Error & { code?: string };
+      err.code = 'permission-denied';
+      throw err;
+    }
     return [];
   }
 }
@@ -546,19 +624,62 @@ export async function createTeacher(data: {
 }
 
 export function listenToGrades(studentId: string, callback: (grades: Grade[]) => void): () => void {
-  const gradesRef = collection(db, 'students', studentId, 'grades');
-  const q = query(gradesRef, orderBy('date', 'desc'));
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Grade)));
-    },
-    (error) => {
-      reportClientFault(error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
+  const user = getCurrentUser();
+  let cancelled = false;
+  let unsubscribe: (() => void) | null = null;
+
+  const attach = (): void => {
+    if (cancelled) return;
+    const gradesRef = collection(db, 'students', studentId, 'grades');
+    const q = query(gradesRef, orderBy('date', 'desc'));
+    unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        callback(
+          snapshot.docs.map((d) => {
+            const row = d.data() as Record<string, unknown>;
+            return {
+              id: d.id,
+              studentId: typeof row.studentId === 'string' ? row.studentId : studentId,
+              assignmentName: typeof row.assignmentName === 'string' ? row.assignmentName : '',
+              category: coerceGradeCategory(row.category),
+              score: Number(row.score),
+              totalPoints: Number(row.totalPoints),
+              date: typeof row.date === 'string' ? row.date : coerceFirestoreDateToIso(row.date),
+              teacherId: typeof row.teacherId === 'string' ? row.teacherId : '',
+            } as Grade;
+          })
+        );
+      },
+      (error) => {
+        reportClientFault(error);
+        if (isFirebasePermissionDenied(error)) {
+          notifyGradesFirestoreAccessDenied();
+        }
+        callback([]);
+      }
+    );
+  };
+
+  if (user?.role === 'student') {
+    void assertLearnerMayAccessStudentProfile(studentId)
+      .then(() => {
+        if (!cancelled) attach();
+      })
+      .catch(() => {
+        callback([]);
+      });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }
+
+  attach();
+  return () => {
+    cancelled = true;
+    unsubscribe?.();
+  };
 }
 
 export function exportGradesToCSV(grades: Grade[], studentName: string): void {

@@ -19,6 +19,8 @@ import {
 import { User, UserRole, Student } from '../types';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './legal-versions';
 import { showLoading, hideLoading, showBootstrapError, showAuthContainer } from '../ui/ui';
+import { reportClientFault } from './client-errors';
+import { runSessionTeardown } from './session-teardown';
 
 let currentUser: User | null = null;
 
@@ -351,6 +353,12 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
       if (firebaseUser) {
         let handshakeTimer: number | undefined;
         try {
+          try {
+            sessionStorage.clear();
+            localStorage.removeItem('last_viewed_student');
+          } catch {
+            /* storage may be blocked */
+          }
           scheduleAuthUi(() => {
             showLoading();
           });
@@ -406,6 +414,7 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
         } catch (error: unknown) {
           const code = (error as { code?: string })?.code ?? '';
           if (code === 'permission-denied') {
+            reportClientFault(error);
             scheduleAuthUi(() => {
               showBootstrapError(
                 'Permission denied while loading your profile. This usually means Firestore rules are ' +
@@ -439,6 +448,12 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
           });
         }
       } else {
+        try {
+          sessionStorage.clear();
+          localStorage.removeItem('last_viewed_student');
+        } catch {
+          /* storage may be blocked */
+        }
         currentUser = null;
         onUserChanged(null);
       }
@@ -566,25 +581,29 @@ export async function signIn(email: string, password: string): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
+  runSessionTeardown();
+  const shell = document.getElementById('app-mount');
+  if (shell) shell.innerHTML = '';
   try {
-    scheduleAuthUi(() => {
-      showLoading();
-    });
-    const outcome = await Promise.race([
-      signOut(auth).then(() => 'ok' as const),
-      new Promise<'timeout'>((resolve) => {
-        window.setTimeout(() => resolve('timeout'), 8000);
-      }),
-    ]);
-    if (outcome === 'timeout') {
-      return;
-    }
+    sessionStorage.clear();
+    localStorage.removeItem('last_viewed_student');
   } catch {
-    throw new Error('Failed to sign out. Please try again.');
+    /* storage may be blocked */
+  }
+  scheduleAuthUi(() => {
+    showLoading();
+  });
+  try {
+    void signOut(auth);
+  } catch {
+    /* continue; UI is already cleared */
   } finally {
     scheduleAuthUi(() => {
       hideLoading();
     });
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
   }
 }
 

@@ -41,7 +41,7 @@ export function emptyStateBlockHtml(
     ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${escapeHtmlText(subtitle)}</p>`
     : '';
   return `
-    <div class="text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container">
+    <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container">
       ${brand}
       <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📚</div>
       <h3 class="text-on-surface font-semibold text-lg">${escapeHtmlText(title)}</h3>
@@ -80,18 +80,20 @@ export function renderErrorPanel(
 ): void {
   const wrap = document.createElement('div');
   wrap.className =
-    'card-blur progress-bar-glow max-w-lg mx-auto text-center py-14 px-6 rounded-2xl border border-primary-400/15 bg-dark-950/80';
+    'lms-access-denied-panel card-blur progress-bar-glow max-w-lg mx-auto text-center py-14 px-6 rounded-2xl border border-primary-400/15 bg-dark-950/80';
 
   const icon = document.createElement('div');
   icon.className = 'text-3xl mb-4 opacity-40';
   icon.textContent = '⚠️';
 
   const h3 = document.createElement('h3');
-  h3.className = 'font-display text-lg font-semibold text-primary-300';
+  h3.className =
+    'font-display text-lg font-semibold text-slate-900 dark:text-primary-300';
   h3.textContent = 'Access or data unavailable';
 
   const p = document.createElement('p');
-  p.className = 'mt-2 text-sm text-dark-300 leading-relaxed';
+  p.className =
+    'mt-2 text-sm text-slate-700 dark:text-dark-300 leading-relaxed';
   p.textContent = message;
 
   wrap.append(icon, h3, p);
@@ -100,7 +102,7 @@ export function renderErrorPanel(
     const btn = document.createElement('button');
     btn.setAttribute('data-action', 'back-to-list');
     btn.className =
-      'mt-6 px-4 py-2.5 rounded-xl text-sm font-medium border border-primary-400/40 text-primary-300 hover:bg-primary-400/10 transition-colors';
+      'mt-6 px-4 py-2.5 rounded-xl text-sm font-medium border border-primary-400/40 text-slate-900 dark:text-primary-300 hover:bg-primary-400/10 transition-colors';
     btn.textContent = '\u2190 Back to List';
     wrap.appendChild(btn);
   }

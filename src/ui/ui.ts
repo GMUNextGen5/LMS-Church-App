@@ -254,6 +254,17 @@ export function showAppContainer(): void {
 /**
  * Shows or hides `.admin-only`, `.teacher-only`, and `.student-only` regions based on `user.role`.
  */
+/**
+ * Hides all role-gated chrome before auth resolves (cold start) or after sign-out.
+ * Prevents privileged nav from flashing while `onAuthStateChanged` is still in flight.
+ */
+export function hideAllRoleRegionsForAuthHandshake(): void {
+  currentUserRole = null;
+  document.querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav').forEach((el) => {
+    (el as HTMLElement).classList.add('hide');
+  });
+}
+
 export function configureUIForRole(user: User): void {
   const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
   const role = user?.role;

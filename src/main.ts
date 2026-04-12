@@ -4,6 +4,12 @@ import './assets/styles/tailwind.css';
 import './core/shims/chart-bridge';
 import './core/shims/jspdf-bridge';
 import { reportClientFault } from './core/client-errors';
+import { isFirebasePermissionDenied } from './core/firestore-errors';
+import {
+  setGradesFirestoreAccessDeniedHandler,
+  notifyGradesFirestoreAccessDenied,
+} from './core/firestore-ui-bridge';
+import { registerSessionTeardown } from './core/session-teardown';
 import {
   auth,
   db,
@@ -40,6 +46,7 @@ import {
   showAuthContainer,
   showAppContainer,
   configureUIForRole,
+  hideAllRoleRegionsForAuthHandshake,
   showError,
   clearError,
   showModal,
@@ -84,14 +91,10 @@ import {
 } from './data/data';
 import {
   countPendingSubmissionsForTeacher,
-  fetchNextStudentDeadline,
   fetchTeacherAssessmentDashboardRows,
   fetchTeacherGradingQueueRows,
-  fetchStudentUpcomingAssessmentsMobile,
-  type NextStudentDeadlineResult,
   type TeacherAssessmentDashboardRow,
   type TeacherGradingQueueRow,
-  type StudentUpcomingAssessmentMobile,
 } from './data/assessment-data';
 import {
   markAllStudentsPresent,
@@ -99,7 +102,7 @@ import {
   localDateKey,
 } from './data/attendance-data';
 import { User, UserRole, Student, Grade, Attendance, Course } from './types';
-import { userProfileDisplayLabel, fetchTeacherClasses, fetchStudentClasses } from './data/classes-data';
+import { userProfileDisplayLabel, fetchTeacherClasses } from './data/classes-data';
 import { Chart } from 'chart.js';
 import type { ChartConfiguration, TooltipItem } from 'chart.js';
 
@@ -120,7 +123,6 @@ import { evaluatePasswordStrength } from './core/password-strength';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './core/legal-versions';
 import { LMS_SEARCH_DEBOUNCE_MS } from './core/input-timing';
 import {
-  finitePctForBar,
   finiteToFixed,
   initialsForAvatarLabel,
   pickAvatarDiscPalette,
@@ -144,6 +146,10 @@ let selectedStudentId: string | null = null;
 let attendanceRollCourses: Course[] = [];
 let gradesUnsubscribe: (() => void) | null = null;
 let particleSystem: ParticleSystem | null = null;
+/** Last UID session data was bound to; when it changes, in-memory caches must reset before new loads. */
+let sessionDataBoundUid: string | null = null;
+let sessionFirestoreTeardownRegistered = false;
+let gradesAccessDeniedUiWired = false;
 
 const LMS_LAST_ATTENDANCE_CLASS_KEY = 'lms-attendance-last-class-id';
 const GO_LIVE_BUTTON_LABEL = 'GO LIVE';
@@ -304,6 +310,32 @@ function renderRoleBasedBottomNav(role: UserRole | null): void {
     frag.appendChild(btn);
   }
 
+  const signOutBtn = document.createElement('button');
+  signOutBtn.type = 'button';
+  signOutBtn.className = [
+    'lms-mobile-nav-sign-out',
+    'lms-mobile-nav-btn',
+    'flex flex-col items-center justify-center gap-1',
+    'flex-1 min-h-[48px] min-w-[48px]',
+    'rounded-2xl px-2 py-2 transition-colors touch-manipulation',
+    ...LMS_MOBILE_NAV_INACTIVE_CLASSES,
+  ].join(' ');
+  signOutBtn.setAttribute('aria-label', 'Sign out');
+  const soIcon = document.createElement('span');
+  soIcon.className = 'material-symbols-outlined text-[26px] leading-none shrink-0 select-none';
+  soIcon.setAttribute('aria-hidden', 'true');
+  soIcon.textContent = 'logout';
+  const soLab = document.createElement('span');
+  soLab.className = 'text-[9px] font-bold uppercase tracking-wide truncate max-w-full text-center';
+  soLab.textContent = 'Sign out';
+  signOutBtn.append(soIcon, soLab);
+  signOutBtn.addEventListener('click', () => {
+    void logout().catch(() => {
+      showAppToast('Logout failed. Please try again.', 'error');
+    });
+  });
+  frag.appendChild(signOutBtn);
+
   slot.replaceChildren(frag);
   syncMobileBottomNavActiveState(activeTab);
 }
@@ -429,8 +461,51 @@ async function init(): Promise<void> {
 
   try {
     initUI();
+    hideAllRoleRegionsForAuthHandshake();
   } catch {
     // UI boot should not block Firebase init; fall through to banner-based error handling if needed.
+  }
+
+  if (!sessionFirestoreTeardownRegistered) {
+    sessionFirestoreTeardownRegistered = true;
+    registerSessionTeardown(() => {
+      if (gradesUnsubscribe) {
+        gradesUnsubscribe();
+        gradesUnsubscribe = null;
+      }
+    });
+  }
+
+  if (!gradesAccessDeniedUiWired) {
+    gradesAccessDeniedUiWired = true;
+    setGradesFirestoreAccessDeniedHandler(() => {
+      if (gradesUnsubscribe) {
+        gradesUnsubscribe();
+        gradesUnsubscribe = null;
+      }
+      currentGrades = [];
+      const chartsSection = document.getElementById('grade-charts-section');
+      chartsSection?.classList.add('hide');
+      const gradesTableBody = document.getElementById('grades-table-body');
+      if (gradesTableBody) {
+        const userRole = getCurrentUserRole();
+        const colspan = userRole === 'teacher' || userRole === 'admin' ? 5 : 4;
+        renderTemplate(
+          gradesTableBody,
+          emptyStateTableRowHtml(
+            colspan,
+            'Access denied',
+            'This account cannot load grade data under the current security rules. Sign out and sign in again, or contact your administrator.',
+            ''
+          )
+        );
+      }
+      renderGradesMobile([], selectedStudentId, getCurrentUserRole() ?? 'student');
+      showAppToast(
+        'Grade data is blocked by security rules. If this is unexpected, contact support.',
+        'error'
+      );
+    });
   }
 
   try {
@@ -622,7 +697,6 @@ function purgePrivilegedDashboardDomForStudent(): void {
     'dashboard-mobile-shell',
     'recent-activity',
     'student-gpa-metric-root',
-    'student-deadline-metric-root',
     'dashboard-student-mastery-row',
     'grades-table-body',
     'grades-mobile-cards',
@@ -657,7 +731,8 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 
   // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
   if (isValidProfile) {
-    if (user.role === 'student') {
+    if (sessionDataBoundUid !== user.uid) {
+      sessionDataBoundUid = user.uid;
       if (gradesUnsubscribe) {
         gradesUnsubscribe();
         gradesUnsubscribe = null;
@@ -673,6 +748,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     }
     const incomplete = userLegalAcceptanceIncomplete(user);
     if (incomplete) {
+      sessionDataBoundUid = null;
       scheduleDomPaint(() => {
         try {
           hideLoading();
@@ -720,9 +796,19 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     });
     markAuthShellReady();
 
+    if (user.role === 'student') {
+      const studentSelectContainer = document.getElementById('student-select-container');
+      if (studentSelectContainer) studentSelectContainer.remove();
+      document.getElementById('dashboard-educator-student-picker')?.remove();
+      const goLiveBtn = document.getElementById('lms-go-live-btn');
+      if (goLiveBtn) goLiveBtn.remove();
+      const headerSearch = document.getElementById('lms-header-search-wrap');
+      if (headerSearch) headerSearch.remove();
+    }
+
     invalidateStudentGpaSessionCacheIfUserChanged(user.uid);
 
-    await loadDashboardData();
+    await initDashboard();
     void loadUserProfile();
 
     scheduleDomPaint(() => {
@@ -753,7 +839,9 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       }
     });
   } else {
+    sessionDataBoundUid = null;
     scheduleDomPaint(() => {
+      hideAllRoleRegionsForAuthHandshake();
       showAuthContainer();
       resetAppState();
     });
@@ -781,6 +869,8 @@ function setupAuthForms(): void {
       showError(loginError, 'Please fill in all fields');
       return;
     }
+    const loginSubmit = lf.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (loginSubmit) loginSubmit.disabled = true;
     try {
       await signIn(email, password);
       lf.reset();
@@ -789,6 +879,8 @@ function setupAuthForms(): void {
         loginError,
         error instanceof Error ? error.message : 'Login failed. Please try again.'
       );
+    } finally {
+      if (loginSubmit) loginSubmit.disabled = false;
     }
   });
 
@@ -829,6 +921,8 @@ function setupAuthForms(): void {
       acceptLegal?.focus();
       return;
     }
+    const signupSubmit = sf.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (signupSubmit) signupSubmit.disabled = true;
     try {
       const uid = await signUp(email, password, {
         termsVersion: LEGAL_TERMS_VERSION,
@@ -842,6 +936,8 @@ function setupAuthForms(): void {
         signupError,
         error instanceof Error ? error.message : 'Signup failed. Please try again.'
       );
+    } finally {
+      if (signupSubmit) signupSubmit.disabled = false;
     }
   });
 
@@ -863,6 +959,7 @@ function setupAppForms(): void {
   if (studentRegForm) {
     studentRegForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const regSubmitBtn = studentRegForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       const errorEl = document.getElementById('registration-error');
       const successEl = document.getElementById('registration-success');
       errorEl?.classList.add('hide');
@@ -878,6 +975,7 @@ function setupAppForms(): void {
         parentUid: formData.get('studentUid') as string,
         notes: formData.get('notes') as string || ''
       };
+      if (regSubmitBtn) regSubmitBtn.disabled = true;
       try {
         showLoading();
         const studentId = await createStudent(studentData);
@@ -888,7 +986,7 @@ function setupAppForms(): void {
         studentRegForm.reset();
         const studentDropdownValue = document.querySelector('#student-account-dropdown .account-dropdown-value');
         if (studentDropdownValue) studentDropdownValue.textContent = '-- Select Registered Account --';
-        await Promise.all([loadDashboardData(), loadRegisteredStudents()]);
+        await Promise.all([initDashboard(), loadRegisteredStudents()]);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Registration failed';
         if (errorEl) {
@@ -897,6 +995,7 @@ function setupAppForms(): void {
         }
       } finally {
         hideLoading();
+        if (regSubmitBtn) regSubmitBtn.disabled = false;
       }
     });
   }
@@ -905,6 +1004,7 @@ function setupAppForms(): void {
   if (teacherRegForm) {
     teacherRegForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const teacherSubmitBtn = teacherRegForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       const errorEl = document.getElementById('teacher-registration-error');
       const successEl = document.getElementById('teacher-registration-success');
       const finalUidEl = document.getElementById('final-teacher-uid') as HTMLInputElement;
@@ -923,6 +1023,7 @@ function setupAppForms(): void {
       const yearVal = formData.get('teacherYearOfBirth');
       const parsedYear = yearVal ? parseInt(String(yearVal), 10) : NaN;
       const yearOfBirth = Number.isNaN(parsedYear) ? undefined : parsedYear;
+      if (teacherSubmitBtn) teacherSubmitBtn.disabled = true;
       try {
         showLoading();
         await createTeacher({
@@ -934,7 +1035,6 @@ function setupAppForms(): void {
           yearOfBirth,
           notes: (formData.get('teacherNotes') as string)?.trim() || undefined,
         });
-        hideLoading();
         if (successEl) {
           successEl.textContent = `Teacher "${teacherName || 'registered'}" registered successfully.`;
           successEl.classList.remove('hide');
@@ -945,12 +1045,14 @@ function setupAppForms(): void {
         if (teacherDropdownValue) teacherDropdownValue.textContent = '-- Select Registered Account --';
         await loadRegisteredTeachers();
       } catch (error: unknown) {
-        hideLoading();
         const msg = error instanceof Error ? error.message : String(error);
         if (errorEl) {
           errorEl.textContent = 'Failed to register teacher: ' + msg;
           errorEl.classList.remove('hide');
         }
+      } finally {
+        hideLoading();
+        if (teacherSubmitBtn) teacherSubmitBtn.disabled = false;
       }
     });
   }
@@ -1046,9 +1148,11 @@ function setupAppForms(): void {
       e.preventDefault();
       const studentId = (document.getElementById('edit-student-id') as HTMLInputElement)?.value;
       if (!studentId) return;
+      const submitBtn = editStudentForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       const formData = new FormData(editStudentForm);
       const yearVal = formData.get('yearOfBirth');
       const yearOfBirth = yearVal ? parseInt(String(yearVal), 10) : undefined;
+      if (submitBtn) submitBtn.disabled = true;
       try {
         showLoading();
         await updateStudent(studentId, {
@@ -1060,12 +1164,13 @@ function setupAppForms(): void {
           notes: (formData.get('notes') as string)?.trim() ?? '',
         });
         editStudentModal.classList.add('hide');
-        await Promise.all([loadDashboardData(), loadRegisteredStudents()]);
+        await Promise.all([initDashboard(), loadRegisteredStudents()]);
         showAppToast('Student updated successfully.', 'success');
       } catch (err: unknown) {
         showAppToast(formatErrorForUserToast(err, 'Could not update this student.'), 'error');
       } finally {
         hideLoading();
+        if (submitBtn) submitBtn.disabled = false;
       }
     });
   }
@@ -1099,6 +1204,7 @@ function setupAppForms(): void {
         showAppToast('Please select a student first.', 'info');
         return;
       }
+      const submitBtn = gradeEntryForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       const formData = new FormData(gradeEntryForm);
       const gradeData = {
         assignmentName: formData.get('assignmentName') as string,
@@ -1108,12 +1214,15 @@ function setupAppForms(): void {
         teacherId: '',
         date: new Date().toISOString()
       };
+      if (submitBtn) submitBtn.disabled = true;
       try {
         await addGrade(selectedStudentId, gradeData);
         gradeEntryForm.reset();
       } catch (error: unknown) {
         reportClientFault(error);
         showAppToast(formatErrorForUserToast(error, 'Could not add this grade.'), 'error');
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
     });
   }
@@ -1191,6 +1300,7 @@ function setupAppForms(): void {
     updateAttendanceClassChrome();
     markAttendanceForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const markSubmitBtn = markAttendanceForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
       const errorEl = document.getElementById('mark-attendance-error');
       const successEl = document.getElementById('mark-attendance-success');
       errorEl?.classList.add('hide');
@@ -1202,6 +1312,7 @@ function setupAppForms(): void {
         if (errorEl) { errorEl.textContent = 'Please select a student'; errorEl.classList.remove('hide'); }
         return;
       }
+      if (markSubmitBtn) markSubmitBtn.disabled = true;
       const attendanceData = {
         date: formData.get('date') as string,
         status: formData.get('status') as 'present' | 'absent' | 'late' | 'excused',
@@ -1220,6 +1331,7 @@ function setupAppForms(): void {
         if (errorEl) { errorEl.textContent = 'Failed to mark attendance: ' + msg; errorEl.classList.remove('hide'); }
       } finally {
         hideLoading();
+        if (markSubmitBtn) markSubmitBtn.disabled = false;
       }
     });
   }
@@ -1654,7 +1766,14 @@ async function populateAttendanceClassSelect(): Promise<void> {
 }
 
 // --- Dashboard data loading ---
-async function loadDashboardData(): Promise<void> {
+async function initDashboard(): Promise<void> {
+  const profile = getCurrentUser();
+  if (
+    !profile ||
+    (profile.role !== 'admin' && profile.role !== 'teacher' && profile.role !== 'student')
+  ) {
+    return;
+  }
   try {
     currentStudents = await fetchStudents();
     updateStudentSelect();
@@ -2016,7 +2135,7 @@ function filterStudentSelectOptions(
 
 // --- Student dropdowns (registration, dashboard, attendance) ---
 function updateStudentSelect(): void {
-  const studentSelect = document.getElementById('student-select') as HTMLSelectElement;
+  const studentSelect = document.getElementById('student-select') as HTMLSelectElement | null;
   const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
   const dashboardStudentSelect = document.getElementById('dashboard-student-select') as HTMLSelectElement;
 
@@ -2038,12 +2157,12 @@ function updateStudentSelect(): void {
     });
   };
 
-  fillStudentSelect(studentSelect);
-  if (attendanceStudentSelect)     fillStudentSelect(attendanceStudentSelect);
-  if (dashboardStudentSelect) fillStudentSelect(dashboardStudentSelect);
   if (studentSelect) {
+    fillStudentSelect(studentSelect);
     filterStudentSelectOptions(studentSelect, '', document.getElementById('grades-student-filter-empty'));
   }
+  if (attendanceStudentSelect)     fillStudentSelect(attendanceStudentSelect);
+  if (dashboardStudentSelect) fillStudentSelect(dashboardStudentSelect);
   if (attendanceStudentSelect) {
     filterStudentSelectOptions(attendanceStudentSelect, '', document.getElementById('attendance-student-filter-empty'));
   }
@@ -2055,17 +2174,19 @@ function updateStudentSelect(): void {
   const userRole = getCurrentUserRole();
   if (userRole === 'student' && currentStudents.length === 1) {
     const ownRecord = currentStudents[0];
-    studentSelect.value = ownRecord.id;
     selectedStudentId = ownRecord.id;
+    if (studentSelect) {
+      studentSelect.value = ownRecord.id;
+      studentSelect.disabled = true;
+    }
     if (attendanceStudentSelect) {
       attendanceStudentSelect.value = ownRecord.id;
       attendanceStudentSelect.disabled = true;
     }
     loadStudentGrades(ownRecord.id);
     loadStudentAttendance(ownRecord.id);
-    studentSelect.disabled = true;
   } else {
-    studentSelect.disabled = false;
+    if (studentSelect) studentSelect.disabled = false;
     if (attendanceStudentSelect) attendanceStudentSelect.disabled = false;
   }
 }
@@ -2083,6 +2204,16 @@ function showGradesSkeletonLoading(): void {
 
 async function loadStudentGrades(studentId: string): Promise<void> {
   try {
+    const sessionUser = getCurrentUser();
+    if (sessionUser?.role === 'student' && sessionUser.uid) {
+      const ownProfileId =
+        sessionUser.studentProfile?.id ??
+        (currentStudents.length === 1 ? currentStudents[0].id : null);
+      if (!ownProfileId || studentId !== ownProfileId) {
+        displayGrades([]);
+        return;
+      }
+    }
     showGradesSkeletonLoading();
     await assertLearnerMayAccessStudentProfile(studentId);
     if (gradesUnsubscribe) gradesUnsubscribe();
@@ -2100,7 +2231,11 @@ async function loadStudentGrades(studentId: string): Promise<void> {
     });
   } catch (e) {
     reportClientFault(e);
-    displayGrades([]);
+    if (isFirebasePermissionDenied(e)) {
+      notifyGradesFirestoreAccessDenied();
+    } else {
+      displayGrades([]);
+    }
   }
 }
 
@@ -2316,7 +2451,7 @@ lmsWin.handleDeleteStudent = async (studentId: string) => {
   if (!confirm('Are you sure you want to delete this student? This will also delete all their grades and attendance records.')) return;
   try {
     await deleteStudent(studentId);
-    await loadDashboardData();
+    await initDashboard();
     showAppToast('Student deleted successfully.', 'success');
   } catch (error: unknown) {
     showAppToast(formatErrorForUserToast(error, 'Could not delete this student.'), 'error');
@@ -2382,8 +2517,6 @@ lmsWin.handleChangeRole = async (userId: string, currentRole: string) => {
 };
 
 // --- Dashboard stats & recent activity ---
-type GradeDistributionBar = { label: string; count: number; heightPct: number };
-
 type InstitutionalSnapshot =
   | { role: 'student' }
   | {
@@ -2391,12 +2524,11 @@ type InstitutionalSnapshot =
       enrollment: number;
       systemAvg: string;
       assignmentCount: number;
-      activeCourses: number;
-      gradeDistribution: GradeDistributionBar[];
     }
   | {
       role: 'teacher';
-      myStudents: number;
+      /** Number of course shells assigned to this teacher. */
+      myClasses: number;
       gradingQueue: number;
       rows: TeacherAssessmentDashboardRow[];
       queueRows: TeacherGradingQueueRow[];
@@ -2411,28 +2543,6 @@ const ETHIOPIAN_ORTHODOX_PROVERBS = [
 ] as const;
 
 let dashboardProverbRotateTimer: number | null = null;
-
-const LMS_CLASS_CARD_BG = [
-  'bg-violet-600',
-  'bg-teal-600',
-  'bg-amber-600',
-  'bg-sky-600',
-  'bg-rose-600',
-  'bg-emerald-700',
-] as const;
-
-function classCardBgClass(courseName: string): string {
-  let h = 0;
-  for (let i = 0; i < courseName.length; i++) h = (h + courseName.charCodeAt(i) * (i + 1)) % 997;
-  return LMS_CLASS_CARD_BG[h % LMS_CLASS_CARD_BG.length];
-}
-
-function initialsFromCourseName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function letterGradeFromPercent(pct: number): string {
   if (!Number.isFinite(pct)) return '—';
@@ -2467,51 +2577,21 @@ function formatAssessmentDueMobileLabel(dueDateTime: string): string {
   return `Due in ${days} days`;
 }
 
-function computeAdminGradeDistribution(grades: Grade[]): GradeDistributionBar[] {
-  const buckets: { label: string; min: number; max: number; count: number }[] = [
-    { label: 'BELOW AVG', min: 0, max: 64.99, count: 0 },
-    { label: 'AVERAGE', min: 65, max: 74.99, count: 0 },
-    { label: 'SUPERIOR', min: 75, max: 84.99, count: 0 },
-    { label: 'EXCELLENCE', min: 85, max: 92.99, count: 0 },
-    { label: 'ELITE', min: 93, max: 100, count: 0 },
-  ];
-  for (const g of grades) {
-    const p = gradePercent100(g);
-    if (p == null) continue;
-    const b = buckets.find(x => p >= x.min && p <= x.max);
-    if (b) b.count += 1;
-  }
-  const max = Math.max(1, ...buckets.map(b => b.count));
-  return buckets.map(b => ({ label: b.label, count: b.count, heightPct: (b.count / max) * 100 }));
-}
-
-function teacherCoursePerformanceFromRows(
-  rows: TeacherAssessmentDashboardRow[]
-): { name: string; pct: number }[] {
-  const map = new Map<string, { sum: number; n: number }>();
-  for (const r of rows) {
-    if (r.avgPercent == null || !Number.isFinite(r.avgPercent)) continue;
-    const cur = map.get(r.courseName) || { sum: 0, n: 0 };
-    cur.sum += r.avgPercent;
-    cur.n += 1;
-    map.set(r.courseName, cur);
-  }
-  return [...map.entries()]
-    .map(([name, v]) => ({ name, pct: v.sum / v.n }))
-    .sort((a, b) => b.pct - a.pct)
-    .slice(0, 4);
+function setDashboardProverbText(text: string): void {
+  document.querySelectorAll('[data-lms-dashboard-proverb]').forEach((n) => {
+    n.textContent = text;
+  });
 }
 
 function startDashboardProverbRotation(): void {
-  const el = document.getElementById('dashboard-mobile-proverb-text');
-  if (!el) return;
+  const nodes = document.querySelectorAll('[data-lms-dashboard-proverb]');
+  if (nodes.length === 0) return;
   let i = 0;
-  el.textContent = ETHIOPIAN_ORTHODOX_PROVERBS[i];
+  setDashboardProverbText(ETHIOPIAN_ORTHODOX_PROVERBS[i]);
   if (dashboardProverbRotateTimer != null) window.clearInterval(dashboardProverbRotateTimer);
   dashboardProverbRotateTimer = window.setInterval(() => {
     i = (i + 1) % ETHIOPIAN_ORTHODOX_PROVERBS.length;
-    const node = document.getElementById('dashboard-mobile-proverb-text');
-    if (node) node.textContent = ETHIOPIAN_ORTHODOX_PROVERBS[i];
+    setDashboardProverbText(ETHIOPIAN_ORTHODOX_PROVERBS[i]);
   }, 12000);
 }
 
@@ -2593,25 +2673,6 @@ function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grad
   root.replaceChildren(wrap);
 }
 
-function assessmentTagClasses(tag: StudentUpcomingAssessmentMobile['tag']): { icon: string; pill: string } {
-  if (tag === 'QUIZ') {
-    return {
-      icon: 'rounded-xl bg-amber-500/25 text-amber-200 ring-1 ring-amber-400/30',
-      pill: 'bg-dark-800 text-amber-100/95 border border-amber-500/25',
-    };
-  }
-  if (tag === 'ESSAY') {
-    return {
-      icon: 'rounded-xl bg-secondary-500/25 text-secondary-200 ring-1 ring-secondary-400/30',
-      pill: 'bg-dark-800 text-secondary-100/95 border border-secondary-500/25',
-    };
-  }
-  return {
-    icon: 'rounded-xl bg-primary-500/20 text-primary-200 ring-1 ring-primary-400/25',
-    pill: 'bg-dark-800 text-primary-100/90 border border-primary-500/20',
-  };
-}
-
 function gradePercent100(g: Grade): number | null {
   const tp = Number(g.totalPoints);
   const sc = Number(g.score);
@@ -2644,21 +2705,30 @@ function adminKpiSvg(kind: 'users' | 'chart' | 'book'): string {
 function buildAdminInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>): string {
   const countNote =
     snapshot.assignmentCount > 0
-      ? `Across <span class="text-primary-300 font-medium">${snapshot.assignmentCount}</span> graded item${snapshot.assignmentCount === 1 ? '' : 's'}`
+      ? `Across <span class="text-primary-700 dark:text-primary-300 font-medium">${snapshot.assignmentCount}</span> graded item${snapshot.assignmentCount === 1 ? '' : 's'}`
       : 'Awaiting grade book entries';
-  return `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Total enrollment</h3><div class="p-3 rounded-xl bg-primary-400/10">${adminKpiSvg('users')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.enrollment}</p><p class="text-dark-400 text-sm mt-2">Active learner profiles</p></div>
-<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">System average</h3><div class="p-3 rounded-xl bg-secondary-400/10">${adminKpiSvg('chart')}</div></div><p class="text-4xl font-bold text-primary-200 font-display tabular-nums">${escapeHtmlText(snapshot.systemAvg)}</p><p class="text-dark-400 text-sm mt-2">${countNote}</p></div>
-<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Active courses</h3><div class="p-3 rounded-xl bg-primary-400/10">${adminKpiSvg('book')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.activeCourses}</p><p class="text-dark-400 text-sm mt-2">Course shells in catalog</p></div>
+  const firstDayNote =
+    snapshot.enrollment === 0
+      ? `<p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-3">DSKM LMS</p><p class="text-sm text-on-surface-muted max-w-xl mb-6">Welcome to your first day — add learners under Registration and publish classes so enrollment and GPA insights can grow here.</p>`
+      : '';
+  const bento =
+    'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem]';
+  return `${firstDayNote}<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Total enrollment</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${snapshot.enrollment}</p><p class="text-xs text-on-surface-muted mt-2">Active learner profiles</p></div>
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">GPA average</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${escapeHtmlText(snapshot.systemAvg)}</p><p class="text-xs text-on-surface-muted mt-2">${countNote}</p></div>
 </div>`;
 }
 
 function buildTeacherInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>): string {
+  const firstDayNote =
+    snapshot.myClasses === 0 && snapshot.gradingQueue === 0
+      ? `<p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-3">DSKM LMS</p><p class="text-sm text-on-surface-muted max-w-xl mb-6">Your workspace is ready — create a class from the Classes tab and invite learners so attendance, grades, and the grading queue come alive.</p>`
+      : '';
   const tableRows =
     snapshot.rows.length === 0
       ? `<tr><td colspan="4" class="py-10 px-4 text-center">
-<p class="text-dark-400 text-sm mb-4">No assessments yet. Create or publish an assessment to see submission analytics here.</p>
-<button type="button" data-lms-action="dashboard-open-assessments" class="px-4 py-2 rounded-xl text-sm font-semibold bg-primary-500/20 text-primary-200 border border-primary-400/35 hover:bg-primary-500/30 transition-colors">Open assessments</button>
+<p class="text-on-surface-muted text-sm mb-4">No assessments yet. Create or publish an assessment to see submission analytics here.</p>
+<button type="button" data-lms-action="dashboard-open-assessments" class="px-4 py-2 rounded-xl text-sm font-semibold bg-primary-500/15 text-primary-900 dark:text-primary-200 border border-primary-400/35 hover:bg-primary-500/25 transition-colors">Open assessments</button>
 </td></tr>`
       : snapshot.rows
           .map((r) => {
@@ -2666,56 +2736,32 @@ function buildTeacherInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, 
               r.avgPercent == null || !Number.isFinite(r.avgPercent)
                 ? '—'
                 : `${finiteToFixed(r.avgPercent, 1)}%`;
-            return `<tr class="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
-<td class="py-3 px-4 font-medium text-white min-w-[8rem]">${escapeHtmlText(r.title)}</td>
-<td class="py-3 px-4 text-dark-300">${escapeHtmlText(safeCourseDisplayName(r.courseName))}</td>
-<td class="py-3 px-4 text-dark-200 tabular-nums">${r.submissionCount}</td>
-<td class="py-3 px-4 text-primary-300 tabular-nums font-medium">${avg}</td>
+            return `<tr class="border-b border-slate-200/90 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">
+<td class="py-3 px-4 font-medium text-on-surface min-w-[8rem]">${escapeHtmlText(r.title)}</td>
+<td class="py-3 px-4 text-on-surface-muted">${escapeHtmlText(safeCourseDisplayName(r.courseName))}</td>
+<td class="py-3 px-4 text-on-surface tabular-nums">${r.submissionCount}</td>
+<td class="py-3 px-4 text-primary-800 dark:text-primary-300 tabular-nums font-medium">${avg}</td>
 </tr>`;
           })
           .join('');
-  return `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">My students</h3><div class="p-3 rounded-xl bg-primary-400/10">${adminKpiSvg('users')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.myStudents}</p><p class="text-dark-400 text-sm mt-2">Across your assigned classes</p></div>
-<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]"><div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Grading queue</h3><div class="p-3 rounded-xl bg-orange-500/15">${adminKpiSvg('chart')}</div></div><p class="text-4xl font-bold text-white font-display tabular-nums">${snapshot.gradingQueue}</p><p class="text-dark-400 text-sm mt-2">Submissions awaiting your review</p></div>
+  const bento =
+    'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem]';
+  return `${firstDayNote}<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('book')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">My classes</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${snapshot.myClasses}</p><p class="text-xs text-on-surface-muted mt-2">Courses you instruct</p></div>
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-orange-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Grading queue</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${snapshot.gradingQueue}</p><p class="text-xs text-on-surface-muted mt-2">Submissions awaiting your review</p></div>
 </div>
-<div class="mt-8 card-blur progress-bar-glow rounded-2xl overflow-hidden border border-white/10">
-<div class="px-5 py-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
-<h3 class="text-lg font-semibold text-white font-display">Recent assessment results</h3>
-<button type="button" data-lms-action="dashboard-open-assessments" class="text-sm font-medium text-secondary-300 hover:text-secondary-200 transition-colors">Open assessments</button>
+<div class="mt-8 rounded-2xl border-surface-default bg-surface-container overflow-hidden shadow-sm shadow-slate-200/30 dark:shadow-none dark:border-white/10">
+<div class="px-5 py-4 border-b border-surface-default dark:border-white/10 flex flex-wrap items-center justify-between gap-3">
+<h3 class="text-lg font-semibold text-on-surface font-display">Recent activity</h3>
+<button type="button" data-lms-action="dashboard-open-assessments" class="text-sm font-medium text-primary-800 dark:text-secondary-300 hover:text-primary-950 dark:hover:text-secondary-200 transition-colors">Open assessments</button>
 </div>
-<div class="overflow-x-auto">
-<table class="w-full min-w-[28rem] text-left text-sm">
-<thead><tr class="text-[0.65rem] uppercase tracking-wider text-dark-400 border-b border-white/10">
+<div class="overflow-x-auto min-w-0">
+<table class="w-full min-w-0 text-left text-sm">
+<thead><tr class="text-[0.65rem] uppercase tracking-wider text-on-surface-muted border-b border-surface-default dark:border-white/10">
 <th class="py-3 px-4 font-semibold">Assessment</th><th class="py-3 px-4 font-semibold">Course</th><th class="py-3 px-4 font-semibold">Submissions</th><th class="py-3 px-4 font-semibold">Avg. score</th>
 </tr></thead>
 <tbody>${tableRows}</tbody>
 </table>
-</div>
-</div>`;
-}
-
-function buildContextAttendanceHtml(): string {
-  const role = getCurrentUserRole();
-  if (role === 'student' || !selectedStudentId || currentAttendance.length === 0) return '';
-  const present = currentAttendance.filter((a) => a.status === 'present').length;
-  const absent = currentAttendance.filter((a) => a.status === 'absent').length;
-  const late = currentAttendance.filter((a) => a.status === 'late').length;
-  const excused = currentAttendance.filter((a) => a.status === 'excused').length;
-  const total = currentAttendance.length;
-  const rateNum = total > 0 ? ((present + late + excused) / total) * 100 : 0;
-  const rate = total > 0 ? finiteToFixed(rateNum, 1, '0') : '0';
-  const rateColor = !Number.isFinite(rateNum)
-    ? 'text-dark-400'
-    : rateNum >= 90
-      ? 'text-green-400'
-      : rateNum >= 75
-        ? 'text-yellow-400'
-        : 'text-red-400';
-  return `<div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-<div class="card-blur progress-bar-glow rounded-2xl p-6 min-h-[7.5rem]">
-<div class="flex items-center justify-between mb-4"><h3 class="text-dark-200 font-semibold text-sm uppercase tracking-wide">Attendance rate</h3><div class="p-3 rounded-xl bg-primary-400/10"><svg class="w-6 h-6 text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div></div>
-<p class="text-4xl font-bold ${rateColor} font-display tabular-nums">${rate}%</p>
-<p class="text-dark-400 text-sm mt-3"><span class="text-green-400 font-medium">${present} present</span> · <span class="text-red-400 font-medium">${absent} absent</span></p>
 </div>
 </div>`;
 }
@@ -2738,23 +2784,10 @@ function paintInstitutionalDashboard(): void {
   } else {
     core = buildTeacherInstitutionalHtml(institutionalSnapshot);
   }
-  renderTemplate(mount, core + buildContextAttendanceHtml());
+  renderTemplate(mount, core);
 }
 
 function buildAdminMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>): string {
-  const bars = snapshot.gradeDistribution
-    .map(
-      b => `
-<div class="flex flex-col items-center gap-2 flex-1 min-w-0">
-<div class="w-full max-w-[3rem] mx-auto flex items-end justify-center h-28 rounded-t-lg bg-slate-200/95 dark:bg-dark-800/80 border border-slate-300/70 dark:border-white/5 overflow-hidden px-0.5 pb-0.5" aria-hidden="true">
-<div class="w-full rounded-t ${b.label === 'EXCELLENCE' ? 'bg-gradient-to-t from-amber-600 to-amber-400 dark:from-amber-500 dark:to-amber-400' : 'bg-slate-500/90 dark:bg-white/12'}" style="height:${Math.max(0.35, (b.heightPct / 100) * 6.5)}rem"></div>
-</div>
-<span class="text-[0.55rem] uppercase tracking-wider text-center leading-tight ${b.label === 'EXCELLENCE' ? 'text-amber-800 dark:text-amber-300 font-semibold' : 'text-slate-600 dark:text-dark-500'}">${escapeHtmlText(b.label)}</span>
-<span class="text-[0.65rem] tabular-nums text-slate-700 dark:text-dark-400">${b.count}</span>
-</div>`
-    )
-    .join('');
-
   const countNote =
     snapshot.assignmentCount > 0
       ? `${snapshot.assignmentCount} graded item${snapshot.assignmentCount === 1 ? '' : 's'}`
@@ -2764,79 +2797,28 @@ function buildAdminMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, 
 <div class="space-y-6">
 <div>
 <p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
-<p class="text-sm text-on-surface-muted mt-1">Nurturing the growth of our learning community.</p>
+<p class="text-sm text-on-surface-muted mt-1">Institutional snapshot</p>
 </div>
 <div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none">
 <div class="flex items-start justify-between gap-2">
 <div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div>
 </div>
-<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Class enrollment</p>
+<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Total enrollment</p>
 <p class="text-3xl font-bold text-on-surface font-display tabular-nums">${snapshot.enrollment}</p>
 <p class="text-xs text-on-surface-muted">Active learner profiles</p>
-<p class="text-xs text-on-surface-muted pt-1">Snapshot only — figures refresh when you reload the dashboard.</p>
 </div>
 <div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-3 shadow-sm shadow-slate-200/25 dark:shadow-none">
 <div class="flex items-start justify-between gap-2">
 <div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div>
 </div>
-<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Assessment rate</p>
+<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">GPA average</p>
 <p class="text-3xl font-bold text-on-surface font-display tabular-nums">${escapeHtmlText(snapshot.systemAvg)}</p>
 <p class="text-xs text-on-surface-muted">${escapeHtmlText(countNote)} system-wide</p>
-</div>
-<div class="rounded-2xl border-surface-default bg-surface-container p-5 shadow-sm shadow-slate-200/25 dark:shadow-none">
-<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle mb-4">Grade distribution</p>
-<div class="flex items-end justify-between gap-1 sm:gap-2">${bars}</div>
-</div>
-<div>
-<div class="flex items-center gap-2 mb-3"><span class="w-0.5 h-5 rounded-full bg-primary-600 dark:bg-primary-400" aria-hidden="true"></span><h3 class="text-base font-bold text-on-surface font-display">Management tools</h3></div>
-<div class="grid grid-cols-2 gap-3">
-<button type="button" data-lms-action="switch-tab" data-lms-tab="registration" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
-<span class="p-2 rounded-xl bg-primary-500/20">${adminKpiSvg('users')}</span>
-<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">Register student</span>
-</button>
-<button type="button" data-lms-action="switch-tab" data-lms-tab="grades" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
-<span class="p-2 rounded-xl bg-secondary-500/20 text-secondary-800 dark:text-secondary-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></span>
-<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">Approve grades</span>
-</button>
-<button type="button" data-lms-action="switch-tab" data-lms-tab="classes" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
-<span class="p-2 rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></span>
-<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">Curriculum</span>
-</button>
-<button type="button" data-lms-action="switch-tab" data-lms-tab="users" class="rounded-2xl border-surface-default bg-surface-container-tonal p-4 flex flex-col items-center gap-2 hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors text-center min-h-[5.5rem]">
-<span class="p-2 rounded-xl bg-secondary-300/20 text-secondary-800 dark:text-secondary-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></span>
-<span class="text-[0.65rem] font-semibold text-on-surface uppercase tracking-wide leading-tight">System config</span>
-</button>
-</div>
-</div>
-<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
-<p id="dashboard-mobile-proverb-text" class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
-<p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
 </div>
 </div>`;
 }
 
 function buildTeacherMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>): string {
-  const perf = teacherCoursePerformanceFromRows(snapshot.rows);
-  const perfBars = perf
-    .map((row, i) => {
-      const w = finitePctForBar(row.pct);
-      const grad =
-        i % 2 === 0
-          ? 'linear-gradient(90deg, rgb(167, 139, 250), rgb(45, 212, 191))'
-          : 'linear-gradient(90deg, rgb(251, 146, 60), rgb(45, 212, 191))';
-      return `
-<div class="space-y-1.5">
-<div class="flex justify-between gap-2 text-[0.7rem] uppercase tracking-wide text-on-surface-muted">
-<span class="truncate min-w-0">${escapeHtmlText(row.name)}</span>
-<span class="tabular-nums text-on-surface shrink-0">${w}%</span>
-</div>
-<div class="h-2 rounded-full bg-slate-200 dark:bg-dark-700 overflow-hidden">
-<div class="h-full rounded-full" style="width:${w}%;background:${grad}"></div>
-</div>
-</div>`;
-    })
-    .join('');
-
   const queueItems =
     snapshot.queueRows.length === 0
       ? `<p class="text-sm text-on-surface-muted py-4 text-center">No submissions awaiting grading.</p>`
@@ -2863,27 +2845,41 @@ function buildTeacherMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot
           })
           .join('');
 
-  const avgAcross =
-    perf.length > 0
-      ? finitePctForBar(perf.reduce((s, r) => s + r.pct, 0) / perf.length)
-      : null;
+  const recentActivityItems =
+    snapshot.rows.length === 0
+      ? `<p class="text-sm text-on-surface-muted py-3 text-center">No assessment activity yet.</p>`
+      : snapshot.rows
+          .slice(0, 6)
+          .map((r) => {
+            const avg =
+              r.avgPercent == null || !Number.isFinite(r.avgPercent)
+                ? '—'
+                : `${finiteToFixed(r.avgPercent, 1)}%`;
+            return `
+<div class="rounded-xl border-surface-default bg-surface-container-tonal px-3 py-2.5">
+<p class="text-sm font-semibold text-on-surface truncate">${escapeHtmlText(r.title)}</p>
+<p class="text-xs text-on-surface-muted truncate">${escapeHtmlText(safeCourseDisplayName(r.courseName))}</p>
+<p class="text-[0.65rem] text-on-surface-muted mt-1">${r.submissionCount} submission${r.submissionCount === 1 ? '' : 's'} · <span class="text-primary-800 dark:text-primary-300 font-medium">${avg}</span> avg</p>
+</div>`;
+          })
+          .join('');
 
   return `
 <div class="space-y-6">
 <div>
 <p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
-<p class="text-sm text-on-surface-muted mt-1">Track classes and prioritize grading.</p>
+<p class="text-sm text-on-surface-muted mt-1">Classes, grading, and latest submissions.</p>
 </div>
 <div class="grid grid-cols-2 gap-3">
 <div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
-<div class="p-2 w-fit rounded-xl bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300 mb-2">${adminKpiSvg('users')}</div>
-<p class="text-2xl font-bold text-slate-900 dark:text-white font-display tabular-nums">${snapshot.myStudents}</p>
-<p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">Total students</p>
+<div class="p-2 w-fit rounded-xl bg-violet-100 text-violet-900 dark:bg-violet-500/15 dark:text-violet-300 mb-2">${adminKpiSvg('book')}</div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white font-display tabular-nums">${snapshot.myClasses}</p>
+<p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">My classes</p>
 </div>
 <div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
 <div class="p-2 w-fit rounded-xl bg-primary-100 text-primary-900 dark:bg-teal-500/15 dark:text-teal-300 mb-2">${adminKpiSvg('chart')}</div>
 <p class="text-2xl font-bold text-slate-900 dark:text-primary-200 font-display tabular-nums">${snapshot.gradingQueue}</p>
-<p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">To grade</p>
+<p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">Grading queue</p>
 </div>
 </div>
 <div>
@@ -2893,18 +2889,9 @@ function buildTeacherMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot
 </div>
 <div class="space-y-2">${queueItems}</div>
 </div>
-<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none">
-<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Average class performance</p>
-<div class="flex flex-wrap items-baseline gap-2">
-<span class="text-4xl font-bold text-on-surface font-display tabular-nums">${avgAcross == null ? '—' : `${avgAcross}%`}</span>
-${avgAcross == null ? '' : '<span class="text-xs text-primary-800 dark:text-primary-400">Across recent assessments</span>'}
-</div>
-<div class="space-y-4 pt-1">${perfBars || '<p class="text-sm text-on-surface-muted">Performance data will appear as learners submit work.</p>'}</div>
-<button type="button" data-lms-action="switch-tab" data-lms-tab="grades" class="w-full mt-2 py-3 rounded-xl bg-primary-600 text-white font-bold text-xs uppercase tracking-wider hover:bg-primary-700 dark:bg-primary-400 dark:text-dark-950 dark:hover:bg-primary-300 transition-colors">Download full report</button>
-</div>
-<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
-<p id="dashboard-mobile-proverb-text" class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
-<p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
+<div>
+<h3 class="text-base font-bold text-on-surface font-display mb-3">Recent activity</h3>
+<div class="space-y-2">${recentActivityItems}</div>
 </div>
 </div>`;
 }
@@ -2913,99 +2900,19 @@ async function paintMobileStudentDashboard(): Promise<void> {
   const shell = document.getElementById('dashboard-mobile-shell');
   if (!shell || getCurrentUserRole() !== 'student') return;
 
-  const u = getCurrentUser();
-  if (!u) return;
-
   const displayUser = getCurrentUser();
   if (!displayUser) return;
-  const name =
-    userProfileDisplayLabel(displayUser) !== '—'
-      ? userProfileDisplayLabel(displayUser)
-      : displayUser.email || 'there';
-
-  let courses: Course[] = [];
-  let upcoming: StudentUpcomingAssessmentMobile[] = [];
-  try {
-    const profiles = await fetchStudents();
-    const ids = profiles.map(p => p.id);
-    courses = ids.length ? await fetchStudentClasses(ids) : [];
-    upcoming = await fetchStudentUpcomingAssessmentsMobile(u.uid, 8);
-  } catch {
-    courses = [];
-    upcoming = [];
-  }
-
-  const carousel = courses
-    .map(c => {
-      const ini = initialsFromCourseName(c.courseName);
-      const bg = classCardBgClass(c.courseName);
-      return `
-<div class="snap-start shrink-0 w-[min(100%,18rem)] rounded-2xl overflow-hidden border border-white/10 shadow-lg">
-<div class="${bg} aspect-[4/3] flex flex-col justify-end p-4 relative">
-<span class="absolute top-3 right-3 text-[0.6rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-black/35 text-white/95 border border-white/20">In progress</span>
-<p class="text-lg font-bold text-white leading-tight drop-shadow-md">${escapeHtmlText(safeCourseDisplayName(c.courseName))}</p>
-<div class="mt-3 flex items-center justify-between gap-2">
-<span class="text-3xl font-black text-white/90 font-display tracking-tight" aria-hidden="true">${escapeHtmlText(ini)}</span>
-<button type="button" data-lms-action="switch-tab" data-lms-tab="classes" class="shrink-0 px-4 py-2 rounded-xl bg-primary-400 text-dark-950 text-xs font-bold uppercase tracking-wide hover:bg-primary-300 transition-colors">Enter class</button>
-</div>
-</div>
-</div>`;
-    })
-    .join('');
-
-  const assessBlocks = upcoming
-    .map(row => {
-      const { icon, pill } = assessmentTagClasses(row.tag);
-      const due = formatAssessmentDueMobileLabel(row.dueDateTime);
-      return `
-<div class="flex items-stretch gap-3 rounded-xl border border-white/10 bg-dark-900/60 p-3">
-<div class="shrink-0 w-12 h-12 flex items-center justify-center ${icon}" aria-hidden="true">
-${
-  row.tag === 'QUIZ'
-    ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>'
-    : row.tag === 'ESSAY'
-      ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>'
-      : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>'
-}
-</div>
-<div class="min-w-0 flex-1">
-<p class="text-sm font-semibold text-white leading-snug">${escapeHtmlText(row.title)}</p>
-<p class="text-xs text-dark-400 mt-1"><span class="mr-1" aria-hidden="true">📅</span>${escapeHtmlText(due)}</p>
-</div>
-<span class="self-center shrink-0 text-[0.6rem] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${pill}">${row.tag}</span>
-</div>`;
-    })
-    .join('');
 
   const html = `
 <div class="space-y-6">
-<div>
-<p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
-<p class="text-sm text-on-surface-muted mt-1">Your learning path continues today.</p>
-</div>
 <div id="dashboard-mobile-student-gpa-root"></div>
-<div>
-<div class="flex items-center justify-between gap-2 mb-3">
-<h3 class="text-base font-bold text-slate-900 dark:text-white font-display">Current classes</h3>
-<button type="button" data-lms-action="switch-tab" data-lms-tab="classes" class="text-xs font-semibold uppercase tracking-wide text-primary-800 dark:text-primary-400 hover:text-primary-950 dark:hover:text-primary-300">View all</button>
-</div>
-<div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">${carousel || '<p class="text-sm text-dark-400 py-4 w-full text-center">No enrolled classes yet.</p>'}</div>
-</div>
-<div>
-<h3 class="text-base font-bold text-slate-900 dark:text-white font-display mb-3">Upcoming assessments</h3>
-<div class="space-y-2">${assessBlocks || '<p class="text-sm text-dark-400">No upcoming assignments detected.</p>'}</div>
-</div>
 <div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
-<p id="dashboard-mobile-proverb-text" class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
+<p data-lms-dashboard-proverb class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
 <p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
 </div>
 </div>`;
 
   renderTemplate(shell, html);
-  const greetEl = document.getElementById('dashboard-mobile-greeting');
-  if (greetEl) {
-    greetEl.textContent = `Hello, ${name}`;
-  }
   startDashboardProverbRotation();
 }
 
@@ -3027,7 +2934,6 @@ function paintMobileDashboardForRole(): void {
       const name = label !== '—' ? label : u.email || 'there';
       greetEl.textContent = `Hello, ${name}`;
     }
-    startDashboardProverbRotation();
     return;
   }
   if (role === 'teacher' && institutionalSnapshot.role === 'teacher') {
@@ -3039,7 +2945,6 @@ function paintMobileDashboardForRole(): void {
       const name = label !== '—' ? label : u.email || 'there';
       greetEl.textContent = `Hello, ${name}`;
     }
-    startDashboardProverbRotation();
     return;
   }
   renderTemplate(shell, '');
@@ -3074,8 +2979,7 @@ function setDashboardWelcome(user: User | null): void {
       sub.textContent =
         'Track your classes, prioritize the grading queue, and review recent assessment outcomes.';
     } else {
-      sub.textContent =
-        'Review your GPA, stay ahead of deadlines, and follow recent updates from your instructors.';
+      sub.textContent = 'Review your GPA and daily wisdom on the learner dashboard.';
     }
   }
 }
@@ -3128,6 +3032,13 @@ function renderStudentGpaMetricReplaceChildren(gpa: number | null, grades: Grade
   const pres = getStudentGpaPresentation(gpa, grades);
   const wrap = document.createElement('div');
   wrap.className = 'space-y-3';
+  if (pres.showNewLearnerBadge) {
+    const nl = document.createElement('p');
+    nl.className =
+      'text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary-400/90';
+    nl.textContent = 'New learner';
+    wrap.appendChild(nl);
+  }
   const value = document.createElement('p');
   value.className =
     'text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-white via-white to-dark-300 bg-clip-text text-transparent';
@@ -3143,48 +3054,15 @@ function renderStudentGpaMetricReplaceChildren(gpa: number | null, grades: Grade
   root.replaceChildren(wrap);
 }
 
-function renderStudentDeadlineMetricReplaceChildren(next: NextStudentDeadlineResult | null): void {
-  const root = document.getElementById('student-deadline-metric-root');
-  if (!root) return;
-  const wrap = document.createElement('div');
-  wrap.className = 'space-y-3';
-  if (!next) {
-    const p = document.createElement('p');
-    p.className = 'text-lg font-medium text-dark-200';
-    p.textContent = "You are all caught up on upcoming due dates.";
-    const s = document.createElement('p');
-    s.className = 'text-sm text-dark-500 leading-relaxed';
-    s.textContent = 'Open Assessments when your teacher assigns new work.';
-    wrap.append(p, s);
-    root.replaceChildren(wrap);
-    return;
-  }
-  const title = document.createElement('p');
-  title.className = 'text-lg font-semibold text-white leading-snug break-words min-w-0';
-  title.textContent = safeAssignmentTitle(next.assessment.title);
-  const course = document.createElement('p');
-  course.className = 'text-sm font-medium text-primary-400/95';
-  course.textContent = safeCourseDisplayName(next.courseName);
-  const when = document.createElement('p');
-  when.className = 'text-sm text-dark-400';
-  const dt = new Date(next.dueDateTime);
-  when.textContent = `Due ${dt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`;
-  wrap.append(title, course, when);
-  root.replaceChildren(wrap);
-}
-
 async function refreshStudentMasteryDashboard(forceGpaRefresh: boolean): Promise<void> {
   const u = getCurrentUser();
   if (!u || u.role !== 'student') return;
   try {
     const gpa = await calculateStudentCumulativeGPA(u.uid, forceGpaRefresh);
-    const next = await fetchNextStudentDeadline(u.uid);
     renderStudentGpaMetricReplaceChildren(gpa, currentGrades);
-    renderStudentDeadlineMetricReplaceChildren(next);
     updateStudentMobileGpaBentoFromMetrics(gpa, currentGrades);
   } catch {
     renderStudentGpaMetricReplaceChildren(null, currentGrades);
-    renderStudentDeadlineMetricReplaceChildren(null);
     updateStudentMobileGpaBentoFromMetrics(null, currentGrades);
   }
 }
@@ -3202,33 +3080,22 @@ async function refreshInstitutionalDashboardMetrics(): Promise<void> {
 
   if (role === 'admin') {
     const enrollment = currentStudents.length;
-    let activeCourses = 0;
-    try {
-      const coursesSnap = await getDocs(collection(db, 'courses'));
-      activeCourses = coursesSnap.size;
-    } catch {
-      activeCourses = 0;
-    }
     let systemAvg = '—';
     let assignmentCount = 0;
-    let gradeDistribution: GradeDistributionBar[] = [];
     try {
       const ids = currentStudents.map(s => s.id);
       const allGrades = await fetchGradesForManyStudents(ids);
       const st = computeAverageGradePercent(allGrades);
       systemAvg = st.pctLabel;
       assignmentCount = st.count;
-      gradeDistribution = computeAdminGradeDistribution(allGrades);
     } catch {
-      gradeDistribution = [];
+      /* keep defaults */
     }
     institutionalSnapshot = {
       role: 'admin',
       enrollment,
       systemAvg,
       assignmentCount,
-      activeCourses,
-      gradeDistribution,
     };
     paintInstitutionalDashboard();
     paintMobileDashboardForRole();
@@ -3236,19 +3103,15 @@ async function refreshInstitutionalDashboardMetrics(): Promise<void> {
   }
 
   if (role === 'teacher') {
-    let myStudents = 0;
+    let myClasses = 0;
     let gradingQueue = 0;
     let rows: TeacherAssessmentDashboardRow[] = [];
     let queueRows: TeacherGradingQueueRow[] = [];
     try {
       const courses = await fetchTeacherClasses();
-      const sidSet = new Set<string>();
-      for (const c of courses) {
-        for (const id of c.studentIds ?? []) sidSet.add(id);
-      }
-      myStudents = sidSet.size;
+      myClasses = courses.length;
     } catch {
-      myStudents = 0;
+      myClasses = 0;
     }
     try {
       gradingQueue = await countPendingSubmissionsForTeacher();
@@ -3265,7 +3128,7 @@ async function refreshInstitutionalDashboardMetrics(): Promise<void> {
     } catch {
       queueRows = [];
     }
-    institutionalSnapshot = { role: 'teacher', myStudents, gradingQueue, rows, queueRows };
+    institutionalSnapshot = { role: 'teacher', myClasses, gradingQueue, rows, queueRows };
     paintInstitutionalDashboard();
     paintMobileDashboardForRole();
     return;
@@ -3294,11 +3157,20 @@ async function updateDashboardStatsForStudent(_studentId: string): Promise<void>
 async function loadRecentActivity(): Promise<void> {
   const recentActivityEl = document.getElementById('recent-activity');
   if (!recentActivityEl) return;
+  const userRoleEarly = getCurrentUserRole();
+  if (userRoleEarly === 'student') {
+    recentActivityEl.replaceChildren();
+    return;
+  }
   try {
     const userRole = getCurrentUserRole();
+    const sessionUser = getCurrentUser();
     let activities: Array<{ type: 'grade' | 'attendance'; date: Date; data: Grade | Attendance }> = [];
 
-    const hasStudent = (userRole === 'student' || userRole === 'admin' || userRole === 'teacher') && selectedStudentId;
+    const hasStudent =
+      userRole === 'student' && sessionUser
+        ? selectedStudentId === sessionUser.uid
+        : (userRole === 'admin' || userRole === 'teacher') && !!selectedStudentId;
     if (hasStudent) {
       for (const grade of currentGrades.slice(0, 5)) {
         activities.push({ type: 'grade', date: new Date(grade.date), data: grade });
@@ -3325,7 +3197,10 @@ async function loadRecentActivity(): Promise<void> {
               }
             : {
                 title: 'No recent activity to show',
-                subtitle: 'Select a student from the dashboard roster to combine grades and attendance in this feed.',
+                subtitle:
+                  userRole === 'student'
+                    ? 'Your grades and attendance will appear here as instructors post them.'
+                    : 'Select a student from the dashboard roster to combine grades and attendance in this feed.',
               };
       renderTemplate(recentActivityEl, emptyStateBlockHtml(emptyCopy.title, emptyCopy.subtitle));
       return;
@@ -3379,6 +3254,7 @@ function resetAppState(): void {
   renderRoleBasedBottomNav(null);
   currentStudents = [];
   currentGrades = [];
+  currentAttendance = [];
   selectedStudentId = null;
   attendanceRollCourses = [];
   institutionalSnapshot = { role: 'student' };
@@ -3702,8 +3578,28 @@ async function loadStudentAttendance(studentId: string): Promise<void> {
     loadRecentActivity();
   } catch (e) {
     reportClientFault(e);
-    displayAttendance([]);
-    updateAttendanceStats([]);
+    if (isFirebasePermissionDenied(e)) {
+      const attendanceTableBody = document.getElementById('attendance-history-body');
+      if (attendanceTableBody) {
+        renderTemplate(
+          attendanceTableBody,
+          emptyStateTableRowHtml(
+            4,
+            'Access denied',
+            'This account cannot load attendance history under the current security rules. Sign out and sign in again, or contact your administrator.',
+            ''
+          )
+        );
+      }
+      updateAttendanceStats([]);
+      showAppToast(
+        'Attendance data is blocked by security rules. If this is unexpected, contact support.',
+        'error'
+      );
+    } else {
+      displayAttendance([]);
+      updateAttendanceStats([]);
+    }
   }
 }
 
@@ -3745,8 +3641,8 @@ function updateAttendanceStats(attendance: Attendance[]): void {
   const absent = attendance.filter(a => a.status === 'absent').length;
   const late = attendance.filter(a => a.status === 'late').length;
   const excused = attendance.filter(a => a.status === 'excused').length;
-  const rate =
-    total > 0 ? finiteToFixed(((present + late + excused) / total) * 100, 1, '0') : '0';
+  const rawRatePct = total > 0 ? ((present + late + excused) / total) * 100 : 0;
+  const rate = finiteToFixed(Math.min(100, Math.max(0, rawRatePct)), 1, '0');
 
   const totalEl = document.getElementById('attendance-total');
   const presentEl = document.getElementById('attendance-present');
@@ -4065,7 +3961,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
         );
       });
       try {
-        await loadDashboardData();
+        await initDashboard();
       } catch {
         /* dashboard load error */
       }
@@ -4113,7 +4009,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
     });
 
     try {
-      await loadDashboardData();
+      await initDashboard();
     } catch {
       /* dashboard load error */
     }

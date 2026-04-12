@@ -1,4 +1,8 @@
-/** Safe labels when Firestore or legacy rows omit names (keeps UI stable). */
+/**
+ * Safe labels when Firestore or legacy rows omit names (keeps UI stable).
+ * Profile photos are not rendered with `<img>` anywhere in the app — use
+ * {@link pickAvatarDiscPalette} + {@link initialsForAvatarLabel} (or roster initials) for discs only.
+ */
 export const UNNAMED_STUDENT = 'Unnamed Student';
 export const UNTITLED_CLASS = 'Untitled Class';
 export const UNTITLED_ASSIGNMENT = 'Untitled assignment';

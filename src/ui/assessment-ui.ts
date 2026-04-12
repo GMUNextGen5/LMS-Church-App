@@ -1393,11 +1393,11 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
       await addQuestion(classId, aId, q);
     }
 
-    hideLoading();
     navigate({ view: 'list' });
   } catch (err: unknown) {
-    hideLoading();
     showAppToast(formatErrorForUserToast(err, 'Could not save the assessment.'), 'error');
+  } finally {
+    hideLoading();
   }
 }
 
@@ -1432,11 +1432,11 @@ async function handleSaveProgress(classId: string, assessmentId: string, student
   showLoading();
   try {
     await saveProgress(classId, assessmentId, studentProfileId, answers);
-    hideLoading();
     showAppToast('Progress saved!', 'success');
   } catch (err: unknown) {
-    hideLoading();
     showAppToast(formatErrorForUserToast(err, 'Could not save your progress.'), 'error');
+  } finally {
+    hideLoading();
   }
 }
 
@@ -1453,7 +1453,6 @@ async function handleSubmitAssessment(form: HTMLFormElement): Promise<void> {
   showLoading();
   try {
     const submission = await submitAssessmentData(classId, assessmentId, sp, answers);
-    hideLoading();
 
     if (submission.released) {
       navigate({ view: 'results', classId, assessmentId, studentProfileId: sp });
@@ -1462,8 +1461,9 @@ async function handleSubmitAssessment(form: HTMLFormElement): Promise<void> {
       navigate({ view: 'list' });
     }
   } catch (err: unknown) {
-    hideLoading();
     showAppToast(formatErrorForUserToast(err, 'Could not submit the assessment.'), 'error');
+  } finally {
+    hideLoading();
   }
 }
 
@@ -1498,11 +1498,11 @@ async function handleSaveGrades(classId: string, assessmentId: string, studentPr
       await releaseGrades(classId, assessmentId, [studentProfileId]);
     }
 
-    hideLoading();
     navigate({ view: 'submissions', classId, assessmentId });
   } catch (err: unknown) {
-    hideLoading();
     showAppToast(formatErrorForUserToast(err, 'Could not save grades.'), 'error');
+  } finally {
+    hideLoading();
   }
 }
 

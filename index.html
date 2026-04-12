@@ -1335,12 +1335,57 @@
             /* 5.1:1 on white - AA */
             --accent-gradient: linear-gradient(135deg, #0369a1 0%, #047857 100%);
             --accent-glow: rgba(3, 105, 161, 0.25);
+            /* Semantic text tokens (light): slate primary + deep teal accent (not mint) */
+            --lms-primary-text: #0f172a;
+            --lms-accent-text: #0d9488;
             /* Login / auth card — must stay dark-on-light (classic block must not override these) */
             --login-text-primary: #0f172a;
             --login-text-secondary: #1e293b;
             --login-text-muted: #64748b;
             --login-glass-bg: #ffffff;
             --login-glass-border: #e2e8f0;
+            /* Empty states & access panels: AA body copy on white / surface-container (#115e59 ≈ 6.2:1 on #fff) */
+            --lms-empty-subtle: #0f172a;
+            --lms-empty-muted: #115e59;
+        }
+
+        [data-theme="light"] .lms-empty-state-panel .text-on-surface-subtle,
+        [data-theme="light"] .lms-access-denied-panel .text-on-surface-subtle {
+            color: var(--lms-empty-subtle, #0f172a);
+        }
+
+        [data-theme="light"] .lms-empty-state-panel .text-on-surface-muted,
+        [data-theme="light"] .lms-access-denied-panel .text-on-surface-muted {
+            color: var(--lms-empty-muted, #115e59);
+        }
+
+        [data-theme="light"] .lms-empty-state-panel .text-on-surface {
+            color: var(--lms-primary-text, #0f172a);
+        }
+
+        [data-theme="light"] .lms-access-denied-panel {
+            background: rgba(255, 255, 255, 0.96);
+            border-color: rgba(13, 148, 136, 0.22);
+        }
+
+        [data-theme="light"] .lms-access-denied-panel .font-display,
+        [data-theme="light"] .lms-access-denied-panel h3 {
+            color: var(--lms-primary-text, #0f172a) !important;
+        }
+
+        [data-theme="light"] .lms-access-denied-panel p {
+            color: #334155 !important;
+        }
+
+        [data-theme="light"] .lms-access-denied-panel button[data-action="back-to-list"] {
+            color: var(--lms-primary-text, #0f172a) !important;
+            border-color: rgba(13, 148, 136, 0.45);
+        }
+
+        /* Mobile bottom nav: active tab pill — high contrast on glass (light) */
+        [data-theme="light"] #lms-mobile-bottom-nav .lms-mobile-nav-btn[data-tab][aria-current="page"] {
+            background-color: #ccfff8;
+            color: #145f59;
         }
 
         /* Form labels in main app: same contrast as Tailwind text-slate-900 in light mode */
@@ -1619,6 +1664,12 @@
         [data-theme="light"] .text-primary-500 {
             color: #0369a1 !important;
             /* 6.1:1 on white - AA */
+        }
+
+        /* Mint “teal” accents: meet WCAG AA on white (minimum #0d9488) */
+        [data-theme="light"] .text-primary-200,
+        [data-theme="light"] .text-primary-300 {
+            color: #0d9488 !important;
         }
 
         /* Accent/Cyan colors - darker for contrast */
@@ -3161,6 +3212,10 @@
             color: var(--lms-primary, #9ffff2);
         }
 
+        [data-theme="light"] .lms-breadcrumbs a:hover {
+            color: var(--lms-accent-text, #0d9488);
+        }
+
         .lms-breadcrumbs .current {
             color: #f1f5f9;
             font-weight: 500;
@@ -3245,7 +3300,7 @@
         }
 
         [data-theme="light"] .lms-go-live-btn {
-            color: #0f172a;
+            color: var(--lms-primary-text, #0f172a);
             border-color: rgba(15, 23, 42, 0.2);
             background: rgba(15, 23, 42, 0.04);
         }
@@ -5372,7 +5427,7 @@
 
     <!-- Main Application Container (Initially Hidden) -->
     <div id="app-container" class="hide">
-        <div class="lms-layout gradient-bg">
+        <div id="app-mount" class="lms-layout gradient-bg">
             <!-- Sidebar Overlay for Mobile -->
             <div id="lms-sidebar-overlay" class="lms-sidebar-overlay"></div>
 
@@ -5581,7 +5636,8 @@
                         </nav>
                     </div>
 
-                    <div class="lms-header-search-wrap w-full md:w-auto order-3 md:order-none">
+                    <div id="lms-header-search-wrap"
+                        class="lms-header-search-wrap w-full md:w-auto order-3 md:order-none admin-only teacher-only hide">
                         <div class="lms-header-search-inner lms-global-search">
                             <svg class="w-5 h-5 ml-3 text-dark-400 shrink-0" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24" aria-hidden="true">
@@ -5597,7 +5653,7 @@
 
                     <div class="lms-header-actions">
                         <button type="button" id="lms-go-live-btn"
-                            class="lms-go-live-btn inline-flex items-center justify-center gap-2 min-w-[6.75rem]"
+                            class="lms-go-live-btn admin-only teacher-only hide inline-flex items-center justify-center gap-2 min-w-[6.75rem]"
                             aria-live="polite">
                             <span class="lms-go-live-text">GO LIVE</span>
                             <span
@@ -5693,8 +5749,8 @@
                             <p id="dashboard-welcome-sub" class="mt-2 text-sm text-dark-400 max-w-2xl leading-relaxed"></p>
                         </div>
 
-                        <!-- Student Selection for Admin/Teacher -->
-                        <div class="admin-only teacher-only hide mb-6">
+                        <!-- Student roster preview (staff only; never shown to signed-in learners) -->
+                        <div id="dashboard-educator-student-picker" class="admin-only teacher-only hide mb-6">
                             <div class="glass-effect rounded-2xl p-6">
                                 <div
                                     class="flex flex-col md:flex-row md:flex-wrap gap-4 items-stretch md:items-center justify-between mb-4">
@@ -5741,11 +5797,11 @@
                         <!-- Role-based KPIs, educator assessment table, and contextual metrics (main.ts + renderTemplate) -->
                         <div id="dashboard-institutional-mount" class="w-full min-w-0 min-h-0 hidden md:block"></div>
 
-                        <!-- Student mastery row (GPA + next deadline); populated via replaceChildren in main.ts -->
+                        <!-- Student dashboard: GPA bento only (metrics via replaceChildren in main.ts) -->
                         <div id="dashboard-student-mastery-row"
-                            class="student-only hide mt-8 w-full max-w-full hidden md:grid grid-cols-1 md:grid-cols-2 gap-6">
+                            class="student-only hide mt-8 w-full max-w-full hidden md:block">
                             <article
-                                class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover">
+                                class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover max-w-2xl">
                                 <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
                                     aria-hidden="true"></div>
                                 <div class="relative flex items-start justify-between gap-3 mb-5">
@@ -5764,30 +5820,18 @@
                                 </div>
                                 <div id="student-gpa-metric-root" class="relative min-h-[5rem]"></div>
                             </article>
-                            <article
-                                class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover md:col-span-2">
-                                <div class="pointer-events-none absolute -right-6 -bottom-10 h-28 w-28 rounded-full bg-secondary-400/10 blur-2xl"
-                                    aria-hidden="true"></div>
-                                <div class="relative flex items-start justify-between gap-3 mb-5">
-                                    <div>
-                                        <p class="text-xs font-semibold uppercase tracking-widest text-secondary-300/95">
-                                            Focus Next On</p>
-                                        <h3 class="mt-1 text-lg font-bold text-white font-display">Next deadline</h3>
-                                    </div>
-                                    <div class="shrink-0 rounded-xl bg-secondary-400/10 p-3 ring-1 ring-secondary-400/25">
-                                        <svg class="h-6 w-6 text-secondary-300" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div id="student-deadline-metric-root" class="relative min-h-[5rem]"></div>
-                            </article>
                         </div>
 
-                        <!-- Recent academic activity (table-style list from main.ts) -->
-                        <div class="mt-10">
+                        <!-- Orthodox proverb (desktop learners; mobile copy lives in dashboard-mobile-shell) -->
+                        <div class="student-only hide mt-8 max-w-2xl hidden md:block">
+                            <div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20">
+                                <p data-lms-dashboard-proverb class="lms-mobile-proverb-body text-sm italic leading-relaxed"></p>
+                                <p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
+                            </div>
+                        </div>
+
+                        <!-- Recent academic activity (educators only) -->
+                        <div class="admin-only teacher-only hide mt-10">
                             <h3 class="text-xl md:text-2xl font-bold text-white mb-4 font-display tracking-tight">Recent
                                 academic activity</h3>
                             <div id="recent-activity" class="min-h-[4rem]">
@@ -5810,16 +5854,22 @@
                             <!-- Student Selection Sidebar -->
                             <div class="lg:col-span-1">
                                 <div class="glass-effect rounded-2xl p-6 sticky top-24">
-                                    <h3 class="text-xl font-bold text-white mb-4">Select
-                                        Student</h3>
-                                    <input type="text" id="grades-student-search" placeholder="Search by name or email..."
-                                        class="w-full px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 text-sm mb-2"
-                                        aria-label="Search students by name or email">
-                                    <p id="grades-student-filter-empty" class="hidden text-amber-300/90 text-xs mb-2" role="status"></p>
-                                    <select id="student-select"
-                                        class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
-                                        <option value="">-- Select a student --</option>
-                                    </select>
+                                    <div id="student-select-container" class="admin-only teacher-only hide">
+                                        <h3 class="text-xl font-bold text-white mb-4">Select
+                                            Student</h3>
+                                        <input type="text" id="grades-student-search" placeholder="Search by name or email..."
+                                            class="w-full px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 text-sm mb-2"
+                                            aria-label="Search students by name or email">
+                                        <p id="grades-student-filter-empty" class="hidden text-amber-300/90 text-xs mb-2" role="status"></p>
+                                        <select id="student-select"
+                                            class="w-full px-4 py-3 rounded-lg bg-dark-800 border border-dark-600 text-white focus:outline-none focus:border-primary-500 input-glow transition-all">
+                                            <option value="">-- Select a student --</option>
+                                        </select>
+                                    </div>
+                                    <div class="student-only hide mb-6">
+                                        <h3 class="text-xl font-bold text-white mb-2">Your grades</h3>
+                                        <p class="text-sm text-dark-400 leading-relaxed">Only your academic record is shown here.</p>
+                                    </div>
 
                                     <div class="mt-6 space-y-3">
                                         <button id="ai-summary-btn"
@@ -6043,8 +6093,10 @@
                     <!-- Attendance Tab -->
                     <div id="attendance-content" class="tab-content hide">
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <!-- Attendance Stats -->
-                            <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <!-- Learner personal attendance overview (students only; staff use class roll metrics below) -->
+                            <div
+                                id="attendance-personal-metrics-row"
+                                class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4 student-only hide attendance-learner-stats">
                                 <div class="glass-effect rounded-xl p-4">
                                     <div class="flex items-center justify-between">
                                         <div>
@@ -6102,7 +6154,8 @@
                                         <div>
                                             <p class="text-dark-400 text-sm">Attendance Rate
                                             </p>
-                                            <p id="attendance-rate" class="text-2xl font-bold text-primary-400 mt-1">
+                                            <p id="attendance-rate"
+                                                class="text-2xl font-bold text-primary-400 mt-1 min-w-0 tabular-nums break-words">
                                                 0%
                                             </p>
                                         </div>
@@ -6118,8 +6171,9 @@
                                 </div>
                             </div>
 
-                            <!-- Roll call session stats (teachers / admins) -->
+                            <!-- Roll call session stats (teachers / admins only) -->
                             <div
+                                id="attendance-class-metrics-row"
                                 class="teacher-only admin-only lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4 hide">
                                 <div class="rounded-xl p-4 bg-slate-900/50 border border-slate-600/60">
                                     <div class="flex items-center justify-between gap-2">
@@ -6367,8 +6421,8 @@
                                 </div>
                             </div>
 
-                            <!-- Attendance History -->
-                            <div class="lg:col-span-2 glass-effect rounded-2xl p-6">
+                            <!-- Attendance History (full width at lg — no empty column beside staff tools) -->
+                            <div class="lg:col-span-3 glass-effect rounded-2xl p-6">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-bold text-white">Attendance
                                         History</h3>
@@ -7344,7 +7398,7 @@
                 aria-label="Primary">
                 <!-- Items injected by main.ts renderRoleBasedBottomNav(role) via replaceChildren -->
                 <div id="lms-mobile-bottom-nav-slot"
-                    class="flex justify-around items-stretch max-w-lg mx-auto px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-h-[56px]">
+                    class="flex justify-around items-stretch max-w-lg mx-auto px-2 pt-2 pb-safe min-h-[56px]">
                 </div>
             </nav>
         </div><!-- /lms-layout -->
