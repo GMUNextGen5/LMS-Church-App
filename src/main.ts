@@ -1064,6 +1064,7 @@ function setupAuthForms(): void {
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
+      if (!window.confirm('Are you sure you want to sign out?')) return;
       try {
         await logout();
       } catch {
@@ -2520,7 +2521,10 @@ function updateStudentSelect(): void {
     placeholder.value = '';
     placeholder.textContent = '-- Select a student --';
     sel.appendChild(placeholder);
+    const seen = new Set<string>();
     currentStudents.forEach((student) => {
+      if (seen.has(student.id)) return;
+      seen.add(student.id);
       const option = document.createElement('option');
       const label = safeStudentDisplayName(student.name);
       option.value = student.id;
@@ -2666,7 +2670,20 @@ function displayGrades(grades: Grade[]): void {
   }
   chartsSection?.classList.remove('hide');
 
+  const isPlausibleText = (s: unknown): boolean => {
+    if (typeof s !== 'string') return false;
+    const t = s.trim();
+    if (t.length < 2 || t.length > 300) return false;
+    const alphaRatio = (t.match(/[a-zA-Z\u00C0-\u024F\u1200-\u137F]/g) || []).length / t.length;
+    return alphaRatio > 0.25;
+  };
+
   const gradesRowsHtml = grades
+    .filter(
+      (g) =>
+        isPlausibleText(g.assignmentName) ||
+        g.assignmentName === safeAssignmentTitle(g.assignmentName)
+    )
     .map((grade) => {
       const pct = gradePercent100(grade);
       const percentage = pct == null ? '—' : pct.toFixed(1);
@@ -3262,8 +3279,8 @@ function buildAdminInstitutionalHtml(
   const bento =
     'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem]';
   return `${firstDayNote}<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Total enrollment</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${snapshot.enrollment}</p><p class="text-xs text-on-surface-muted mt-2">Active learner profiles</p></div>
-<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">GPA average</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${escapeHtmlText(snapshot.systemAvg)}</p><p class="text-xs text-on-surface-muted mt-2">${countNote}</p></div>
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">Total enrollment</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${snapshot.enrollment}</p><p class="text-xs text-on-surface-muted mt-3">Active learner profiles</p></div>
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">Grade average</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${escapeHtmlText(snapshot.systemAvg)}</p><p class="text-xs text-on-surface-muted mt-3">${countNote}</p></div>
 </div>`;
 }
 
@@ -3297,8 +3314,8 @@ function buildTeacherInstitutionalHtml(
   const bento =
     'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem]';
   return `${firstDayNote}<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('book')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">My classes</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${snapshot.myClasses}</p><p class="text-xs text-on-surface-muted mt-2">Courses you instruct</p></div>
-<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-3"><div class="p-2.5 rounded-xl bg-orange-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Grading queue</p><p class="text-3xl font-bold text-on-surface font-display tabular-nums mt-1">${snapshot.gradingQueue}</p><p class="text-xs text-on-surface-muted mt-2">Submissions awaiting your review</p></div>
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('book')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">My classes</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${snapshot.myClasses}</p><p class="text-xs text-on-surface-muted mt-3">Courses you instruct</p></div>
+<div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-orange-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">Grading queue</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${snapshot.gradingQueue}</p><p class="text-xs text-on-surface-muted mt-3">Submissions awaiting your review</p></div>
 </div>
 <div class="mt-8 rounded-2xl border-surface-default bg-surface-container overflow-hidden shadow-sm shadow-slate-200/30 dark:shadow-none dark:border-white/10">
 <div class="px-5 py-4 border-b border-surface-default dark:border-white/10 flex flex-wrap items-center justify-between gap-3">
@@ -3352,9 +3369,9 @@ function buildAdminMobileDashboardHtml(
 <p class="text-sm text-on-surface-muted mt-1">Institutional snapshot</p>
 </div>
 <div class="grid grid-cols-1 gap-2">
-<button type="button" data-lms-action="dashboard-open-grades-reports" aria-label="Open grades and official PDF downloads" class="w-full min-h-[48px] rounded-xl border border-surface-default bg-surface-container px-4 py-3 text-left text-sm font-semibold text-on-surface shadow-sm shadow-slate-200/20 hover:bg-slate-100 dark:hover:bg-dark-800/80 dark:shadow-none transition-colors flex items-center justify-between gap-2">
-<span>Reports &amp; PDF downloads</span>
-<span class="text-slate-400 dark:text-dark-500 shrink-0" aria-hidden="true">›</span>
+<button type="button" data-lms-action="dashboard-open-grades-reports" aria-label="Open grades and official PDF downloads" class="w-full min-h-[48px] rounded-xl border border-primary-300/40 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 px-4 py-3 text-left text-sm font-semibold text-primary-900 dark:text-primary-200 shadow-sm shadow-primary-100/40 dark:shadow-none hover:bg-primary-100 dark:hover:bg-primary-500/15 transition-colors flex items-center justify-between gap-2">
+<span class="flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>Reports &amp; PDF downloads</span>
+<span class="text-primary-400 dark:text-primary-400 shrink-0" aria-hidden="true">›</span>
 </button>
 </div>
 <div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none">
@@ -3369,7 +3386,7 @@ function buildAdminMobileDashboardHtml(
 <div class="flex items-start justify-between gap-2">
 <div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div>
 </div>
-<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">GPA average</p>
+<p class="text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-on-surface-subtle">Grade average</p>
 <p class="text-3xl font-bold text-on-surface font-display tabular-nums">${escapeHtmlText(snapshot.systemAvg)}</p>
 <p class="text-xs text-on-surface-muted">${escapeHtmlText(countNote)} system-wide</p>
 </div>
@@ -3444,7 +3461,7 @@ function buildTeacherMobileDashboardHtml(
 </div>
 </div>
 <div class="grid grid-cols-2 gap-2" role="group" aria-label="Quick navigation">
-<button type="button" data-lms-action="dashboard-open-grades-reports" aria-label="Open grades and official PDF downloads" class="min-h-[48px] rounded-xl border border-surface-default bg-surface-container px-3 py-2.5 text-center text-xs font-semibold text-on-surface shadow-sm hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors">Reports &amp; PDFs</button>
+<button type="button" data-lms-action="dashboard-open-grades-reports" aria-label="Open grades and official PDF downloads" class="min-h-[48px] rounded-xl border border-primary-300/40 dark:border-primary-500/25 bg-primary-50 dark:bg-primary-500/10 px-3 py-2.5 text-center text-xs font-semibold text-primary-900 dark:text-primary-200 shadow-sm hover:bg-primary-100 dark:hover:bg-primary-500/15 transition-colors flex items-center justify-center gap-1.5"><svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>Reports &amp; PDFs</button>
 <button type="button" data-lms-action="dashboard-scroll-student-picker" aria-label="Go to student search to view a learner dashboard" class="min-h-[48px] rounded-xl border border-surface-default bg-surface-container px-3 py-2.5 text-center text-xs font-semibold text-on-surface shadow-sm hover:bg-slate-100 dark:hover:bg-dark-800/80 transition-colors">View student</button>
 </div>
 <div role="region" aria-labelledby="dashboard-mobile-queue-heading">
@@ -3501,7 +3518,7 @@ function paintMobileDashboardForRole(): void {
     if (greetEl && u) {
       const label = userProfileDisplayLabel(u);
       const name = label !== '—' ? label : u.email || 'there';
-      greetEl.textContent = `Hello, ${name}`;
+      greetEl.textContent = `${timeOfDayGreeting()}, ${name}`;
     }
     return;
   }
@@ -3512,11 +3529,18 @@ function paintMobileDashboardForRole(): void {
     if (greetEl && u) {
       const label = userProfileDisplayLabel(u);
       const name = label !== '—' ? label : u.email || 'there';
-      greetEl.textContent = `Hello, ${name}`;
+      greetEl.textContent = `${timeOfDayGreeting()}, ${name}`;
     }
     return;
   }
   renderTemplate(shell, '');
+}
+
+function timeOfDayGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
 }
 
 function setDashboardWelcome(user: User | null): void {
@@ -3531,7 +3555,7 @@ function setDashboardWelcome(user: User | null): void {
   }
   const label = userProfileDisplayLabel(user);
   const name = label !== '—' ? label : user.email || 'there';
-  heading.textContent = `Hello, ${name}`;
+  heading.textContent = `${timeOfDayGreeting()}, ${name}`;
   if (kicker) {
     kicker.textContent =
       user.role === 'admin'
@@ -3787,22 +3811,23 @@ async function loadRecentActivity(): Promise<void> {
           hour: '2-digit',
           minute: '2-digit',
         });
+        const rowStripe = 'border-b border-white/5 hover:bg-white/[0.03] even:bg-white/[0.015] transition-colors';
         if (activity.type === 'grade') {
           const grade = activity.data as Grade;
           const pct = gradePercent100(grade);
           const percentage = pct == null ? '—' : pct.toFixed(1);
           const cls = pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
-          return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td><td class="py-3 px-4 text-dark-300 text-sm">Grade posted</td><td class="py-3 px-4 text-sm ${cls} tabular-nums">${percentage}${pct == null ? '' : '%'}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
+          return `<tr class="${rowStripe}"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td><td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-300">Grade</span></td><td class="py-3 px-4 text-sm ${cls} tabular-nums font-medium">${percentage}${pct == null ? '' : '%'}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
         }
         const att = activity.data as Attendance;
-        const statusMap: Record<string, [string, string]> = {
-          present: ['Present', 'text-green-400'],
-          absent: ['Absent', 'text-red-400'],
-          late: ['Late', 'text-yellow-400'],
-          excused: ['Excused', 'text-blue-400'],
+        const statusBadgeMap: Record<string, [string, string, string]> = {
+          present: ['Present', 'text-green-300', 'bg-green-500/15'],
+          absent: ['Absent', 'text-red-300', 'bg-red-500/15'],
+          late: ['Late', 'text-yellow-300', 'bg-yellow-500/15'],
+          excused: ['Excused', 'text-blue-300', 'bg-blue-500/15'],
         };
-        const [badge, color] = statusMap[att.status] || ['Recorded', 'text-dark-300'];
-        return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${badge}</td><td class="py-3 px-4 text-dark-300 text-sm">Attendance</td><td class="py-3 px-4 text-sm ${color}">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
+        const [badge, color, badgeBg] = statusBadgeMap[att.status] || ['Recorded', 'text-dark-300', 'bg-dark-700'];
+        return `<tr class="${rowStripe}"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(att.notes || badge)}</td><td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md ${badgeBg} ${color}">${badge}</span></td><td class="py-3 px-4 text-sm ${color} font-medium">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
       })
       .join('');
     renderTemplate(
