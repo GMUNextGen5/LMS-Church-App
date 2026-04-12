@@ -4099,7 +4099,7 @@ function setupAIAgentChat(): void {
         <div class="flex-1 max-w-3xl">
           <div class="ai-message-content glass-effect rounded-2xl rounded-tl-sm p-5 border border-primary-500/20 hover:border-primary-500/30 transition-all group relative">
             <div class="ai-response-content" id="${msgId}"></div>
-            <button type="button" data-lms-action="copy-ai-response" class="ai-copy-btn absolute top-3 right-3 p-2 rounded-lg bg-dark-800/80 hover:bg-dark-700 text-dark-400 hover:text-white transition-all" title="Copy response"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>
+            <button type="button" data-lms-action="copy-ai-response" class="ai-copy-btn absolute top-3 right-3 p-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-600 hover:text-slate-900 dark:bg-dark-800/80 dark:hover:bg-dark-700 dark:text-dark-400 dark:hover:text-white transition-all" title="Copy response"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>
           </div>
           <div class="flex items-center gap-3 mt-2 ml-2">
             <p class="text-dark-500 text-xs">${escapeHtmlText(timestamp)}</p>

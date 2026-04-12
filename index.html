@@ -1919,6 +1919,143 @@
         opacity: 1 !important;
       }
 
+      /* ── Assessments tab: light-mode (opacity dark-bg + status chips) ── */
+      [data-theme='light'] #assessments-content [class*='bg-dark-800/80'],
+      [data-theme='light'] #assessments-content thead[class*='bg-dark-800'] {
+        background-color: #f1f5f9 !important;
+      }
+      [data-theme='light'] #assessments-content [class*='bg-dark-800/50'] {
+        background-color: #f8fafc !important;
+      }
+      [data-theme='light'] #assessments-content [class*='bg-dark-800/90'] {
+        background-color: #e2e8f0 !important;
+        color: #334155 !important;
+      }
+      [data-theme='light'] #assessments-content span[class*='bg-blue-900/30'] {
+        background-color: #dbeafe !important;
+        color: #1d4ed8 !important;
+        border-color: #93c5fd !important;
+      }
+      [data-theme='light'] #assessments-content span[class*='bg-amber-900/30'] {
+        background-color: #fef3c7 !important;
+        color: #92400e !important;
+        border-color: #fcd34d !important;
+      }
+      [data-theme='light'] #assessments-content span[class*='bg-green-900/30'] {
+        background-color: #d1fae5 !important;
+        color: #047857 !important;
+        border-color: #6ee7b7 !important;
+      }
+      [data-theme='light'] #assessments-content span[class*='bg-purple-900/30'] {
+        background-color: #ede9fe !important;
+        color: #5b21b6 !important;
+        border-color: #c4b5fd !important;
+      }
+      [data-theme='light'] #assessments-content span[class*='bg-red-900/30'] {
+        background-color: #ffe4e6 !important;
+        color: #be123c !important;
+        border-color: #fda4af !important;
+      }
+      [data-theme='light'] #assessments-content label.cursor-pointer:hover {
+        background-color: #f1f5f9 !important;
+      }
+
+      /* ── Grades tab + mobile: light-mode (slate cards, actions, progress) ── */
+      [data-theme='light'] #grades-content [class*='bg-slate-900/50'] {
+        background-color: #ffffff !important;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      }
+      [data-theme='light'] #grades-content [class*='border-slate-600/80'],
+      [data-theme='light'] #grades-content [class*='border-slate-600/60'] {
+        border-color: #e2e8f0 !important;
+      }
+      [data-theme='light'] #grades-content article[class*='shadow-black'] {
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+      }
+      [data-theme='light'] #grades-content button[data-grade-quick] {
+        background: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        color: #0f172a !important;
+      }
+      [data-theme='light'] #grades-content button[data-grade-quick]:hover {
+        border-color: #0369a1 !important;
+        background: #f8fafc !important;
+      }
+      [data-theme='light'] #grades-content button[data-grade-quick].ring-cyan-400 {
+        background: #ecfeff !important;
+        border-color: #06b6d4 !important;
+        color: #0e7490 !important;
+      }
+      [data-theme='light'] #grades-content button[data-grade-edit],
+      [data-theme='light'] #grades-content button[data-grade-comment] {
+        background: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        color: #0369a1 !important;
+      }
+      [data-theme='light'] #grades-content button[data-grade-edit]:hover,
+      [data-theme='light'] #grades-content button[data-grade-comment]:hover {
+        background: #f1f5f9 !important;
+      }
+      [data-theme='light'] #grades-content button[data-grade-comment] {
+        color: #334155 !important;
+      }
+      [data-theme='light'] #grades-content button[data-grade-absent] {
+        background: #fff1f2 !important;
+        color: #be123c !important;
+        border-color: #fda4af !important;
+      }
+      [data-theme='light'] #grades-content button#grades-mobile-clear-filter {
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1;
+      }
+      [data-theme='light'] #grades-content button#grades-mobile-clear-filter:hover {
+        background: #cbd5e1 !important;
+      }
+      [data-theme='light'] #grades-content .text-cyan-400\/90,
+      [data-theme='light'] #grades-content .text-cyan-300 {
+        color: #0369a1 !important;
+      }
+      [data-theme='light'] #grades-content .text-cyan-200 {
+        color: #0e7490 !important;
+      }
+      [data-theme='light'] #grades-content #grades-mobile-progress-inner .stroke-slate-700 {
+        stroke: #cbd5e1 !important;
+      }
+      [data-theme='light'] #grades-content span.inline-flex[class*='border-cyan-400'] {
+        border-color: #06b6d4 !important;
+        color: #0e7490 !important;
+        background: #ecfeff !important;
+      }
+      [data-theme='light'] #grades-content span.inline-flex[class*='bg-cyan-500/20'] {
+        background: #cffafe !important;
+        color: #0e7490 !important;
+      }
+
+      /* AI message copy control (light glass surface) */
+      [data-theme='light'] button[data-lms-action='copy-ai-response'],
+      [data-theme='light'] .ai-copy-btn {
+        background: #e2e8f0 !important;
+        color: #475569 !important;
+      }
+      [data-theme='light'] button[data-lms-action='copy-ai-response']:hover,
+      [data-theme='light'] .ai-copy-btn:hover {
+        background: #cbd5e1 !important;
+        color: #0f172a !important;
+      }
+      [data-theme='light'] .ai-response-content pre[class*='bg-dark-900'] {
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+      }
+      [data-theme='light'] .ai-response-content pre code.text-accent-300,
+      [data-theme='light'] .ai-response-content code.text-accent-400 {
+        color: #0f766e !important;
+      }
+      [data-theme='light'] .ai-response-content code[class*='bg-dark-800'] {
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
+      }
+
       /* Skeleton: visible shimmer on light backgrounds */
       [data-theme='light'] .skeleton {
         background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
@@ -7028,7 +7165,7 @@
             </div>
 
             <!-- Grades Tab -->
-            <div id="grades-content" class="tab-content hide">
+            <div id="grades-content" class="tab-content hide pb-24 md:pb-6">
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Student Selection Sidebar -->
                 <div class="lg:col-span-1">
@@ -7780,7 +7917,7 @@
             </div>
 
             <!-- Assessments Tab -->
-            <div id="assessments-content" class="tab-content hide">
+            <div id="assessments-content" class="tab-content hide pb-24 md:pb-6">
               <!-- Dynamically rendered by assessment-ui.ts -->
             </div>
 
@@ -8651,7 +8788,7 @@
             </div>
 
             <!-- AI Agent Tab (Admin + Teacher) -->
-            <div id="ai-agent-content" class="tab-content admin-only teacher-only hide">
+            <div id="ai-agent-content" class="tab-content admin-only teacher-only hide pb-24 md:pb-6">
               <div
                 class="glass-effect rounded-2xl overflow-hidden h-[calc(100vh-200px)] flex flex-col shadow-2xl shadow-primary-500/10"
               >
