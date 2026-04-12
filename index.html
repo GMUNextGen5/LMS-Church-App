@@ -2861,87 +2861,147 @@
 
       .theme-toggle {
         position: relative;
-        width: 64px;
-        height: 32px;
-        background: rgba(6, 182, 212, 0.1);
-        border: 2px solid rgba(6, 182, 212, 0.25);
+        width: 52px;
+        height: 28px;
+        flex-shrink: 0;
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(148, 163, 184, 0.28);
         border-radius: 9999px;
         cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+          background 0.22s ease,
+          border-color 0.22s ease,
+          box-shadow 0.22s ease;
         display: flex;
         align-items: center;
-        padding: 3px;
+        padding: 2px;
+        box-shadow:
+          inset 0 1px 1px rgba(0, 0, 0, 0.18),
+          0 1px 2px rgba(0, 0, 0, 0.12);
       }
 
       .theme-toggle:hover {
-        border-color: #06b6d4;
-        background: rgba(6, 182, 212, 0.15);
-        box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+        border-color: rgba(148, 163, 184, 0.45);
+        background: rgba(30, 41, 59, 0.88);
+        box-shadow:
+          inset 0 1px 1px rgba(0, 0, 0, 0.2),
+          0 2px 6px rgba(0, 0, 0, 0.14);
       }
 
-      /* Theme toggle - ADA compliant light mode */
+      .theme-toggle:focus-visible {
+        outline: 2px solid rgba(148, 163, 184, 0.85);
+        outline-offset: 2px;
+      }
+
+      /* Theme toggle — light chrome (header + auth) */
       [data-theme='light'] .theme-toggle {
-        background: #f1f5f9;
-        border: 2px solid #94a3b8;
-        box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        box-shadow:
+          0 1px 2px rgba(15, 23, 42, 0.05),
+          inset 0 1px 0 rgba(255, 255, 255, 1);
       }
 
       [data-theme='light'] .theme-toggle:hover {
-        border-color: #0369a1;
-        box-shadow: 0 4px 12px rgba(3, 105, 161, 0.15);
+        border-color: #94a3b8;
+        box-shadow:
+          0 2px 8px rgba(15, 23, 42, 0.07),
+          inset 0 1px 0 rgba(255, 255, 255, 1);
       }
 
       [data-theme='light'] .theme-toggle:focus-visible {
-        outline: 3px solid #0369a1;
+        outline: 2px solid #0ea5e9;
         outline-offset: 2px;
       }
 
       .theme-toggle-slider {
         position: absolute;
-        left: 3px;
+        left: 2px;
+        top: 50%;
+        margin-top: -12px;
         width: 24px;
         height: 24px;
-        background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+        background: #f1f5f9;
+        border: 1px solid rgba(148, 163, 184, 0.35);
         border-radius: 50%;
         transition:
-          transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-          background 0.3s ease,
-          box-shadow 0.3s ease;
+          transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+          background 0.22s ease,
+          border-color 0.22s ease,
+          box-shadow 0.22s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         box-shadow:
-          0 3px 10px rgba(6, 182, 212, 0.4),
-          0 1px 4px rgba(16, 185, 129, 0.3);
+          0 1px 2px rgba(15, 23, 42, 0.1),
+          0 2px 4px rgba(0, 0, 0, 0.08);
         transform: translateX(0);
       }
 
-      /* Light mode slider position - ADA compliant */
-      [data-theme='light'] .theme-toggle-slider {
-        transform: translateX(32px);
-        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-        /* Darker for contrast */
+      .theme-toggle:hover .theme-toggle-slider {
         box-shadow:
-          0 3px 10px rgba(180, 83, 9, 0.4),
-          0 2px 4px rgba(217, 119, 6, 0.3);
+          0 1px 3px rgba(15, 23, 42, 0.12),
+          0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Thumb on right when app is in light mode */
+      [data-theme='light'] .theme-toggle-slider {
+        transform: translateX(24px);
+        background: #0f172a;
+        border-color: rgba(15, 23, 42, 0.55);
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.2),
+          0 2px 6px rgba(0, 0, 0, 0.15);
+      }
+
+      [data-theme='light'] .theme-toggle:hover .theme-toggle-slider {
+        border-color: rgba(15, 23, 42, 0.65);
       }
 
       .theme-icon {
-        width: 14px;
-        height: 14px;
-        color: white;
+        width: 13px;
+        height: 13px;
+        color: #64748b;
+        stroke-width: 2;
       }
 
-      /* Compact theme toggle — mobile app bar (matches header behavior) */
+      [data-theme='light'] .theme-toggle-slider .theme-icon {
+        color: #fbbf24;
+      }
+
+      /* Slightly larger in desktop header only */
+      @media (min-width: 768px) {
+        #theme-toggle-btn.theme-toggle {
+          width: 56px;
+          height: 30px;
+        }
+
+        #theme-toggle-btn .theme-toggle-slider {
+          width: 26px;
+          height: 26px;
+          margin-top: -13px;
+        }
+
+        #theme-toggle-btn .theme-icon {
+          width: 14px;
+          height: 14px;
+        }
+
+        [data-theme='light'] #theme-toggle-btn .theme-toggle-slider {
+          transform: translateX(26px);
+        }
+      }
+
+      /* Compact — mobile app bar + auth (default 52×28 above) */
       .lms-mobile-theme-toggle.theme-toggle {
         width: 52px;
         height: 28px;
-        flex-shrink: 0;
       }
 
       .lms-mobile-theme-toggle .theme-toggle-slider {
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
+        margin-top: -12px;
       }
 
       .lms-mobile-theme-toggle .theme-icon {
