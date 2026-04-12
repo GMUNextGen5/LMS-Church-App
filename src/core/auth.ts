@@ -14,7 +14,7 @@ import {
   where,
   setDoc,
   serverTimestamp,
-  FirebaseUser
+  FirebaseUser,
 } from './firebase';
 import { User, UserRole, Student } from '../types';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './legal-versions';
@@ -77,8 +77,7 @@ export function coerceFirestoreDateToIso(value: unknown): string {
       if (typeof sec === 'number' && Number.isFinite(sec)) {
         const ns = tsLike.nanoseconds;
         const ms =
-          sec * 1000 +
-          (typeof ns === 'number' && Number.isFinite(ns) ? Math.floor(ns / 1e6) : 0);
+          sec * 1000 + (typeof ns === 'number' && Number.isFinite(ns) ? Math.floor(ns / 1e6) : 0);
         const fromSec = new Date(ms);
         if (!Number.isNaN(fromSec.getTime())) {
           return fromSec.toISOString();
@@ -97,13 +96,14 @@ export function coerceFirestoreDateToIso(value: unknown): string {
   return now();
 }
 
-function pickSelfServiceUserFields(userData: Record<string, unknown>): Pick<User, 'phoneNumber' | 'birthYear'> {
+function pickSelfServiceUserFields(
+  userData: Record<string, unknown>
+): Pick<User, 'phoneNumber' | 'birthYear'> {
   const rawPhone = userData.phoneNumber;
   const phoneNumber =
     typeof rawPhone === 'string' && rawPhone.trim() ? rawPhone.trim().slice(0, 40) : undefined;
   const by = userData.birthYear;
-  const birthYear =
-    typeof by === 'number' && Number.isFinite(by) ? Math.round(by) : undefined;
+  const birthYear = typeof by === 'number' && Number.isFinite(by) ? Math.round(by) : undefined;
   return { phoneNumber, birthYear };
 }
 
@@ -177,8 +177,7 @@ function buildFallbackUserFromFirebase(
       legalAcceptance = {
         termsVersion: typeof o.termsVersion === 'string' ? o.termsVersion : undefined,
         privacyVersion: typeof o.privacyVersion === 'string' ? o.privacyVersion : undefined,
-        acceptedAt:
-          o.acceptedAt !== undefined ? coerceFirestoreDateToIso(o.acceptedAt) : undefined,
+        acceptedAt: o.acceptedAt !== undefined ? coerceFirestoreDateToIso(o.acceptedAt) : undefined,
       };
     }
   } catch {
@@ -194,7 +193,9 @@ function buildFallbackUserFromFirebase(
   const { phoneNumber, birthYear } = pickSelfServiceUserFields(userData);
   const memberIdRaw = userData?.memberId;
   const memberId =
-    typeof memberIdRaw === 'string' && memberIdRaw.trim() ? memberIdRaw.trim().slice(0, 40) : undefined;
+    typeof memberIdRaw === 'string' && memberIdRaw.trim()
+      ? memberIdRaw.trim().slice(0, 40)
+      : undefined;
 
   return {
     uid: firebaseUser.uid,
@@ -255,7 +256,9 @@ async function mapFirestoreUserDocumentToUser(
   const { phoneNumber, birthYear } = pickSelfServiceUserFields(userData);
   const memberIdRaw = userData?.memberId;
   const memberId =
-    typeof memberIdRaw === 'string' && memberIdRaw.trim() ? memberIdRaw.trim().slice(0, 40) : undefined;
+    typeof memberIdRaw === 'string' && memberIdRaw.trim()
+      ? memberIdRaw.trim().slice(0, 40)
+      : undefined;
 
   return {
     uid: firebaseUser.uid,
@@ -304,7 +307,8 @@ export async function reloadCurrentUserFromFirestore(): Promise<User | null> {
     const userData = userDoc.data() as Record<string, unknown>;
     const role = userData?.role;
     const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
-    const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+    const isValidRole =
+      typeof role === 'string' && (validRoles as readonly string[]).includes(role);
     if (!isValidRole) return currentUser;
     const roleTyped = role as UserRole;
     try {
@@ -349,115 +353,142 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
   try {
     onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       void (async () => {
-      try {
-      if (firebaseUser) {
-        let handshakeTimer: number | undefined;
         try {
-          try {
-            sessionStorage.clear();
-            localStorage.removeItem('last_viewed_student');
-          } catch {
-            /* storage may be blocked */
-          }
-          scheduleAuthUi(() => {
-            showLoading();
-          });
-          const work = (async (): Promise<void> => {
-            const userDocRef = doc(db, 'users', firebaseUser.uid);
-            const userDoc = await getDoc(userDocRef);
+          if (firebaseUser) {
+            let handshakeTimer: number | undefined;
+            try {
+              try {
+                sessionStorage.clear();
+                localStorage.removeItem('last_viewed_student');
+              } catch {
+                /* storage may be blocked */
+              }
+              scheduleAuthUi(() => {
+                showLoading();
+              });
+              const work = (async (): Promise<void> => {
+                const userDocRef = doc(db, 'users', firebaseUser.uid);
+                const userDoc = await getDoc(userDocRef);
 
-            if (userDoc.exists()) {
-              const userData = userDoc.data() as Record<string, unknown>;
-              const role = userData?.role;
-              const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
-              const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
-              if (!isValidRole) {
-                throw new Error(
-                  'Your account profile is incomplete (missing role). ' +
-                    'Please contact an administrator to finish account setup.'
+                if (userDoc.exists()) {
+                  const userData = userDoc.data() as Record<string, unknown>;
+                  const role = userData?.role;
+                  const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+                  const isValidRole =
+                    typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+                  if (!isValidRole) {
+                    throw new Error(
+                      'Your account profile is incomplete (missing role). ' +
+                        'Please contact an administrator to finish account setup.'
+                    );
+                  }
+                  const roleTyped = role as UserRole;
+                  try {
+                    currentUser = await mapFirestoreUserDocumentToUser(
+                      firebaseUser,
+                      userData,
+                      roleTyped
+                    );
+                  } catch {
+                    currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, userData);
+                  }
+                  onUserChanged(currentUser);
+                } else {
+                  throw new Error(
+                    'Your account profile was not found. Please contact an administrator to finish account setup.'
+                  );
+                }
+              })();
+
+              const timeoutPromise = new Promise<'timeout'>((resolve) => {
+                handshakeTimer = window.setTimeout(
+                  () => resolve('timeout'),
+                  AUTH_HANDSHAKE_TIMEOUT_MS
                 );
+              });
+              const first = await Promise.race([
+                work.then(() => 'profile' as const),
+                timeoutPromise,
+              ]);
+              if (first === 'timeout') {
+                scheduleAuthUi(() => {
+                  try {
+                    hideLoading();
+                  } catch {
+                    /* ignore */
+                  }
+                  try {
+                    showAuthContainer();
+                  } catch {
+                    /* ignore */
+                  }
+                });
               }
-              const roleTyped = role as UserRole;
-              try {
-                currentUser = await mapFirestoreUserDocumentToUser(firebaseUser, userData, roleTyped);
-              } catch {
-                currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, userData);
-              }
-              onUserChanged(currentUser);
-            } else {
-              throw new Error(
-                'Your account profile was not found. Please contact an administrator to finish account setup.'
-              );
-            }
-          })();
 
-          const timeoutPromise = new Promise<'timeout'>((resolve) => {
-            handshakeTimer = window.setTimeout(() => resolve('timeout'), AUTH_HANDSHAKE_TIMEOUT_MS);
-          });
-          const first = await Promise.race([work.then(() => 'profile' as const), timeoutPromise]);
-          if (first === 'timeout') {
-            scheduleAuthUi(() => {
+              await work;
+            } catch (error: unknown) {
+              const code = (error as { code?: string })?.code ?? '';
+              if (code === 'permission-denied') {
+                reportClientFault(error);
+                scheduleAuthUi(() => {
+                  showBootstrapError(
+                    'Permission denied while loading your profile. This usually means Firestore rules are ' +
+                      'blocking access to `users/{uid}`. Please contact support or try again shortly.'
+                  );
+                });
+              } else {
+                const msg = error instanceof Error ? error.message : '';
+                scheduleAuthUi(() => {
+                  showBootstrapError(
+                    msg || 'We could not load your account profile. Please try again.'
+                  );
+                });
+              }
+              currentUser = null;
+              onUserChanged(null);
               try {
+                await Promise.race([
+                  signOut(auth),
+                  new Promise<void>((resolve) => {
+                    window.setTimeout(() => resolve(), 5000);
+                  }),
+                ]);
+              } catch {
+                /* ignore */
+              }
+            } finally {
+              if (handshakeTimer !== undefined) {
+                window.clearTimeout(handshakeTimer);
+              }
+              scheduleAuthUi(() => {
                 hideLoading();
-              } catch {
-                /* ignore */
-              }
-              try {
-                showAuthContainer();
-              } catch {
-                /* ignore */
-              }
-            });
-          }
-
-          await work;
-        } catch (error: unknown) {
-          const code = (error as { code?: string })?.code ?? '';
-          if (code === 'permission-denied') {
-            reportClientFault(error);
-            scheduleAuthUi(() => {
-              showBootstrapError(
-                'Permission denied while loading your profile. This usually means Firestore rules are ' +
-                  'blocking access to `users/{uid}`. Please contact support or try again shortly.'
-              );
-            });
+              });
+            }
           } else {
-            const msg = error instanceof Error ? error.message : '';
-            scheduleAuthUi(() => {
-              showBootstrapError(msg || 'We could not load your account profile. Please try again.');
-            });
+            try {
+              sessionStorage.clear();
+              localStorage.removeItem('last_viewed_student');
+            } catch {
+              /* storage may be blocked */
+            }
+            currentUser = null;
+            onUserChanged(null);
           }
-          currentUser = null;
-          onUserChanged(null);
-          try {
-            await Promise.race([
-              signOut(auth),
-              new Promise<void>((resolve) => {
-                window.setTimeout(() => resolve(), 5000);
-              }),
-            ]);
-          } catch {
-            /* ignore */
-          }
-        } finally {
-          if (handshakeTimer !== undefined) {
-            window.clearTimeout(handshakeTimer);
-          }
-          scheduleAuthUi(() => {
-            hideLoading();
-          });
-        }
-      } else {
-        try {
-          sessionStorage.clear();
-          localStorage.removeItem('last_viewed_student');
         } catch {
-          /* storage may be blocked */
+          scheduleAuthUi(() => {
+            try {
+              hideLoading();
+            } catch {
+              /* ignore */
+            }
+          });
+          try {
+            onUserChanged(null);
+          } catch {
+            /* host may be torn down */
+          }
         }
-        currentUser = null;
-        onUserChanged(null);
-      }
-      } catch {
+      })().catch(() => {
         scheduleAuthUi(() => {
           try {
             hideLoading();
@@ -470,22 +501,8 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
         } catch {
           /* host may be torn down */
         }
-      }
-    })().catch(() => {
-      scheduleAuthUi(() => {
-        try {
-          hideLoading();
-        } catch {
-          /* ignore */
-        }
       });
-      try {
-        onUserChanged(null);
-      } catch {
-        /* host may be torn down */
-      }
     });
-  });
   } catch {
     scheduleAuthUi(() => {
       try {
@@ -617,7 +634,7 @@ function getAuthErrorMessage(errorCode: string): string {
     'auth/user-not-found': 'No account found with this email. Please sign up first.',
     'auth/wrong-password': 'Incorrect password. Please try again.',
     'auth/too-many-requests': 'Too many attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Please check your connection.'
+    'auth/network-request-failed': 'Network error. Please check your connection.',
   };
   return messages[errorCode] ?? 'Authentication failed. Please try again.';
 }

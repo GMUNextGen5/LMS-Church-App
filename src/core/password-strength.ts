@@ -128,12 +128,7 @@ function countCharClasses(s: string): number {
 
 /** NIST SP 800-63B memorized secret: require all four character classes for "strong" tier. */
 function hasAllCharacterClasses(s: string): boolean {
-  return (
-    /[a-z]/.test(s) &&
-    /[A-Z]/.test(s) &&
-    /\d/.test(s) &&
-    /[^A-Za-z0-9]/.test(s)
-  );
+  return /[a-z]/.test(s) && /[A-Z]/.test(s) && /\d/.test(s) && /[^A-Za-z0-9]/.test(s);
 }
 
 function patternPenaltyBits(s: string): number {
@@ -189,13 +184,7 @@ export function evaluatePasswordStrength(password: string): PasswordStrengthResu
 
   let tier: PasswordStrengthTier = 1;
 
-  if (
-    !hard &&
-    len >= 12 &&
-    classes >= 4 &&
-    allClasses &&
-    bits >= 50
-  ) {
+  if (!hard && len >= 12 && classes >= 4 && allClasses && bits >= 50) {
     tier = 4;
   } else if (!hard && len >= 10 && classes >= 3 && bits >= 38) {
     tier = 3;

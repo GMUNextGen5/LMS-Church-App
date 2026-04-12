@@ -13,7 +13,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
-  User as FirebaseUser
+  User as FirebaseUser,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -36,11 +36,7 @@ import {
   arrayRemove,
   writeBatch,
 } from 'firebase/firestore';
-import {
-  getFunctions,
-  Functions,
-  httpsCallable,
-} from 'firebase/functions';
+import { getFunctions, Functions, httpsCallable } from 'firebase/functions';
 
 import { firebaseConfig } from './config';
 
@@ -137,5 +133,5 @@ export {
   arrayRemove,
   writeBatch,
   httpsCallable,
-  type FirebaseUser
+  type FirebaseUser,
 };

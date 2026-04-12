@@ -1,6 +1,7 @@
 /**
  * Login background particle canvas. Cached colors, debounced resize, requestAnimationFrame loop. Call destroy() on teardown.
  */
+import { agentDebugLog } from '../core/debug-ingest';
 import { getAppTheme } from '../core/theme-events';
 
 interface ParticleConfig {
@@ -47,6 +48,10 @@ function getRgb(hex: string): RgbTuple {
   return v;
 }
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
 export class ParticleSystem {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -60,6 +65,15 @@ export class ParticleSystem {
   private dpr: number;
   private resizeTimer = 0;
   private maxDistSq: number;
+  private readonly onReducedMotionChange = (): void => {
+    if (prefersReducedMotion()) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = 0;
+      this.drawStillFrame();
+    } else if (this.animationFrameId === 0) {
+      this.animationFrameId = requestAnimationFrame(this.animate);
+    }
+  };
 
   constructor(canvasId: string, config: Partial<ParticleConfig> = {}) {
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
@@ -77,7 +91,24 @@ export class ParticleSystem {
     this.resize();
     this.initListeners();
     this.initParticles();
-    this.animationFrameId = requestAnimationFrame(this.animate);
+    if (prefersReducedMotion()) {
+      this.drawStillFrame();
+    } else {
+      this.animationFrameId = requestAnimationFrame(this.animate);
+    }
+    // #region agent log
+    agentDebugLog({
+      sessionId: 'ecf1fb',
+      hypothesisId: 'D',
+      runId: 'pre',
+      location: 'particles.ts:constructor',
+      message: 'ParticleSystem started',
+      data: {
+        reducedMotion: prefersReducedMotion(),
+        particleCount: this.particles.length,
+      },
+    });
+    // #endregion
   }
 
   private initListeners(): void {
@@ -86,6 +117,14 @@ export class ParticleSystem {
     window.addEventListener('mouseleave', this.handleMouseLeave);
     window.addEventListener('touchmove', this.handleTouchMove, { passive: true });
     window.addEventListener('touchend', this.handleMouseLeave);
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', this.onReducedMotionChange);
+    } else {
+      (mq as MediaQueryList & { addListener?: (fn: () => void) => void }).addListener?.(
+        this.onReducedMotionChange
+      );
+    }
   }
 
   private handleResize = (): void => {
@@ -93,6 +132,7 @@ export class ParticleSystem {
     this.resizeTimer = window.setTimeout(() => {
       this.resize();
       this.initParticles();
+      if (prefersReducedMotion()) this.drawStillFrame();
     }, 200);
   };
 
@@ -124,7 +164,10 @@ export class ParticleSystem {
   }
 
   private initParticles(): void {
-    const count = Math.min(Math.max(Math.floor((this.width * this.height) / this.config.particleDensity), 30), 200);
+    const count = Math.min(
+      Math.max(Math.floor((this.width * this.height) / this.config.particleDensity), 30),
+      200
+    );
     this.particles = [];
     for (let i = 0; i < count; i++) {
       this.particles.push(new Particle(this.width, this.height, this.config));
@@ -132,6 +175,11 @@ export class ParticleSystem {
   }
 
   private animate = (): void => {
+    if (prefersReducedMotion()) {
+      this.drawStillFrame();
+      this.animationFrameId = 0;
+      return;
+    }
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;
@@ -179,6 +227,19 @@ export class ParticleSystem {
     this.animationFrameId = requestAnimationFrame(this.animate);
   };
 
+  /** Static decorative frame: no motion, no connection lines (accessibility). */
+  private drawStillFrame(): void {
+    const ctx = this.ctx;
+    const w = this.width;
+    const h = this.height;
+    ctx.fillStyle =
+      getAppTheme() === 'light' ? 'rgba(248, 250, 252, 0.35)' : 'rgba(10, 10, 15, 0.15)';
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < this.particles.length; i++) {
+      this.particles[i].draw(ctx);
+    }
+  }
+
   /**
    * Re-picks particle palette and respawns particles when the app theme changes (login canvas).
    */
@@ -186,11 +247,20 @@ export class ParticleSystem {
     const light = getAppTheme() === 'light';
     this.config.colors = light ? [...LIGHT_THEME_COLORS] : [...DEFAULT_CONFIG.colors];
     this.initParticles();
+    if (prefersReducedMotion()) this.drawStillFrame();
   }
 
   public destroy(): void {
     cancelAnimationFrame(this.animationFrameId);
     clearTimeout(this.resizeTimer);
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (typeof mq.removeEventListener === 'function') {
+      mq.removeEventListener('change', this.onReducedMotionChange);
+    } else {
+      (mq as MediaQueryList & { removeListener?: (fn: () => void) => void }).removeListener?.(
+        this.onReducedMotionChange
+      );
+    }
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('mouseleave', this.handleMouseLeave);
@@ -221,7 +291,8 @@ class Particle {
     this.vy = (Math.random() - 0.5) * speed;
     this.baseVx = this.vx;
     this.baseVy = this.vy;
-    this.size = Math.random() * (config.particleMaxSize - config.particleMinSize) + config.particleMinSize;
+    this.size =
+      Math.random() * (config.particleMaxSize - config.particleMinSize) + config.particleMinSize;
     this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
     this.opacity = Math.random() * 0.5 + 0.3;
     this.pulsePhase = Math.random() * TWO_PI;
@@ -230,7 +301,13 @@ class Particle {
     this.coreColor = this.color;
   }
 
-  update(width: number, height: number, mouseX: number, mouseY: number, config: ParticleConfig): void {
+  update(
+    width: number,
+    height: number,
+    mouseX: number,
+    mouseY: number,
+    config: ParticleConfig
+  ): void {
     const dx = mouseX - this.x;
     const dy = mouseY - this.y;
     const distSq = dx * dx + dy * dy;

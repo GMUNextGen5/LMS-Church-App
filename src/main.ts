@@ -26,6 +26,7 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from './core/firebase';
+import { agentDebugLog } from './core/debug-ingest';
 import {
   getAppTheme,
   installThemeChangeBridge,
@@ -115,7 +116,11 @@ import {
   renderAttendanceHistoryRows,
   attendanceHistoryEmptyRowHtml,
 } from './ui/attendance-ui';
-import { clearGradesMobilePending, initGradesMobileUI, renderGradesMobile } from './ui/grades-mobile-ui';
+import {
+  clearGradesMobilePending,
+  initGradesMobileUI,
+  renderGradesMobile,
+} from './ui/grades-mobile-ui';
 import { initLegalModals } from './ui/legal';
 import { setupSignupPasswordStrengthMeter } from './ui/signup-password-strength';
 import { setupProfilePasswordStrengthMeter } from './ui/profile-password-strength';
@@ -232,7 +237,7 @@ function getActiveMainTabFromDom(): string {
  * Updates teal “pill” active styles on mobile bottom nav buttons (kept in sync with `switchToTab`).
  */
 function syncMobileBottomNavActiveState(tabName: string): void {
-  document.querySelectorAll('.lms-mobile-nav-btn[data-tab]').forEach(btn => {
+  document.querySelectorAll('.lms-mobile-nav-btn[data-tab]').forEach((btn) => {
     const id = btn.getAttribute('data-tab');
     const on = id === tabName;
     applyMobileNavBtnVisualState(btn, on);
@@ -256,7 +261,13 @@ function renderRoleBasedBottomNav(role: UserRole | null): void {
   }
 
   const items: MobileBottomNavItem[] =
-    role === 'teacher' ? MOBILE_NAV_TEACHER : role === 'student' ? MOBILE_NAV_STUDENT : role === 'admin' ? MOBILE_NAV_ADMIN : [];
+    role === 'teacher'
+      ? MOBILE_NAV_TEACHER
+      : role === 'student'
+        ? MOBILE_NAV_STUDENT
+        : role === 'admin'
+          ? MOBILE_NAV_ADMIN
+          : [];
 
   if (items.length === 0) {
     lastRenderedMobileNavRole = undefined;
@@ -266,7 +277,7 @@ function renderRoleBasedBottomNav(role: UserRole | null): void {
 
   const win = window as unknown as { switchToTab?: (t: string) => void };
   let activeTab = getActiveMainTabFromDom();
-  if (!items.some(i => i.tab === activeTab)) {
+  if (!items.some((i) => i.tab === activeTab)) {
     activeTab = 'dashboard';
     win.switchToTab?.('dashboard');
   }
@@ -385,7 +396,10 @@ function scheduleDomPaint(fn: () => void): void {
 }
 
 /** Returns a debounced wrapper that invokes `fn` after `ms` milliseconds of inactivity. */
-function debounce<Args extends unknown[]>(fn: (...args: Args) => void, ms: number): (...args: Args) => void {
+function debounce<Args extends unknown[]>(
+  fn: (...args: Args) => void,
+  ms: number
+): (...args: Args) => void {
   let timer: number;
   return (...args: Args) => {
     window.clearTimeout(timer);
@@ -457,7 +471,11 @@ async function init(): Promise<void> {
    * Rationale: if Firebase fails to initialize cleanly or network/auth stalls, `onAuthStateChanged` can
    * appear to "never fire" from the user's perspective, leaving the app stuck on "Loading..." forever.
    */
-  try { showLoading(); } catch { /* overlay not mounted yet */ }
+  try {
+    showLoading();
+  } catch {
+    /* overlay not mounted yet */
+  }
 
   try {
     initUI();
@@ -514,17 +532,17 @@ async function init(): Promise<void> {
     /* mobile nav bridge */
   }
 
-  (window as Window & { lmsShowToast?: (m: string, k?: 'success' | 'error' | 'info') => void }).lmsShowToast = (
-    message: string,
-    kind?: 'success' | 'error' | 'info'
-  ) => {
+  (
+    window as Window & { lmsShowToast?: (m: string, k?: 'success' | 'error' | 'info') => void }
+  ).lmsShowToast = (message: string, kind?: 'success' | 'error' | 'info') => {
     showAppToast(message, kind ?? 'info');
   };
   const docWithToast = document as Document & { __lmsToastBridge?: boolean };
   if (!docWithToast.__lmsToastBridge) {
     docWithToast.__lmsToastBridge = true;
     document.addEventListener('lms-toast', (ev: Event) => {
-      const d = (ev as CustomEvent<{ message?: string; kind?: 'success' | 'error' | 'info' }>).detail;
+      const d = (ev as CustomEvent<{ message?: string; kind?: 'success' | 'error' | 'info' }>)
+        .detail;
       if (d?.message) showAppToast(d.message, d.kind ?? 'info');
     });
   }
@@ -539,6 +557,16 @@ async function init(): Promise<void> {
 
   const firebaseErr = ensureFirebaseClient();
   if (firebaseErr) {
+    // #region agent log
+    agentDebugLog({
+      sessionId: 'ecf1fb',
+      hypothesisId: 'E',
+      runId: 'pre',
+      location: 'main.ts:init',
+      message: 'firebase client missing — early return',
+      data: { errLen: firebaseErr.message.length },
+    });
+    // #endregion
     scheduleDomPaint(() => {
       showFirebaseConfigurationError(firebaseErr.message);
       try {
@@ -623,20 +651,76 @@ async function init(): Promise<void> {
     });
   };
 
-  try { initAuth(handleAuthStateChangeBootstrap); } catch { /* auth listener init */ }
-  try { setupAppForms(); } catch { /* app wiring */ }
-  try { setupLmsDelegatedActions(); } catch { /* delegated actions */ }
-  try { initAssessments(); } catch { /* assessments init */ }
-  try { initClasses(); } catch { /* classes init */ }
+  try {
+    initAuth(handleAuthStateChangeBootstrap);
+  } catch {
+    /* auth listener init */
+  }
+  try {
+    setupAppForms();
+  } catch {
+    /* app wiring */
+  }
+  try {
+    setupLmsDelegatedActions();
+  } catch {
+    /* delegated actions */
+  }
+  try {
+    initAssessments();
+  } catch {
+    /* assessments init */
+  }
+  try {
+    initClasses();
+  } catch {
+    /* classes init */
+  }
 
-  try { installThemeChangeBridge(); } catch { /* theme bridge */ }
-  try { initLegalModals(); } catch { /* legal modals */ }
-  try { initAccountIdUi(); } catch { /* account id UI */ }
+  try {
+    installThemeChangeBridge();
+  } catch {
+    /* theme bridge */
+  }
+  try {
+    initLegalModals();
+  } catch {
+    /* legal modals */
+  }
+  try {
+    initAccountIdUi();
+  } catch {
+    /* account id UI */
+  }
   registerThemeRefreshHandler(() => {
     try {
-      if (currentGrades.length > 0) renderGradeCharts(currentGrades);
+      /* Always re-run so scales/point borders match theme even when the series is empty. */
+      renderGradeCharts(currentGrades);
       particleSystem?.refreshForTheme();
-    } catch {
+      // #region agent log
+      agentDebugLog({
+        sessionId: 'ecf1fb',
+        hypothesisId: 'B',
+        runId: 'pre',
+        location: 'main.ts:themeRefreshHandler',
+        message: 'theme refresh handler completed',
+        data: {
+          gradesLen: currentGrades.length,
+          hasParticles: !!particleSystem,
+        },
+      });
+      // #endregion
+    } catch (e) {
+      // #region agent log
+      agentDebugLog({
+        sessionId: 'ecf1fb',
+        hypothesisId: 'B',
+        runId: 'pre',
+        location: 'main.ts:themeRefreshHandler',
+        message: 'theme refresh handler catch',
+        data: { err: e instanceof Error ? e.message : String(e) },
+      });
+      // #endregion
       /* theme refresh */
     }
   });
@@ -647,12 +731,10 @@ async function init(): Promise<void> {
     else if (tab === 'attendance') {
       refreshAttendanceBulkRoster();
       if (selectedStudentId) await loadStudentAttendance(selectedStudentId);
-    }
-    else if (tab === 'dashboard') {
+    } else if (tab === 'dashboard') {
       await refreshInstitutionalDashboardMetrics();
       await loadRecentActivity();
-    }
-    else if (tab === 'assessments') await loadAssessments();
+    } else if (tab === 'assessments') await loadAssessments();
     else if (tab === 'users') await loadAllUsers();
     else if (tab === 'student-profile') void loadUserProfile();
     else if (tab === 'teacher-registration') {
@@ -812,10 +894,10 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     void loadUserProfile();
 
     scheduleDomPaint(() => {
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
+      document.querySelectorAll('.tab-content').forEach((c) => c.classList.add('hide'));
       document.getElementById('dashboard-content')?.classList.remove('hide');
 
-      document.querySelectorAll('.tab-btn').forEach(btn => {
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
         btn.classList.remove('tab-active');
         btn.classList.add('text-dark-300');
       });
@@ -825,7 +907,9 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
         dashBtn.classList.remove('text-dark-300');
       }
 
-      document.querySelectorAll('.lms-nav-item[data-tab]').forEach(item => item.classList.remove('active'));
+      document
+        .querySelectorAll('.lms-nav-item[data-tab]')
+        .forEach((item) => item.classList.remove('active'));
       document.querySelector('.lms-nav-item[data-tab="dashboard"]')?.classList.add('active');
 
       const breadcrumb = document.getElementById('breadcrumb-current');
@@ -850,10 +934,8 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 }
 
 function setupAuthForms(): void {
-  const lf =
-    loginForm ?? (document.getElementById('login-form') as HTMLFormElement | null);
-  const sf =
-    signupForm ?? (document.getElementById('signup-form') as HTMLFormElement | null);
+  const lf = loginForm ?? (document.getElementById('login-form') as HTMLFormElement | null);
+  const sf = signupForm ?? (document.getElementById('signup-form') as HTMLFormElement | null);
   if (!lf || !sf) return;
 
   setupSignupPasswordStrengthMeter(sf);
@@ -959,7 +1041,9 @@ function setupAppForms(): void {
   if (studentRegForm) {
     studentRegForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const regSubmitBtn = studentRegForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const regSubmitBtn = studentRegForm.querySelector(
+        'button[type="submit"]'
+      ) as HTMLButtonElement | null;
       const errorEl = document.getElementById('registration-error');
       const successEl = document.getElementById('registration-success');
       errorEl?.classList.add('hide');
@@ -973,7 +1057,7 @@ function setupAppForms(): void {
         contactEmail: formData.get('contactEmail') as string,
         studentUid: formData.get('studentUid') as string,
         parentUid: formData.get('studentUid') as string,
-        notes: formData.get('notes') as string || ''
+        notes: (formData.get('notes') as string) || '',
       };
       if (regSubmitBtn) regSubmitBtn.disabled = true;
       try {
@@ -984,8 +1068,11 @@ function setupAppForms(): void {
           successEl.classList.remove('hide');
         }
         studentRegForm.reset();
-        const studentDropdownValue = document.querySelector('#student-account-dropdown .account-dropdown-value');
-        if (studentDropdownValue) studentDropdownValue.textContent = '-- Select Registered Account --';
+        const studentDropdownValue = document.querySelector(
+          '#student-account-dropdown .account-dropdown-value'
+        );
+        if (studentDropdownValue)
+          studentDropdownValue.textContent = '-- Select Registered Account --';
         await Promise.all([initDashboard(), loadRegisteredStudents()]);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Registration failed';
@@ -1004,16 +1091,22 @@ function setupAppForms(): void {
   if (teacherRegForm) {
     teacherRegForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const teacherSubmitBtn = teacherRegForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const teacherSubmitBtn = teacherRegForm.querySelector(
+        'button[type="submit"]'
+      ) as HTMLButtonElement | null;
       const errorEl = document.getElementById('teacher-registration-error');
       const successEl = document.getElementById('teacher-registration-success');
       const finalUidEl = document.getElementById('final-teacher-uid') as HTMLInputElement;
       errorEl?.classList.add('hide');
       successEl?.classList.add('hide');
-      const teacherUid = (finalUidEl?.value || (teacherRegForm.querySelector('[name="teacherUid"]') as HTMLInputElement | null)?.value)?.trim();
+      const teacherUid = (
+        finalUidEl?.value ||
+        (teacherRegForm.querySelector('[name="teacherUid"]') as HTMLInputElement | null)?.value
+      )?.trim();
       if (!teacherUid) {
         if (errorEl) {
-          errorEl.textContent = 'Link to Teacher Account is required. Select an account or enter UID manually.';
+          errorEl.textContent =
+            'Link to Teacher Account is required. Select an account or enter UID manually.';
           errorEl.classList.remove('hide');
         }
         return;
@@ -1041,8 +1134,11 @@ function setupAppForms(): void {
         }
         teacherRegForm.reset();
         if (finalUidEl) finalUidEl.value = '';
-        const teacherDropdownValue = document.querySelector('#teacher-account-dropdown .account-dropdown-value');
-        if (teacherDropdownValue) teacherDropdownValue.textContent = '-- Select Registered Account --';
+        const teacherDropdownValue = document.querySelector(
+          '#teacher-account-dropdown .account-dropdown-value'
+        );
+        if (teacherDropdownValue)
+          teacherDropdownValue.textContent = '-- Select Registered Account --';
         await loadRegisteredTeachers();
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -1061,7 +1157,12 @@ function setupAppForms(): void {
   const useDropdownTeacherBtn = document.getElementById('use-dropdown-teacher-btn');
   const teacherDropdownMethod = document.getElementById('teacher-dropdown-method');
   const teacherManualMethod = document.getElementById('teacher-manual-method');
-  if (useManualTeacherBtn && useDropdownTeacherBtn && teacherDropdownMethod && teacherManualMethod) {
+  if (
+    useManualTeacherBtn &&
+    useDropdownTeacherBtn &&
+    teacherDropdownMethod &&
+    teacherManualMethod
+  ) {
     useManualTeacherBtn.addEventListener('click', () => {
       teacherDropdownMethod.classList.add('hide');
       teacherManualMethod.classList.remove('hide');
@@ -1071,7 +1172,11 @@ function setupAppForms(): void {
       teacherManualMethod.classList.add('hide');
     });
   }
-  setupAccountDropdown('teacher-account-dropdown', 'final-teacher-uid', populateTeacherAccountDropdown);
+  setupAccountDropdown(
+    'teacher-account-dropdown',
+    'final-teacher-uid',
+    populateTeacherAccountDropdown
+  );
   const manualTeacherUidInput = document.getElementById('manual-teacher-uid') as HTMLInputElement;
   const finalTeacherUidInput = document.getElementById('final-teacher-uid') as HTMLInputElement;
   if (manualTeacherUidInput && finalTeacherUidInput) {
@@ -1102,7 +1207,9 @@ function setupAppForms(): void {
     });
   }
 
-  const registeredStudentsSearch = document.getElementById('registered-students-search') as HTMLInputElement;
+  const registeredStudentsSearch = document.getElementById(
+    'registered-students-search'
+  ) as HTMLInputElement;
   if (registeredStudentsSearch) {
     const runRegStudentsFilter = debounce((q: string) => {
       const tbody = document.getElementById('registered-students-table-body');
@@ -1120,7 +1227,9 @@ function setupAppForms(): void {
       runRegStudentsFilter((registeredStudentsSearch.value || '').toLowerCase().trim());
     });
   }
-  const registeredTeachersSearch = document.getElementById('registered-teachers-search') as HTMLInputElement;
+  const registeredTeachersSearch = document.getElementById(
+    'registered-teachers-search'
+  ) as HTMLInputElement;
   if (registeredTeachersSearch) {
     const runRegTeachersFilter = debounce((q: string) => {
       const tbody = document.getElementById('registered-teachers-table-body');
@@ -1148,7 +1257,9 @@ function setupAppForms(): void {
       e.preventDefault();
       const studentId = (document.getElementById('edit-student-id') as HTMLInputElement)?.value;
       if (!studentId) return;
-      const submitBtn = editStudentForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const submitBtn = editStudentForm.querySelector(
+        'button[type="submit"]'
+      ) as HTMLButtonElement | null;
       const formData = new FormData(editStudentForm);
       const yearVal = formData.get('yearOfBirth');
       const yearOfBirth = yearVal ? parseInt(String(yearVal), 10) : undefined;
@@ -1204,7 +1315,9 @@ function setupAppForms(): void {
         showAppToast('Please select a student first.', 'info');
         return;
       }
-      const submitBtn = gradeEntryForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const submitBtn = gradeEntryForm.querySelector(
+        'button[type="submit"]'
+      ) as HTMLButtonElement | null;
       const formData = new FormData(gradeEntryForm);
       const gradeData = {
         assignmentName: formData.get('assignmentName') as string,
@@ -1212,7 +1325,7 @@ function setupAppForms(): void {
         score: parseFloat(formData.get('score') as string),
         totalPoints: parseFloat(formData.get('totalPoints') as string),
         teacherId: '',
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
       };
       if (submitBtn) submitBtn.disabled = true;
       try {
@@ -1234,7 +1347,7 @@ function setupAppForms(): void {
         showAppToast('No grades to export. Please select a student with grades.', 'info');
         return;
       }
-      const student = currentStudents.find(s => s.id === selectedStudentId);
+      const student = currentStudents.find((s) => s.id === selectedStudentId);
       exportGradesToCSV(currentGrades, student ? student.name : 'Unknown');
     });
   }
@@ -1286,11 +1399,17 @@ function setupAppForms(): void {
     });
   }
 
-  setupAccountDropdown('student-account-dropdown', 'final-student-uid', populateStudentAccountDropdown);
+  setupAccountDropdown(
+    'student-account-dropdown',
+    'final-student-uid',
+    populateStudentAccountDropdown
+  );
   const manualUidInput = document.getElementById('manual-student-uid') as HTMLInputElement;
   const finalUidInput = document.getElementById('final-student-uid') as HTMLInputElement;
   if (manualUidInput && finalUidInput) {
-    manualUidInput.addEventListener('input', () => { finalUidInput.value = manualUidInput.value.trim(); });
+    manualUidInput.addEventListener('input', () => {
+      finalUidInput.value = manualUidInput.value.trim();
+    });
   }
 
   const markAttendanceForm = document.getElementById('mark-attendance-form') as HTMLFormElement;
@@ -1300,35 +1419,49 @@ function setupAppForms(): void {
     updateAttendanceClassChrome();
     markAttendanceForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const markSubmitBtn = markAttendanceForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const markSubmitBtn = markAttendanceForm.querySelector(
+        'button[type="submit"]'
+      ) as HTMLButtonElement | null;
       const errorEl = document.getElementById('mark-attendance-error');
       const successEl = document.getElementById('mark-attendance-success');
       errorEl?.classList.add('hide');
       successEl?.classList.add('hide');
       const formData = new FormData(markAttendanceForm);
-      const attendanceSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
+      const attendanceSelect = document.getElementById(
+        'attendance-student-select'
+      ) as HTMLSelectElement;
       const attendanceStudentId = attendanceSelect.value;
       if (!attendanceStudentId) {
-        if (errorEl) { errorEl.textContent = 'Please select a student'; errorEl.classList.remove('hide'); }
+        if (errorEl) {
+          errorEl.textContent = 'Please select a student';
+          errorEl.classList.remove('hide');
+        }
         return;
       }
       if (markSubmitBtn) markSubmitBtn.disabled = true;
       const attendanceData = {
         date: formData.get('date') as string,
         status: formData.get('status') as 'present' | 'absent' | 'late' | 'excused',
-        notes: formData.get('notes') as string || '',
-        markedBy: ''
+        notes: (formData.get('notes') as string) || '',
+        markedBy: '',
       };
       try {
         showLoading();
         await markAttendance(attendanceStudentId, attendanceData);
-        if (successEl) { successEl.textContent = 'Attendance marked successfully.'; successEl.classList.remove('hide'); }
+        if (successEl) {
+          successEl.textContent = 'Attendance marked successfully.';
+          successEl.classList.remove('hide');
+        }
         markAttendanceForm.reset();
         dateInput.valueAsDate = new Date();
-        if (selectedStudentId === attendanceStudentId) await loadStudentAttendance(attendanceStudentId);
+        if (selectedStudentId === attendanceStudentId)
+          await loadStudentAttendance(attendanceStudentId);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to mark attendance';
-        if (errorEl) { errorEl.textContent = 'Failed to mark attendance: ' + msg; errorEl.classList.remove('hide'); }
+        if (errorEl) {
+          errorEl.textContent = 'Failed to mark attendance: ' + msg;
+          errorEl.classList.remove('hide');
+        }
       } finally {
         hideLoading();
         if (markSubmitBtn) markSubmitBtn.disabled = false;
@@ -1336,7 +1469,9 @@ function setupAppForms(): void {
     });
   }
 
-  const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement | null;
+  const attendanceStudentSelect = document.getElementById(
+    'attendance-student-select'
+  ) as HTMLSelectElement | null;
   if (attendanceStudentSelect) {
     attendanceStudentSelect.addEventListener('change', async (e) => {
       const studentId = (e.target as HTMLSelectElement).value;
@@ -1366,7 +1501,9 @@ function setupAppForms(): void {
     },
   });
 
-  const attendanceClassSelect = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+  const attendanceClassSelect = document.getElementById(
+    'attendance-class-select'
+  ) as HTMLSelectElement | null;
   attendanceClassSelect?.addEventListener('change', () => {
     const v = attendanceClassSelect?.value?.trim();
     if (v) {
@@ -1394,8 +1531,12 @@ function setupAppForms(): void {
     refreshDisplay: () => displayGrades(currentGrades),
   });
 
-  const dashboardStudentSelect = document.getElementById('dashboard-student-select') as HTMLSelectElement;
-  const dashboardStudentSearch = document.getElementById('dashboard-student-search') as HTMLInputElement;
+  const dashboardStudentSelect = document.getElementById(
+    'dashboard-student-select'
+  ) as HTMLSelectElement;
+  const dashboardStudentSearch = document.getElementById(
+    'dashboard-student-search'
+  ) as HTMLInputElement;
   const selectedStudentInfo = document.getElementById('selected-student-info');
   const selectedStudentNameEl = document.getElementById('selected-student-name');
   const selectedStudentIdEl = document.getElementById('selected-student-id');
@@ -1408,7 +1549,7 @@ function setupAppForms(): void {
     dashboardStudentSelect.addEventListener('change', async (e) => {
       const studentId = (e.target as HTMLSelectElement).value;
       if (studentId) {
-        const student = currentStudents.find(s => s.id === studentId);
+        const student = currentStudents.find((s) => s.id === studentId);
         if (student) {
           if (selectedStudentInfo && selectedStudentNameEl && selectedStudentIdEl) {
             selectedStudentNameEl.textContent = safeStudentDisplayName(student.name);
@@ -1426,7 +1567,9 @@ function setupAppForms(): void {
     });
   }
 
-  const headerStudentSearch = document.getElementById('lms-header-search-input') as HTMLInputElement | null;
+  const headerStudentSearch = document.getElementById(
+    'lms-header-search-input'
+  ) as HTMLInputElement | null;
 
   const syncHeaderToDashboardSearch = (v: string): void => {
     if (dashboardStudentSearch && document.activeElement !== dashboardStudentSearch) {
@@ -1444,7 +1587,7 @@ function setupAppForms(): void {
     const doSearch = debounce((searchTerm: string) => {
       filterStudentSelectOptions(dashboardStudentSelect, searchTerm, dashboardFilterEmptyEl);
       const visibleOptions = Array.from(dashboardStudentSelect.querySelectorAll('option')).filter(
-        opt => opt.value !== '' && opt.style.display !== 'none'
+        (opt) => opt.value !== '' && opt.style.display !== 'none'
       );
       if (visibleOptions.length === 1 && searchTerm) {
         dashboardStudentSelect.value = visibleOptions[0].value;
@@ -1463,7 +1606,7 @@ function setupAppForms(): void {
     const doHeaderSearch = debounce((searchTerm: string) => {
       filterStudentSelectOptions(dashboardStudentSelect, searchTerm, dashboardFilterEmptyEl);
       const visibleOptions = Array.from(dashboardStudentSelect.querySelectorAll('option')).filter(
-        opt => opt.value !== '' && opt.style.display !== 'none'
+        (opt) => opt.value !== '' && opt.style.display !== 'none'
       );
       if (visibleOptions.length === 1 && searchTerm) {
         dashboardStudentSelect.value = visibleOptions[0].value;
@@ -1502,8 +1645,12 @@ function setupAppForms(): void {
     });
   }
 
-  const attendanceStudentSearch = document.getElementById('attendance-student-search') as HTMLInputElement;
-  const attendanceSelectEl = document.getElementById('attendance-student-select') as HTMLSelectElement;
+  const attendanceStudentSearch = document.getElementById(
+    'attendance-student-search'
+  ) as HTMLInputElement;
+  const attendanceSelectEl = document.getElementById(
+    'attendance-student-select'
+  ) as HTMLSelectElement;
   if (attendanceStudentSearch && attendanceSelectEl) {
     const doAttendanceSearch = debounce((searchTerm: string) => {
       filterStudentSelectOptions(attendanceSelectEl, searchTerm, attendanceFilterEmptyEl);
@@ -1521,19 +1668,23 @@ function setupAppForms(): void {
       if (typeof w.switchToTab === 'function') {
         w.switchToTab('student-profile');
       } else {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
+        document.querySelectorAll('.tab-content').forEach((c) => c.classList.add('hide'));
         document.getElementById('student-profile-content')?.classList.remove('hide');
         void loadUserProfile();
       }
     });
   }
 
-  const studentProfileSaveBtn = document.getElementById('student-profile-save-btn') as HTMLButtonElement | null;
+  const studentProfileSaveBtn = document.getElementById(
+    'student-profile-save-btn'
+  ) as HTMLButtonElement | null;
   const studentProfileSaveStatus = document.getElementById('student-profile-save-status');
   if (studentProfileSaveBtn && !studentProfileSaveWired) {
     studentProfileSaveWired = true;
     studentProfileSaveBtn.addEventListener('click', async () => {
-      const nameEl = document.getElementById('profile-self-display-name') as HTMLInputElement | null;
+      const nameEl = document.getElementById(
+        'profile-self-display-name'
+      ) as HTMLInputElement | null;
       const phoneEl = document.getElementById('profile-self-phone') as HTMLInputElement | null;
       const birthEl = document.getElementById('profile-self-birth-year') as HTMLInputElement | null;
       const memberEl = document.getElementById('profile-self-member-id') as HTMLInputElement | null;
@@ -1557,7 +1708,11 @@ function setupAppForms(): void {
           setDashboardWelcome(u);
           const gw = window as LmsGlobalWindow;
           const sideLabel = userProfileDisplayLabel(u);
-          gw.updateSidebarUserInfo?.(sideLabel === '—' ? u.email || '' : sideLabel, u.role, u.email || '');
+          gw.updateSidebarUserInfo?.(
+            sideLabel === '—' ? u.email || '' : sideLabel,
+            u.role,
+            u.email || ''
+          );
         }
         await loadUserProfile();
         showAppToast('Profile saved.', 'success');
@@ -1655,14 +1810,18 @@ function setupGoLiveButton(): void {
       const dateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
       if (dateInput) dateInput.value = dateKey;
 
-      const classSel = document.getElementById('attendance-class-select') as HTMLSelectElement | null;
+      const classSel = document.getElementById(
+        'attendance-class-select'
+      ) as HTMLSelectElement | null;
       if (classSel && attendanceRollCourses.some((c) => c.id === classId)) {
         classSel.value = classId;
         updateAttendanceClassChrome();
       }
       refreshAttendanceBulkRoster();
 
-      const histSel = document.getElementById('attendance-student-select') as HTMLSelectElement | null;
+      const histSel = document.getElementById(
+        'attendance-student-select'
+      ) as HTMLSelectElement | null;
       if (histSel?.value) await loadStudentAttendance(histSel.value);
 
       win.closeSidebar?.();
@@ -1711,7 +1870,12 @@ function updateAttendanceClassChrome(): void {
     const d = new Date(`${dateInput.value}T12:00:00`);
     metaDate.textContent = Number.isNaN(d.getTime())
       ? dateInput.value
-      : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      : d.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
   }
   const courseId = sel?.value?.trim() ?? '';
   const metaExtra = document.getElementById('attendance-meta-extra');
@@ -1725,7 +1889,9 @@ function updateAttendanceClassChrome(): void {
   titleEl.textContent = c ? safeCourseChromeTitle(c) : 'Active class';
   if (metaExtra) {
     if (c) {
-      const bits = [c.schedule, c.description].filter((x) => typeof x === 'string' && x.trim()) as string[];
+      const bits = [c.schedule, c.description].filter(
+        (x) => typeof x === 'string' && x.trim()
+      ) as string[];
       metaExtra.textContent = bits.length ? ` · ${bits.join(' · ')}` : '';
     } else {
       metaExtra.textContent = '';
@@ -1742,7 +1908,7 @@ async function populateAttendanceClassSelect(): Promise<void> {
       attendanceRollCourses = await fetchTeacherClasses();
     } else if (role === 'admin') {
       const snap = await getDocs(collection(db, 'courses'));
-      attendanceRollCourses = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Course));
+      attendanceRollCourses = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Course);
     } else {
       attendanceRollCourses = [];
     }
@@ -1813,11 +1979,12 @@ async function loadRegisteredStudents(): Promise<void> {
       );
       return;
     }
-    const studentsRowsHtml = currentStudents.map(student => {
-      const memberId = escapeHtmlText((student.memberId || '').toLowerCase());
-      const name = escapeHtmlText((student.name || '').toLowerCase());
-      const email = escapeHtmlText((student.contactEmail || '').toLowerCase());
-      return `
+    const studentsRowsHtml = currentStudents
+      .map((student) => {
+        const memberId = escapeHtmlText((student.memberId || '').toLowerCase());
+        const name = escapeHtmlText((student.name || '').toLowerCase());
+        const email = escapeHtmlText((student.contactEmail || '').toLowerCase());
+        return `
       <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors registered-student-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
         <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(student.memberId || 'N/A')}</td>
         <td class="py-3 px-4 text-white">${escapeHtmlText(safeStudentDisplayName(student.name))}</td>
@@ -1834,9 +2001,12 @@ async function loadRegisteredStudents(): Promise<void> {
         </td>
       </tr>
     `;
-    }).join('');
+      })
+      .join('');
     renderTemplate(tableBody, studentsRowsHtml);
-  } catch { /* registered students load error */ }
+  } catch {
+    /* registered students load error */
+  }
 }
 
 async function loadRegisteredTeachers(): Promise<void> {
@@ -1858,12 +2028,13 @@ async function loadRegisteredTeachers(): Promise<void> {
       );
       return;
     }
-    const teachersRowsHtml = teachers.map((t: User) => {
-      const displayName = userProfileDisplayLabel(t);
-      const memberId = escapeHtmlText((t.memberId || '').toLowerCase());
-      const name = escapeHtmlText(displayName.toLowerCase());
-      const email = escapeHtmlText((t.email || '').toLowerCase());
-      return `
+    const teachersRowsHtml = teachers
+      .map((t: User) => {
+        const displayName = userProfileDisplayLabel(t);
+        const memberId = escapeHtmlText((t.memberId || '').toLowerCase());
+        const name = escapeHtmlText(displayName.toLowerCase());
+        const email = escapeHtmlText((t.email || '').toLowerCase());
+        return `
       <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors registered-teacher-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
         <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(t.memberId || 'N/A')}</td>
         <td class="py-3 px-4 text-white">${escapeHtmlText(displayName === '—' ? t.email || 'N/A' : displayName)}</td>
@@ -1877,9 +2048,12 @@ async function loadRegisteredTeachers(): Promise<void> {
         </td>
       </tr>
     `;
-    }).join('');
+      })
+      .join('');
     renderTemplate(tableBody, teachersRowsHtml);
-  } catch { /* teacher load error */ }
+  } catch {
+    /* teacher load error */
+  }
 }
 
 async function loadAllUsers(): Promise<void> {
@@ -1906,20 +2080,25 @@ async function loadAllUsers(): Promise<void> {
     }
     const getRoleBadgeClass = (role: string) => {
       switch (role) {
-        case 'admin': return 'bg-red-500/20 text-red-400';
-        case 'teacher': return 'bg-blue-500/20 text-blue-400';
-        case 'student': return 'bg-green-500/20 text-green-400';
-        default: return 'bg-gray-500/20 text-gray-400';
+        case 'admin':
+          return 'bg-red-500/20 text-red-400';
+        case 'teacher':
+          return 'bg-blue-500/20 text-blue-400';
+        case 'student':
+          return 'bg-green-500/20 text-green-400';
+        default:
+          return 'bg-gray-500/20 text-gray-400';
       }
     };
-    const usersRowsHtml = users.map((user: User) => {
-      const accountLabel = userProfileDisplayLabel(user);
-      const emailAttr = escapeHtmlText((user.email || '').toLowerCase());
-      const nameAttr = escapeHtmlText(accountLabel.toLowerCase());
-      const uidAttr = escapeHtmlText(user.uid);
-      const roleAttr = escapeHtmlText(user.role);
-      const roleLabel = escapeHtmlText(user.role.charAt(0).toUpperCase() + user.role.slice(1));
-      return `
+    const usersRowsHtml = users
+      .map((user: User) => {
+        const accountLabel = userProfileDisplayLabel(user);
+        const emailAttr = escapeHtmlText((user.email || '').toLowerCase());
+        const nameAttr = escapeHtmlText(accountLabel.toLowerCase());
+        const uidAttr = escapeHtmlText(user.uid);
+        const roleAttr = escapeHtmlText(user.role);
+        const roleLabel = escapeHtmlText(user.role.charAt(0).toUpperCase() + user.role.slice(1));
+        return `
       <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors user-management-row" data-email="${emailAttr}" data-name="${nameAttr}">
         <td class="py-3 px-4 text-white">${escapeHtmlText(user.email)}</td>
         <td class="py-3 px-4 text-center">
@@ -1934,7 +2113,8 @@ async function loadAllUsers(): Promise<void> {
         </td>
       </tr>
     `;
-    }).join('');
+      })
+      .join('');
     renderTemplate(tableBody, usersRowsHtml);
   } catch (error: unknown) {
     if (tableBody) {
@@ -1958,12 +2138,18 @@ function filterAccountDropdownList(listEl: Element, query: string): void {
   });
 }
 
-function setupAccountDropdown(containerId: string, hiddenInputId: string, populateCallback: () => Promise<void>): void {
+function setupAccountDropdown(
+  containerId: string,
+  hiddenInputId: string,
+  populateCallback: () => Promise<void>
+): void {
   const container = document.getElementById(containerId);
   if (!container) return;
   const trigger = container.querySelector('.account-dropdown-trigger');
   const panel = container.querySelector('.account-dropdown-panel');
-  const searchInput = container.querySelector('.account-dropdown-search') as HTMLInputElement | null;
+  const searchInput = container.querySelector(
+    '.account-dropdown-search'
+  ) as HTMLInputElement | null;
   const listEl = container.querySelector('.account-dropdown-list');
   const valueEl = container.querySelector('.account-dropdown-value');
   const hiddenInput = document.getElementById(hiddenInputId) as HTMLInputElement;
@@ -2110,7 +2296,7 @@ function filterStudentSelectOptions(
   const q = searchTerm.toLowerCase();
   const options = selectEl.querySelectorAll('option');
   let visible = 0;
-  options.forEach(option => {
+  options.forEach((option) => {
     if (option.value === '') return;
     const name = option.getAttribute('data-name') || '';
     const email = option.getAttribute('data-email') || '';
@@ -2136,8 +2322,12 @@ function filterStudentSelectOptions(
 // --- Student dropdowns (registration, dashboard, attendance) ---
 function updateStudentSelect(): void {
   const studentSelect = document.getElementById('student-select') as HTMLSelectElement | null;
-  const attendanceStudentSelect = document.getElementById('attendance-student-select') as HTMLSelectElement;
-  const dashboardStudentSelect = document.getElementById('dashboard-student-select') as HTMLSelectElement;
+  const attendanceStudentSelect = document.getElementById(
+    'attendance-student-select'
+  ) as HTMLSelectElement;
+  const dashboardStudentSelect = document.getElementById(
+    'dashboard-student-select'
+  ) as HTMLSelectElement;
 
   const fillStudentSelect = (sel: HTMLSelectElement): void => {
     sel.replaceChildren();
@@ -2145,7 +2335,7 @@ function updateStudentSelect(): void {
     placeholder.value = '';
     placeholder.textContent = '-- Select a student --';
     sel.appendChild(placeholder);
-    currentStudents.forEach(student => {
+    currentStudents.forEach((student) => {
       const option = document.createElement('option');
       const label = safeStudentDisplayName(student.name);
       option.value = student.id;
@@ -2159,15 +2349,27 @@ function updateStudentSelect(): void {
 
   if (studentSelect) {
     fillStudentSelect(studentSelect);
-    filterStudentSelectOptions(studentSelect, '', document.getElementById('grades-student-filter-empty'));
+    filterStudentSelectOptions(
+      studentSelect,
+      '',
+      document.getElementById('grades-student-filter-empty')
+    );
   }
-  if (attendanceStudentSelect)     fillStudentSelect(attendanceStudentSelect);
+  if (attendanceStudentSelect) fillStudentSelect(attendanceStudentSelect);
   if (dashboardStudentSelect) fillStudentSelect(dashboardStudentSelect);
   if (attendanceStudentSelect) {
-    filterStudentSelectOptions(attendanceStudentSelect, '', document.getElementById('attendance-student-filter-empty'));
+    filterStudentSelectOptions(
+      attendanceStudentSelect,
+      '',
+      document.getElementById('attendance-student-filter-empty')
+    );
   }
   if (dashboardStudentSelect) {
-    filterStudentSelectOptions(dashboardStudentSelect, '', document.getElementById('dashboard-student-filter-empty'));
+    filterStudentSelectOptions(
+      dashboardStudentSelect,
+      '',
+      document.getElementById('dashboard-student-filter-empty')
+    );
   }
   refreshAttendanceBulkRoster();
 
@@ -2196,7 +2398,8 @@ function showGradesSkeletonLoading(): void {
   const gradesTableBody = document.getElementById('grades-table-body');
   const chartsSection = document.getElementById('grade-charts-section');
   if (gradesTableBody) {
-    const row = '<tr class="border-b border-dark-700"><td class="py-3 px-4"><div class="skeleton skeleton-text !w-[70%]"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td></tr>';
+    const row =
+      '<tr class="border-b border-dark-700"><td class="py-3 px-4"><div class="skeleton skeleton-text !w-[70%]"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td></tr>';
     renderTemplate(gradesTableBody, row.repeat(5));
   }
   chartsSection?.classList.add('hide');
@@ -2268,7 +2471,9 @@ function displayGrades(grades: Grade[]): void {
       document.getElementById('student-select')?.focus();
     });
     document.getElementById('grades-empty-focus-add-grade')?.addEventListener('click', () => {
-      document.getElementById('grade-entry-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document
+        .getElementById('grade-entry-section')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
     chartsSection?.classList.add('hide');
     renderGradesMobile(grades, selectedStudentId, userRole);
@@ -2276,12 +2481,13 @@ function displayGrades(grades: Grade[]): void {
   }
   chartsSection?.classList.remove('hide');
 
-  const gradesRowsHtml = grades.map(grade => {
-    const pct = gradePercent100(grade);
-    const percentage = pct == null ? '—' : pct.toFixed(1);
-    const percentageClass =
-      pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
-    return `
+  const gradesRowsHtml = grades
+    .map((grade) => {
+      const pct = gradePercent100(grade);
+      const percentage = pct == null ? '—' : pct.toFixed(1);
+      const percentageClass =
+        pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
+      return `
       <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
         <td class="py-3 px-4 text-white">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td>
         <td class="py-3 px-4 text-dark-300">${escapeHtmlText(grade.category)}</td>
@@ -2289,7 +2495,8 @@ function displayGrades(grades: Grade[]): void {
         <td class="py-3 px-4 text-center font-semibold ${percentageClass}">${percentage}${pct == null ? '' : '%'}</td>
         ${showActions && selectedStudentId ? `<td class="py-3 px-4 text-center"><button type="button" data-lms-action="delete-grade" data-student-id="${escapeHtmlText(selectedStudentId)}" data-grade-id="${escapeHtmlText(grade.id)}" class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button></td>` : ''}
       </tr>`;
-  }).join('');
+    })
+    .join('');
   renderTemplate(gradesTableBody, gradesRowsHtml);
 
   renderGradeCharts(grades);
@@ -2336,7 +2543,9 @@ function getGradeChartOptions(): Record<string, unknown> {
     maintainAspectRatio: false,
     animation: { duration: 300 },
     layout: {
-      padding: light ? { left: 6, right: 14, top: 12, bottom: 10 } : { left: 4, right: 12, top: 10, bottom: 8 },
+      padding: light
+        ? { left: 6, right: 14, top: 12, bottom: 10 }
+        : { left: 4, right: 12, top: 10, bottom: 8 },
     },
     plugins: { legend: { display: false } },
     scales,
@@ -2347,12 +2556,29 @@ function getGradeChartOptions(): Record<string, unknown> {
  * Renders or updates grade trend and category charts. Destroys existing Chart instances first to avoid leaks.
  */
 function renderGradeCharts(grades: Grade[]): void {
-  const sortedGrades = [...grades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // #region agent log
+  agentDebugLog({
+    sessionId: 'ecf1fb',
+    hypothesisId: 'C',
+    runId: 'pre',
+    location: 'main.ts:renderGradeCharts',
+    message: 'renderGradeCharts entry',
+    data: {
+      theme: getAppTheme(),
+      gradeCount: grades.length,
+      hasTrendCanvas: !!document.getElementById('grade-trend-chart'),
+      hasCategoryCanvas: !!document.getElementById('category-chart'),
+    },
+  });
+  // #endregion
+  const sortedGrades = [...grades].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
   const trendLabels = sortedGrades.map((g) => {
     const nm = safeAssignmentTitle(g.assignmentName);
     return nm.length > 12 ? `${nm.slice(0, 12)}…` : nm;
   });
-  const trendData = sortedGrades.map(g => {
+  const trendData = sortedGrades.map((g) => {
     const p = gradePercent100(g);
     return p == null ? null : Number(p.toFixed(1));
   });
@@ -2391,7 +2617,22 @@ function renderGradeCharts(grades: Grade[]): void {
           type: 'line',
           data: {
             labels: trendLabels,
-            datasets: [{ label: 'Grade %', data: trendData, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointBackgroundColor: '#06b6d4', pointBorderColor: pointBorder, pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 }],
+            datasets: [
+              {
+                label: 'Grade %',
+                data: trendData,
+                borderColor: '#06b6d4',
+                backgroundColor: 'rgba(6,182,212,0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#06b6d4',
+                pointBorderColor: pointBorder,
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+              },
+            ],
           },
           options: chartOptions,
         });
@@ -2414,7 +2655,17 @@ function renderGradeCharts(grades: Grade[]): void {
           type: 'bar',
           data: {
             labels: categoryLabels,
-            datasets: [{ label: 'Average %', data: categoryAverages, backgroundColor: categoryLabels.map((_, i) => categoryColors[i % categoryColors.length]), borderRadius: 8, barThickness: 40 }],
+            datasets: [
+              {
+                label: 'Average %',
+                data: categoryAverages,
+                backgroundColor: categoryLabels.map(
+                  (_, i) => categoryColors[i % categoryColors.length]
+                ),
+                borderRadius: 8,
+                barThickness: 40,
+              },
+            ],
           },
           options: {
             ...chartOptions,
@@ -2448,7 +2699,12 @@ lmsWin.handleDeleteGrade = async (studentId: string, gradeId: string) => {
 };
 
 lmsWin.handleDeleteStudent = async (studentId: string) => {
-  if (!confirm('Are you sure you want to delete this student? This will also delete all their grades and attendance records.')) return;
+  if (
+    !confirm(
+      'Are you sure you want to delete this student? This will also delete all their grades and attendance records.'
+    )
+  )
+    return;
   try {
     await deleteStudent(studentId);
     await initDashboard();
@@ -2459,7 +2715,7 @@ lmsWin.handleDeleteStudent = async (studentId: string) => {
 };
 
 lmsWin.handleEditStudent = (studentId: string) => {
-  const student = currentStudents.find(s => s.id === studentId);
+  const student = currentStudents.find((s) => s.id === studentId);
   if (!student) return;
   const modal = document.getElementById('edit-student-modal');
   const idEl = document.getElementById('edit-student-id') as HTMLInputElement;
@@ -2472,7 +2728,7 @@ lmsWin.handleEditStudent = (studentId: string) => {
   if (!modal || !idEl || !nameEl) return;
   idEl.value = studentId;
   nameEl.value = student.name;
-  memberIdEl.value = (student.memberId || '');
+  memberIdEl.value = student.memberId || '';
   yearEl.value = String(student.yearOfBirth ?? '');
   phoneEl.value = student.contactPhone || '';
   emailEl.value = student.contactEmail || '';
@@ -2495,7 +2751,10 @@ lmsWin.handleDeleteTeacher = async (userId: string) => {
 };
 
 lmsWin.handleChangeRole = async (userId: string, currentRole: string) => {
-  const newRole = prompt(`Change role for this user.\n\nCurrent role: ${currentRole}\n\nEnter new role (admin, teacher, or student):`, currentRole);
+  const newRole = prompt(
+    `Change role for this user.\n\nCurrent role: ${currentRole}\n\nEnter new role (admin, teacher, or student):`,
+    currentRole
+  );
   if (!newRole) return;
   const roleNormalized = newRole.trim().toLowerCase();
   if (!['admin', 'teacher', 'student'].includes(roleNormalized)) {
@@ -2513,7 +2772,9 @@ lmsWin.handleChangeRole = async (userId: string, currentRole: string) => {
     showAppToast(`User role changed to ${roleNormalized}.`, 'success');
   } catch (error: unknown) {
     showAppToast(formatErrorForUserToast(error, "Could not change this user's role."), 'error');
-  } finally { hideLoading(); }
+  } finally {
+    hideLoading();
+  }
 };
 
 // --- Dashboard stats & recent activity ---
@@ -2649,8 +2910,7 @@ function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grad
   lg.className = 'text-[0.6rem] font-semibold uppercase tracking-wider text-on-surface-muted';
   lg.textContent = 'Last grade';
   const lv = document.createElement('p');
-  lv.className =
-    'text-sm font-semibold text-on-surface leading-snug break-words';
+  lv.className = 'text-sm font-semibold text-on-surface leading-snug break-words';
   lv.textContent = lastLine;
   right.append(lg, lv);
 
@@ -2665,7 +2925,8 @@ function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grad
   const barTrack = document.createElement('div');
   barTrack.className = 'h-2 rounded-full bg-slate-200 dark:bg-dark-700 overflow-hidden';
   const barFill = document.createElement('div');
-  barFill.className = 'h-full rounded-full bg-gradient-to-r from-primary-500 to-primary-300 transition-all duration-500';
+  barFill.className =
+    'h-full rounded-full bg-gradient-to-r from-primary-500 to-primary-300 transition-all duration-500';
   barFill.style.width = `${pres.barFillPct}%`;
   barTrack.appendChild(barFill);
 
@@ -2682,7 +2943,9 @@ function gradePercent100(g: Grade): number | null {
 }
 
 function computeAverageGradePercent(grades: Grade[]): { pctLabel: string; count: number } {
-  const pcts = grades.map(gradePercent100).filter((p): p is number => p != null && Number.isFinite(p));
+  const pcts = grades
+    .map(gradePercent100)
+    .filter((p): p is number => p != null && Number.isFinite(p));
   if (pcts.length === 0) return { pctLabel: '—', count: 0 };
   const sum = pcts.reduce((acc, p) => acc + p, 0);
   const avgPercentage = sum / pcts.length;
@@ -2702,7 +2965,9 @@ function adminKpiSvg(kind: 'users' | 'chart' | 'book'): string {
   return `<svg class="w-6 h-6 text-primary-800 dark:text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>`;
 }
 
-function buildAdminInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>): string {
+function buildAdminInstitutionalHtml(
+  snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>
+): string {
   const countNote =
     snapshot.assignmentCount > 0
       ? `Across <span class="text-primary-700 dark:text-primary-300 font-medium">${snapshot.assignmentCount}</span> graded item${snapshot.assignmentCount === 1 ? '' : 's'}`
@@ -2719,7 +2984,9 @@ function buildAdminInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, { 
 </div>`;
 }
 
-function buildTeacherInstitutionalHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>): string {
+function buildTeacherInstitutionalHtml(
+  snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>
+): string {
   const firstDayNote =
     snapshot.myClasses === 0 && snapshot.gradingQueue === 0
       ? `<p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-3">DSKM LMS</p><p class="text-sm text-on-surface-muted max-w-xl mb-6">Your workspace is ready — create a class from the Classes tab and invite learners so attendance, grades, and the grading queue come alive.</p>`
@@ -2787,7 +3054,9 @@ function paintInstitutionalDashboard(): void {
   renderTemplate(mount, core);
 }
 
-function buildAdminMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>): string {
+function buildAdminMobileDashboardHtml(
+  snapshot: Extract<InstitutionalSnapshot, { role: 'admin' }>
+): string {
   const countNote =
     snapshot.assignmentCount > 0
       ? `${snapshot.assignmentCount} graded item${snapshot.assignmentCount === 1 ? '' : 's'}`
@@ -2818,13 +3087,15 @@ function buildAdminMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, 
 </div>`;
 }
 
-function buildTeacherMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>): string {
+function buildTeacherMobileDashboardHtml(
+  snapshot: Extract<InstitutionalSnapshot, { role: 'teacher' }>
+): string {
   const queueItems =
     snapshot.queueRows.length === 0
       ? `<p class="text-sm text-on-surface-muted py-4 text-center">No submissions awaiting grading.</p>`
       : snapshot.queueRows
           .slice(0, 5)
-          .map(q => {
+          .map((q) => {
             const dueMs = Date.parse(q.dueDateTime);
             const overdue = Number.isFinite(dueMs) && dueMs < Date.now();
             const dueLabel = overdue
@@ -2873,12 +3144,12 @@ function buildTeacherMobileDashboardHtml(snapshot: Extract<InstitutionalSnapshot
 <div class="grid grid-cols-2 gap-3">
 <div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
 <div class="p-2 w-fit rounded-xl bg-violet-100 text-violet-900 dark:bg-violet-500/15 dark:text-violet-300 mb-2">${adminKpiSvg('book')}</div>
-<p class="text-2xl font-bold text-slate-900 dark:text-white font-display tabular-nums">${snapshot.myClasses}</p>
+<p class="text-2xl font-bold text-on-surface font-display tabular-nums">${snapshot.myClasses}</p>
 <p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">My classes</p>
 </div>
 <div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
 <div class="p-2 w-fit rounded-xl bg-primary-100 text-primary-900 dark:bg-teal-500/15 dark:text-teal-300 mb-2">${adminKpiSvg('chart')}</div>
-<p class="text-2xl font-bold text-slate-900 dark:text-primary-200 font-display tabular-nums">${snapshot.gradingQueue}</p>
+<p class="text-2xl font-bold text-on-surface dark:text-primary-200 font-display tabular-nums">${snapshot.gradingQueue}</p>
 <p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">Grading queue</p>
 </div>
 </div>
@@ -2991,7 +3262,10 @@ function gpaEncouragementLine(gpa: number): string {
   return 'Every step counts — reach out if you need support.';
 }
 
-function getStudentGpaPresentation(gpa: number | null, grades: Grade[]): {
+function getStudentGpaPresentation(
+  gpa: number | null,
+  grades: Grade[]
+): {
   numericDisplay: string;
   ariaLabel: string;
   hint: string;
@@ -3034,8 +3308,7 @@ function renderStudentGpaMetricReplaceChildren(gpa: number | null, grades: Grade
   wrap.className = 'space-y-3';
   if (pres.showNewLearnerBadge) {
     const nl = document.createElement('p');
-    nl.className =
-      'text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary-400/90';
+    nl.className = 'text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary-400/90';
     nl.textContent = 'New learner';
     wrap.appendChild(nl);
   }
@@ -3083,7 +3356,7 @@ async function refreshInstitutionalDashboardMetrics(): Promise<void> {
     let systemAvg = '—';
     let assignmentCount = 0;
     try {
-      const ids = currentStudents.map(s => s.id);
+      const ids = currentStudents.map((s) => s.id);
       const allGrades = await fetchGradesForManyStudents(ids);
       const st = computeAverageGradePercent(allGrades);
       systemAvg = st.pctLabel;
@@ -3165,7 +3438,8 @@ async function loadRecentActivity(): Promise<void> {
   try {
     const userRole = getCurrentUserRole();
     const sessionUser = getCurrentUser();
-    let activities: Array<{ type: 'grade' | 'attendance'; date: Date; data: Grade | Attendance }> = [];
+    let activities: Array<{ type: 'grade' | 'attendance'; date: Date; data: Grade | Attendance }> =
+      [];
 
     const hasStudent =
       userRole === 'student' && sessionUser
@@ -3206,25 +3480,33 @@ async function loadRecentActivity(): Promise<void> {
       return;
     }
 
-    const activityRows = activities.map(activity => {
-      const dateStr = activity.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      if (activity.type === 'grade') {
-        const grade = activity.data as Grade;
-        const pct = gradePercent100(grade);
-        const percentage = pct == null ? '—' : pct.toFixed(1);
-        const cls = pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
-        return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td><td class="py-3 px-4 text-dark-300 text-sm">Grade posted</td><td class="py-3 px-4 text-sm ${cls} tabular-nums">${percentage}${pct == null ? '' : '%'}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
-      }
-      const att = activity.data as Attendance;
-      const statusMap: Record<string, [string, string]> = {
-        present: ['Present', 'text-green-400'],
-        absent: ['Absent', 'text-red-400'],
-        late: ['Late', 'text-yellow-400'],
-        excused: ['Excused', 'text-blue-400'],
-      };
-      const [badge, color] = statusMap[att.status] || ['Recorded', 'text-dark-300'];
-      return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${badge}</td><td class="py-3 px-4 text-dark-300 text-sm">Attendance</td><td class="py-3 px-4 text-sm ${color}">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
-    }).join('');
+    const activityRows = activities
+      .map((activity) => {
+        const dateStr = activity.date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        if (activity.type === 'grade') {
+          const grade = activity.data as Grade;
+          const pct = gradePercent100(grade);
+          const percentage = pct == null ? '—' : pct.toFixed(1);
+          const cls = pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
+          return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td><td class="py-3 px-4 text-dark-300 text-sm">Grade posted</td><td class="py-3 px-4 text-sm ${cls} tabular-nums">${percentage}${pct == null ? '' : '%'}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
+        }
+        const att = activity.data as Attendance;
+        const statusMap: Record<string, [string, string]> = {
+          present: ['Present', 'text-green-400'],
+          absent: ['Absent', 'text-red-400'],
+          late: ['Late', 'text-yellow-400'],
+          excused: ['Excused', 'text-blue-400'],
+        };
+        const [badge, color] = statusMap[att.status] || ['Recorded', 'text-dark-300'];
+        return `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="py-3 px-4 text-white font-medium">${badge}</td><td class="py-3 px-4 text-dark-300 text-sm">Attendance</td><td class="py-3 px-4 text-sm ${color}">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
+      })
+      .join('');
     renderTemplate(
       recentActivityEl,
       `<div class="card-blur progress-bar-glow rounded-2xl overflow-hidden border border-white/10">
@@ -3273,39 +3555,74 @@ function resetAppState(): void {
 // --- Callable helpers: performance summary, study tips, agent chat ---
 async function generatePerformanceSummary(studentId: string): Promise<void> {
   const btn = document.getElementById('ai-summary-btn') as HTMLButtonElement | null;
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+  }
   try {
     showLoading();
-    const getPerformanceSummary = httpsCallable(functions, 'getPerformanceSummary', { timeout: 120_000 });
-    const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. The AI service may be busy — please try again.')), 120_000));
+    const getPerformanceSummary = httpsCallable(functions, 'getPerformanceSummary', {
+      timeout: 120_000,
+    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(new Error('Request timed out. The AI service may be busy — please try again.')),
+        120_000
+      )
+    );
     const result = await Promise.race([getPerformanceSummary({ studentId }), timeoutPromise]);
     const data = result.data as { studentName?: string; summaryHtml?: string };
-    showModal(`Performance Summary - ${data?.studentName ?? 'Student'}`, data?.summaryHtml ?? '<p>No summary generated.</p>');
+    showModal(
+      `Performance Summary - ${data?.studentName ?? 'Student'}`,
+      data?.summaryHtml ?? '<p>No summary generated.</p>'
+    );
   } catch (error: unknown) {
     reportClientFault(error);
-    showAppToast(formatErrorForUserToast(error, 'Could not generate the performance summary.'), 'error');
+    showAppToast(
+      formatErrorForUserToast(error, 'Could not generate the performance summary.'),
+      'error'
+    );
   } finally {
     hideLoading();
-    if (btn) { btn.disabled = false; btn.textContent = 'AI Performance Summary'; }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'AI Performance Summary';
+    }
   }
 }
 
 async function generateStudyTips(studentId: string): Promise<void> {
   const btn = document.getElementById('study-tips-btn') as HTMLButtonElement | null;
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+  }
   try {
     showLoading();
     const getStudyTips = httpsCallable(functions, 'getStudyTips', { timeout: 120_000 });
-    const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. The AI service may be busy — please try again.')), 120_000));
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(new Error('Request timed out. The AI service may be busy — please try again.')),
+        120_000
+      )
+    );
     const result = await Promise.race([getStudyTips({ studentId }), timeoutPromise]);
     const data = result.data as { studentName?: string; tipsHtml?: string };
-    showModal(`Study Tips - ${data?.studentName ?? 'Student'}`, data?.tipsHtml ?? '<p>No study tips generated.</p>');
+    showModal(
+      `Study Tips - ${data?.studentName ?? 'Student'}`,
+      data?.tipsHtml ?? '<p>No study tips generated.</p>'
+    );
   } catch (error: unknown) {
     reportClientFault(error);
     showAppToast(formatErrorForUserToast(error, 'Could not generate study tips.'), 'error');
   } finally {
     hideLoading();
-    if (btn) { btn.disabled = false; btn.textContent = 'Get Study Tips'; }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Get Study Tips';
+    }
   }
 }
 
@@ -3347,7 +3664,8 @@ function setupAIAgentChat(): void {
       if (!btn || !messagesContainer.contains(btn)) return;
       const block = btn.closest('.ai-message-content')?.querySelector('.ai-response-content');
       const text = block?.textContent?.trim() ?? '';
-      const copyFn = (window as unknown as { copyAIResponse?: (b: HTMLElement, t: string) => void }).copyAIResponse;
+      const copyFn = (window as unknown as { copyAIResponse?: (b: HTMLElement, t: string) => void })
+        .copyAIResponse;
       if (text && typeof copyFn === 'function') copyFn(btn as HTMLElement, text);
     });
   }
@@ -3367,8 +3685,14 @@ function setupAIAgentChat(): void {
       const data = result.data as { response?: string };
       removeTypingIndicator(typingId);
       const responseText = data?.response;
-      addMessageToChat('assistant', typeof responseText === 'string' && responseText.trim() ? responseText : "Sorry, I didn't get a valid response. Please try again.");
-      const assistantText = typeof responseText === 'string' && responseText.trim() ? responseText : '';
+      addMessageToChat(
+        'assistant',
+        typeof responseText === 'string' && responseText.trim()
+          ? responseText
+          : "Sorry, I didn't get a valid response. Please try again."
+      );
+      const assistantText =
+        typeof responseText === 'string' && responseText.trim() ? responseText : '';
       conversationHistory.push({ user: message, assistant: assistantText });
       if (conversationHistory.length > 10) conversationHistory = conversationHistory.slice(-10);
     } catch (error: unknown) {
@@ -3491,12 +3815,21 @@ function setupAIAgentChat(): void {
 
   function formatMarkdown(text: string): string {
     let html = text.trim();
-    const hasHtmlTags = /<\/?(?:ul|ol|li|p|div|h[1-6]|strong|em|b|i|code|pre|blockquote|br|hr|span|a)[>\s]/i.test(html);
+    const hasHtmlTags =
+      /<\/?(?:ul|ol|li|p|div|h[1-6]|strong|em|b|i|code|pre|blockquote|br|hr|span|a)[>\s]/i.test(
+        html
+      );
 
     if (hasHtmlTags) {
       html = html.replace(/<ul([^>]*)>/gi, '<ul class="space-y-2 my-4"$1>');
-      html = html.replace(/<ol([^>]*)>/gi, '<ol class="space-y-2 my-4 list-decimal list-inside"$1>');
-      html = html.replace(/<li([^>]*)>/gi, '<li class="flex items-start gap-3 text-dark-200 mb-2"$1><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span>');
+      html = html.replace(
+        /<ol([^>]*)>/gi,
+        '<ol class="space-y-2 my-4 list-decimal list-inside"$1>'
+      );
+      html = html.replace(
+        /<li([^>]*)>/gi,
+        '<li class="flex items-start gap-3 text-dark-200 mb-2"$1><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span>'
+      );
       html = html.replace(/<\/li>/gi, '</span></li>');
       html = html.replace(/<strong([^>]*)>/gi, '<strong class="font-semibold"$1>');
       html = html.replace(/<b([^>]*)>/gi, '<strong class="font-semibold"$1>');
@@ -3509,33 +3842,85 @@ function setupAIAgentChat(): void {
       html = html.replace(/<h3([^>]*)>/gi, '<h3 class="text-lg font-bold mt-3 mb-2"$1>');
       html = html.replace(/<h4([^>]*)>/gi, '<h4 class="text-base font-bold mt-3 mb-2"$1>');
       html = html.replace(/<p([^>]*)>/gi, '<p class="mb-3 text-dark-200 leading-relaxed"$1>');
-      html = html.replace(/<code([^>]*)>/gi, '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono"$1>');
-      html = html.replace(/<pre([^>]*)>/gi, '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"$1>');
-      html = html.replace(/<blockquote([^>]*)>/gi, '<blockquote class="border-l-4 border-primary-500 pl-4 py-2 my-3 bg-primary-500/5 rounded-r-lg italic text-dark-300"$1>');
+      html = html.replace(
+        /<code([^>]*)>/gi,
+        '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono"$1>'
+      );
+      html = html.replace(
+        /<pre([^>]*)>/gi,
+        '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"$1>'
+      );
+      html = html.replace(
+        /<blockquote([^>]*)>/gi,
+        '<blockquote class="border-l-4 border-primary-500 pl-4 py-2 my-3 bg-primary-500/5 rounded-r-lg italic text-dark-300"$1>'
+      );
       html = html.replace(/>\s*\n+\s*</g, '> <');
       html = html.replace(/>([^<]+)</g, (_match, content) => {
-        let styled = content.replace(/(\d+(?:\.\d+)?%)/g, '<span class="text-accent-400 font-semibold">$1</span>');
-        styled = styled.replace(/(\d+\/\d+)/g, '<span class="text-primary-400 font-medium">$1</span>');
+        let styled = content.replace(
+          /(\d+(?:\.\d+)?%)/g,
+          '<span class="text-accent-400 font-semibold">$1</span>'
+        );
+        styled = styled.replace(
+          /(\d+\/\d+)/g,
+          '<span class="text-primary-400 font-medium">$1</span>'
+        );
         return `>${styled}<`;
       });
       return sanitizeHTML(html);
     }
 
-    html = html.replace(/^### (.+)$/gm, '<h4 class="text-lg font-bold mt-4 mb-2 flex items-center gap-2"><span class="w-1.5 h-1.5 bg-accent-400 rounded-full"></span>$1</h4>');
-    html = html.replace(/^## (.+)$/gm, '<h3 class="text-xl font-bold mt-5 mb-3 pb-2 border-b border-primary-500/20">$1</h3>');
-    html = html.replace(/^# (.+)$/gm, '<h2 class="text-2xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mt-4 mb-3">$1</h2>');
+    html = html.replace(
+      /^### (.+)$/gm,
+      '<h4 class="text-lg font-bold mt-4 mb-2 flex items-center gap-2"><span class="w-1.5 h-1.5 bg-accent-400 rounded-full"></span>$1</h4>'
+    );
+    html = html.replace(
+      /^## (.+)$/gm,
+      '<h3 class="text-xl font-bold mt-5 mb-3 pb-2 border-b border-primary-500/20">$1</h3>'
+    );
+    html = html.replace(
+      /^# (.+)$/gm,
+      '<h2 class="text-2xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mt-4 mb-3">$1</h2>'
+    );
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>');
     html = html.replace(/__(.+?)__/g, '<strong class="font-semibold">$1</strong>');
-    html = html.replace(/(?<![*_])([*_])(?![*_])(.+?)(?<![*_])\1(?![*_])/g, '<em class="text-primary-300 italic">$2</em>');
-    html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"><code class="text-accent-300 text-sm font-mono">$2</code></pre>');
-    html = html.replace(/`([^`]+)`/g, '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono">$1</code>');
-    html = html.replace(/^\* (.+)$/gm, '<div class="flex items-start gap-3 mb-2"><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span class="text-dark-200">$1</span></div>');
-    html = html.replace(/^- (.+)$/gm, '<div class="flex items-start gap-3 mb-2"><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span class="text-dark-200">$1</span></div>');
-    html = html.replace(/^(\d+)\. (.+)$/gm, (_match, num, content) => `<div class="flex items-start gap-3 mb-2"><span class="w-6 h-6 bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded-lg flex items-center justify-center text-xs font-bold text-primary-400 flex-shrink-0">${num}</span><span class="text-dark-200">${content}</span></div>`);
-    html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-primary-500 pl-4 py-2 my-3 bg-primary-500/5 rounded-r-lg italic text-dark-300">$1</blockquote>');
+    html = html.replace(
+      /(?<![*_])([*_])(?![*_])(.+?)(?<![*_])\1(?![*_])/g,
+      '<em class="text-primary-300 italic">$2</em>'
+    );
+    html = html.replace(
+      /```(\w+)?\n?([\s\S]*?)```/g,
+      '<pre class="bg-dark-900/80 rounded-xl p-4 my-3 overflow-x-auto border border-dark-700"><code class="text-accent-300 text-sm font-mono">$2</code></pre>'
+    );
+    html = html.replace(
+      /`([^`]+)`/g,
+      '<code class="px-2 py-0.5 bg-dark-800 rounded text-accent-400 text-sm font-mono">$1</code>'
+    );
+    html = html.replace(
+      /^\* (.+)$/gm,
+      '<div class="flex items-start gap-3 mb-2"><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span class="text-dark-200">$1</span></div>'
+    );
+    html = html.replace(
+      /^- (.+)$/gm,
+      '<div class="flex items-start gap-3 mb-2"><span class="w-2 h-2 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full mt-2 flex-shrink-0"></span><span class="text-dark-200">$1</span></div>'
+    );
+    html = html.replace(
+      /^(\d+)\. (.+)$/gm,
+      (_match, num, content) =>
+        `<div class="flex items-start gap-3 mb-2"><span class="w-6 h-6 bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded-lg flex items-center justify-center text-xs font-bold text-primary-400 flex-shrink-0">${num}</span><span class="text-dark-200">${content}</span></div>`
+    );
+    html = html.replace(
+      /^> (.+)$/gm,
+      '<blockquote class="border-l-4 border-primary-500 pl-4 py-2 my-3 bg-primary-500/5 rounded-r-lg italic text-dark-300">$1</blockquote>'
+    );
     html = html.replace(/^---$/gm, '<hr class="my-4 border-dark-700">');
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary-400 hover:text-primary-300 underline" target="_blank">$1</a>');
-    html = html.replace(/(\d+(?:\.\d+)?%)/g, '<span class="text-accent-400 font-semibold">$1</span>');
+    html = html.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" class="text-primary-400 hover:text-primary-300 underline" target="_blank">$1</a>'
+    );
+    html = html.replace(
+      /(\d+(?:\.\d+)?%)/g,
+      '<span class="text-accent-400 font-semibold">$1</span>'
+    );
     html = html.replace(/(\d+\/\d+)(?!<)/g, '<span class="text-primary-400 font-medium">$1</span>');
     html = html.replace(/\n\n+/g, '</p><p class="mb-3 text-dark-200 leading-relaxed">');
     html = html.replace(/\n/g, '<br>');
@@ -3625,7 +4010,9 @@ function displayAttendance(attendance: Attendance[]): void {
           : 'No attendance records yet for this student.';
       renderTemplate(attendanceTableBody, attendanceHistoryEmptyRowHtml(emptyMsg, cta));
       document.getElementById('attendance-empty-focus-mark')?.addEventListener('click', () => {
-        document.getElementById('mark-attendance-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        document
+          .getElementById('mark-attendance-form')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     }
     return;
@@ -3637,10 +4024,10 @@ function displayAttendance(attendance: Attendance[]): void {
 
 function updateAttendanceStats(attendance: Attendance[]): void {
   const total = attendance.length;
-  const present = attendance.filter(a => a.status === 'present').length;
-  const absent = attendance.filter(a => a.status === 'absent').length;
-  const late = attendance.filter(a => a.status === 'late').length;
-  const excused = attendance.filter(a => a.status === 'excused').length;
+  const present = attendance.filter((a) => a.status === 'present').length;
+  const absent = attendance.filter((a) => a.status === 'absent').length;
+  const late = attendance.filter((a) => a.status === 'late').length;
+  const excused = attendance.filter((a) => a.status === 'excused').length;
   const rawRatePct = total > 0 ? ((present + late + excused) / total) * 100 : 0;
   const rate = finiteToFixed(Math.min(100, Math.max(0, rawRatePct)), 1, '0');
 
@@ -3701,7 +4088,7 @@ async function loadUserProfile(): Promise<void> {
       : '';
 
   const student =
-    role === 'student' ? currentStudents.find(s => s.studentUid === firebaseUser.uid) : undefined;
+    role === 'student' ? currentStudents.find((s) => s.studentUid === firebaseUser.uid) : undefined;
 
   const rosterName = student?.name?.trim() || '';
   const docName = typeof userDocData.name === 'string' ? userDocData.name.trim() : '';
@@ -3726,8 +4113,7 @@ async function loadUserProfile(): Promise<void> {
   const fromStudentPhone = student?.contactPhone?.trim() || '';
   const summaryPhone = fromStudentPhone || selfPhone || 'Not provided';
 
-  const summaryContactEmail =
-    student?.contactEmail?.trim() || firebaseUser.email || 'Not provided';
+  const summaryContactEmail = student?.contactEmail?.trim() || firebaseUser.email || 'Not provided';
 
   const fields: Record<string, string> = {
     'profile-name': summaryName,
@@ -3791,9 +4177,13 @@ function wireProfilePasswordUpdate(): void {
   if (!btn) return;
   profilePasswordUpdateWired = true;
   btn.addEventListener('click', async () => {
-    const currentEl = document.getElementById('profile-current-password') as HTMLInputElement | null;
+    const currentEl = document.getElementById(
+      'profile-current-password'
+    ) as HTMLInputElement | null;
     const nextEl = document.getElementById('profile-new-password') as HTMLInputElement | null;
-    const confirmEl = document.getElementById('profile-confirm-password') as HTMLInputElement | null;
+    const confirmEl = document.getElementById(
+      'profile-confirm-password'
+    ) as HTMLInputElement | null;
     const current = currentEl?.value ?? '';
     const next = nextEl?.value ?? '';
     const confirm = confirmEl?.value ?? '';
@@ -3811,7 +4201,10 @@ function wireProfilePasswordUpdate(): void {
     }
     const strength = evaluatePasswordStrength(next);
     if (strength.tier < 2) {
-      showAppToast('Choose a stronger password (longer mix of letters, numbers, and symbols).', 'info');
+      showAppToast(
+        'Choose a stronger password (longer mix of letters, numbers, and symbols).',
+        'info'
+      );
       return;
     }
     const u = auth.currentUser;
@@ -3981,10 +4374,10 @@ function refreshAppShellAfterSignupModalDismiss(): void {
         user!.email || ''
       );
 
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hide'));
+      document.querySelectorAll('.tab-content').forEach((c) => c.classList.add('hide'));
       document.getElementById('dashboard-content')?.classList.remove('hide');
 
-      document.querySelectorAll('.tab-btn').forEach(btn => {
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
         btn.classList.remove('tab-active');
         btn.classList.add('text-dark-300');
       });
@@ -3994,7 +4387,9 @@ function refreshAppShellAfterSignupModalDismiss(): void {
         dashBtn.classList.remove('text-dark-300');
       }
 
-      document.querySelectorAll('.lms-nav-item[data-tab]').forEach(item => item.classList.remove('active'));
+      document
+        .querySelectorAll('.lms-nav-item[data-tab]')
+        .forEach((item) => item.classList.remove('active'));
       document.querySelector('.lms-nav-item[data-tab="dashboard"]')?.classList.add('active');
 
       const breadcrumb = document.getElementById('breadcrumb-current');
@@ -4038,11 +4433,22 @@ function runInit(): void {
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      void init()
-        .catch(() => {
-          showBootstrapError('The app failed to finish loading. Please refresh the page or try again later.');
-          markAuthShellReady();
+      void init().catch((e) => {
+        // #region agent log
+        agentDebugLog({
+          sessionId: 'ecf1fb',
+          hypothesisId: 'F',
+          runId: 'pre',
+          location: 'main.ts:runInit',
+          message: 'init() rejected',
+          data: { err: e instanceof Error ? e.message : String(e) },
         });
+        // #endregion
+        showBootstrapError(
+          'The app failed to finish loading. Please refresh the page or try again later.'
+        );
+        markAuthShellReady();
+      });
     });
   });
 }

@@ -30,8 +30,8 @@ Root `.gitignore` excludes `dist/`, `.env*`, `firebase-functions/lib/`, and `.wr
 
 ## 3. Cloudflare Pages (frontend)
 
-1. **Build command:** `npm run build`  
-2. **Output directory:** `dist`  
+1. **Build command:** `npm run build`
+2. **Output directory:** `dist`
 3. **Root directory:** repository root (default).
 
 `public/_redirects` and `public/_headers` are copied into `dist` by Vite for SPA routing and security headers.
@@ -48,10 +48,10 @@ Add your Pages hostname under **Authentication → Settings → Authorized domai
 
 ## 6. Stack summary
 
-| Concern | Where it runs | Config surface |
-|--------|----------------|----------------|
-| Static UI | Cloudflare Pages | `VITE_*` at build time |
-| Auth & database | Firebase | Firebase console + rules |
-| AI & admin callables | Cloud Functions | `GEMINI_API_KEY` / Firebase env |
+| Concern              | Where it runs    | Config surface                  |
+| -------------------- | ---------------- | ------------------------------- |
+| Static UI            | Cloudflare Pages | `VITE_*` at build time          |
+| Auth & database      | Firebase         | Firebase console + rules        |
+| AI & admin callables | Cloud Functions  | `GEMINI_API_KEY` / Firebase env |
 
 Tailwind is compiled via PostCSS at build time; there is no Tailwind CDN in production HTML.

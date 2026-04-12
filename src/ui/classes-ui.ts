@@ -62,10 +62,15 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
  * Populate a .student-dropdown with checkboxes for the given students.
  * `owner` is "admin" or "teacher" so we can find the right dropdown.
  */
-function populateStudentDropdown(owner: 'admin' | 'teacher', students: { id: string; name: string }[], preselected?: Set<string>): void {
-  const modal = owner === 'admin'
-    ? document.getElementById('class-form-modal')
-    : document.getElementById('teacher-class-form-modal');
+function populateStudentDropdown(
+  owner: 'admin' | 'teacher',
+  students: { id: string; name: string }[],
+  preselected?: Set<string>
+): void {
+  const modal =
+    owner === 'admin'
+      ? document.getElementById('class-form-modal')
+      : document.getElementById('teacher-class-form-modal');
   if (!modal) return;
   const dd = modal.querySelector(`.student-dropdown[data-owner="${owner}"]`) as HTMLElement | null;
   if (!dd) return;
@@ -105,13 +110,14 @@ function populateStudentDropdown(owner: 'admin' | 'teacher', students: { id: str
 function updateDropdownLabel(dd: HTMLElement, count: number): void {
   const label = dd.querySelector('.student-dropdown-label') as HTMLElement;
   if (label) {
-    label.textContent = count === 0 ? '— Select students —' : `${count} student${count !== 1 ? 's' : ''} selected`;
+    label.textContent =
+      count === 0 ? '— Select students —' : `${count} student${count !== 1 ? 's' : ''} selected`;
   }
 }
 
 // Close student dropdown when clicking outside
 document.addEventListener('click', (e) => {
-  document.querySelectorAll('.student-dropdown').forEach(dd => {
+  document.querySelectorAll('.student-dropdown').forEach((dd) => {
     if (!dd.contains(e.target as Node)) {
       dd.querySelector('.student-dropdown-menu')?.classList.add('hidden');
     }
@@ -120,12 +126,15 @@ document.addEventListener('click', (e) => {
 
 /** Get the IDs of all checked students from the custom dropdown. */
 function getSelectedStudentIds(owner: 'admin' | 'teacher'): string[] {
-  const modal = owner === 'admin'
-    ? document.getElementById('class-form-modal')
-    : document.getElementById('teacher-class-form-modal');
+  const modal =
+    owner === 'admin'
+      ? document.getElementById('class-form-modal')
+      : document.getElementById('teacher-class-form-modal');
   if (!modal) return [];
-  const checks = modal.querySelectorAll(`.student-dropdown[data-owner="${owner}"] input[type="checkbox"]:checked`);
-  return Array.from(checks).map(cb => (cb as HTMLInputElement).value);
+  const checks = modal.querySelectorAll(
+    `.student-dropdown[data-owner="${owner}"] input[type="checkbox"]:checked`
+  );
+  return Array.from(checks).map((cb) => (cb as HTMLInputElement).value);
 }
 
 // ─── Modal portal system ────────────────────────────────────────────────────
@@ -205,9 +214,13 @@ function getAdminModal(): HTMLElement {
     if (ev.target === adminModalEl) closeClassFormModal();
   });
   // Cancel button
-  adminModalEl.querySelector('#admin-modal-cancel')!.addEventListener('click', () => closeClassFormModal());
+  adminModalEl
+    .querySelector('#admin-modal-cancel')!
+    .addEventListener('click', () => closeClassFormModal());
   // Form submit
-  adminModalEl.querySelector('#class-form')!.addEventListener('submit', handleAdminFormSubmit as EventListener);
+  adminModalEl
+    .querySelector('#class-form')!
+    .addEventListener('submit', handleAdminFormSubmit as EventListener);
   // Escape key
   adminModalEl.addEventListener('keydown', (ev) => {
     if ((ev as KeyboardEvent).key === 'Escape') closeClassFormModal();
@@ -278,8 +291,12 @@ function getTeacherModal(): HTMLElement {
   teacherModalEl.addEventListener('click', (ev) => {
     if (ev.target === teacherModalEl) closeTeacherClassFormModal();
   });
-  teacherModalEl.querySelector('#teacher-modal-cancel')!.addEventListener('click', () => closeTeacherClassFormModal());
-  teacherModalEl.querySelector('#teacher-class-form')!.addEventListener('submit', handleTeacherFormSubmit as EventListener);
+  teacherModalEl
+    .querySelector('#teacher-modal-cancel')!
+    .addEventListener('click', () => closeTeacherClassFormModal());
+  teacherModalEl
+    .querySelector('#teacher-class-form')!
+    .addEventListener('submit', handleTeacherFormSubmit as EventListener);
   teacherModalEl.addEventListener('keydown', (ev) => {
     if ((ev as KeyboardEvent).key === 'Escape') closeTeacherClassFormModal();
   });
@@ -287,8 +304,12 @@ function getTeacherModal(): HTMLElement {
   return teacherModalEl;
 }
 
-function lockScroll(): void { document.body.classList.add('modal-scroll-lock'); }
-function unlockScroll(): void { document.body.classList.remove('modal-scroll-lock'); }
+function lockScroll(): void {
+  document.body.classList.add('modal-scroll-lock');
+}
+function unlockScroll(): void {
+  document.body.classList.remove('modal-scroll-lock');
+}
 
 function openClassFormModal(editCourseId?: string): void {
   const modal = getAdminModal();
@@ -315,23 +336,31 @@ function openClassFormModal(editCourseId?: string): void {
   if (editCourseId) {
     (async () => {
       const courses = await fetchAllClasses();
-      const c = courses.find(x => x.id === editCourseId);
+      const c = courses.find((x) => x.id === editCourseId);
       if (c) {
         (form.querySelector('[name="courseName"]') as HTMLInputElement).value = c.courseName;
         (form.querySelector('[name="courseCode"]') as HTMLInputElement).value = c.courseCode || '';
         (form.querySelector('[name="schedule"]') as HTMLInputElement).value = c.schedule || '';
-        (form.querySelector('[name="description"]') as HTMLTextAreaElement).value = c.description || '';
+        (form.querySelector('[name="description"]') as HTMLTextAreaElement).value =
+          c.description || '';
         sel.value = c.teacherId || '';
         // Populate student dropdown with pre-selected enrolled students
         const enrolledIds = new Set(c.studentIds ?? []);
-        populateStudentDropdown('admin', cachedAllStudents.map(s => ({ id: s.id, name: s.name })), enrolledIds);
+        populateStudentDropdown(
+          'admin',
+          cachedAllStudents.map((s) => ({ id: s.id, name: s.name })),
+          enrolledIds
+        );
       }
     })();
   } else {
     form.reset();
     form.setAttribute('data-course-id', '');
     // Populate student dropdown with no pre-selection
-    populateStudentDropdown('admin', cachedAllStudents.map(s => ({ id: s.id, name: s.name })));
+    populateStudentDropdown(
+      'admin',
+      cachedAllStudents.map((s) => ({ id: s.id, name: s.name }))
+    );
   }
 
   modal.classList.remove('is-hidden');
@@ -356,7 +385,10 @@ async function openTeacherClassFormModal(): Promise<void> {
   // Populate student checkbox dropdown (all students so teacher can assign)
   try {
     const students = await fetchAllStudentProfiles();
-    populateStudentDropdown('teacher', students.map(s => ({ id: s.id, name: s.name })));
+    populateStudentDropdown(
+      'teacher',
+      students.map((s) => ({ id: s.id, name: s.name }))
+    );
   } catch {
     // Fallback: empty dropdown
     populateStudentDropdown('teacher', []);
@@ -379,14 +411,19 @@ async function openTeacherClassFormModalForEdit(courseId: string): Promise<void>
     (form.querySelector('[name="courseName"]') as HTMLInputElement).value = course.courseName;
     (form.querySelector('[name="courseCode"]') as HTMLInputElement).value = course.courseCode || '';
     (form.querySelector('[name="schedule"]') as HTMLInputElement).value = course.schedule || '';
-    (form.querySelector('[name="description"]') as HTMLTextAreaElement).value = course.description || '';
+    (form.querySelector('[name="description"]') as HTMLTextAreaElement).value =
+      course.description || '';
   }
 
   // Populate dropdown with pre-selected enrolled students
   try {
     const students = await fetchAllStudentProfiles();
     const enrolled = new Set(course?.studentIds ?? []);
-    populateStudentDropdown('teacher', students.map(s => ({ id: s.id, name: s.name })), enrolled);
+    populateStudentDropdown(
+      'teacher',
+      students.map((s) => ({ id: s.id, name: s.name })),
+      enrolled
+    );
   } catch {
     populateStudentDropdown('teacher', []);
   }
@@ -437,14 +474,14 @@ export async function loadClasses(): Promise<void> {
 
 async function renderStudentView(): Promise<void> {
   const profiles = await fetchStudents();
-  const profileIds = profiles.map(s => s.id);
+  const profileIds = profiles.map((s) => s.id);
   const courses = (await fetchStudentClasses(profileIds)).filter((c) =>
     (c.studentIds ?? []).some((id) => profileIds.includes(id))
   );
 
   const teacherNames: Record<string, string> = {};
   await Promise.all(
-    [...new Set(courses.map(c => c.teacherId).filter(Boolean))].map(async uid => {
+    [...new Set(courses.map((c) => c.teacherId).filter(Boolean))].map(async (uid) => {
       teacherNames[uid] = await getUserDisplayName(uid);
     })
   );
@@ -466,12 +503,11 @@ async function renderStudentView(): Promise<void> {
     progressByCourse = {};
   }
 
-  const cards = courses.map(c => {
+  const cards = courses.map((c) => {
     const t = teacherNames[c.teacherId];
     const teacherLine = t && t !== '—' ? t : 'Teacher';
     const prog = progressByCourse[c.id];
-    const pct =
-      prog && prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
+    const pct = prog && prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
     const progLabel =
       prog && prog.total > 0
         ? `${prog.done} / ${prog.total} assessments submitted`
@@ -518,7 +554,8 @@ async function renderTeacherView(): Promise<void> {
   cachedTeacherCourses = courses;
   cachedAllStudents = students;
 
-  const rows = courses.map(c => `
+  const rows = courses.map(
+    (c) => `
     <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
       <td class="py-3 px-4 text-white font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
@@ -534,18 +571,22 @@ async function renderTeacherView(): Promise<void> {
       <td colspan="5" class="py-4 px-4">
         <div id="teacher-roster-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </td>
-    </tr>`);
+    </tr>`
+  );
 
   renderTemplate(
     container!,
     `
     <div class="space-y-6">
       ${sectionHeader('My Classes', `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
-      ${courses.length === 0 ? emptyState(
-        'Welcome to your teaching hub',
-        'This is your first day on DSKM LMS — create your first class here, or ask an administrator to assign courses to you.',
-        `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create class</button>`
-      ) : `
+      ${
+        courses.length === 0
+          ? emptyState(
+              'Welcome to your teaching hub',
+              'This is your first day on DSKM LMS — create your first class here, or ask an administrator to assign courses to you.',
+              `<button type="button" data-action="teacher-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create class</button>`
+            )
+          : `
         <div class="overflow-x-auto rounded-xl border border-dark-700">
           <table class="w-full text-sm">
             <thead class="bg-dark-800/80">
@@ -560,14 +601,15 @@ async function renderTeacherView(): Promise<void> {
             <tbody>${rows.join('')}</tbody>
           </table>
         </div>
-      `}
+      `
+      }
     </div>`
   );
 
-  const teacherIds = [...new Set(courses.map(c => c.teacherId).filter(Boolean))];
+  const teacherIds = [...new Set(courses.map((c) => c.teacherId).filter(Boolean))];
   const teacherNames: Record<string, string> = {};
   await Promise.all(
-    teacherIds.map(async uid => {
+    teacherIds.map(async (uid) => {
       teacherNames[uid] = await getUserDisplayName(uid);
     })
   );
@@ -588,27 +630,28 @@ async function renderTeacherView(): Promise<void> {
 async function renderAdminView(): Promise<void> {
   const [courses, teachers, students] = await Promise.all([
     fetchAllClasses(),
-    fetchAllUsers().then(u => u.filter(x => x.role === 'teacher')),
+    fetchAllUsers().then((u) => u.filter((x) => x.role === 'teacher')),
     fetchStudents(),
   ]);
   cachedTeachers = teachers;
   cachedAllStudents = students;
 
   const teacherNames: Record<string, string> = {};
-  teachers.forEach(t => {
+  teachers.forEach((t) => {
     const label = userProfileDisplayLabel(t);
     if (label !== '—') teacherNames[t.uid] = label;
   });
-  const orphanTeacherIds = [...new Set(courses.map(c => c.teacherId).filter(Boolean))].filter(
-    tid => !teacherNames[tid]
+  const orphanTeacherIds = [...new Set(courses.map((c) => c.teacherId).filter(Boolean))].filter(
+    (tid) => !teacherNames[tid]
   );
   await Promise.all(
-    orphanTeacherIds.map(async tid => {
+    orphanTeacherIds.map(async (tid) => {
       teacherNames[tid] = await getUserDisplayName(tid);
     })
   );
 
-  const rows = courses.map(c => `
+  const rows = courses.map(
+    (c) => `
     <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
       <td class="py-3 px-4 text-white font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
       <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
@@ -624,18 +667,22 @@ async function renderAdminView(): Promise<void> {
       <td colspan="5" class="py-4 px-4">
         <div id="admin-roster-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </td>
-    </tr>`);
+    </tr>`
+  );
 
   renderTemplate(
     container!,
     `
     <div class="space-y-6">
       ${sectionHeader('Classes', `<button type="button" data-action="admin-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create Class</button>`)}
-      ${courses.length === 0 ? emptyState(
-        'No classes found',
-        'Create a class to get started.',
-        `<button type="button" data-action="admin-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create class</button>`
-      ) : `
+      ${
+        courses.length === 0
+          ? emptyState(
+              'No classes found',
+              'Create a class to get started.',
+              `<button type="button" data-action="admin-create-class" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600">+ Create class</button>`
+            )
+          : `
         <div class="overflow-x-auto rounded-xl border border-dark-700">
           <table class="w-full text-sm">
             <thead class="bg-dark-800/80">
@@ -650,7 +697,8 @@ async function renderAdminView(): Promise<void> {
             <tbody>${rows.join('')}</tbody>
           </table>
         </div>
-      `}
+      `
+      }
     </div>`
   );
 }
@@ -660,25 +708,27 @@ async function renderAdminView(): Promise<void> {
 async function loadTeacherRoster(courseId: string): Promise<void> {
   const el = document.getElementById(`teacher-roster-${courseId}`);
   if (!el) return;
-  const course = cachedTeacherCourses.find(c => c.id === courseId);
+  const course = cachedTeacherCourses.find((c) => c.id === courseId);
   if (!course) return;
   try {
     const roster = await fetchClassRoster(courseId);
     const enrolledIds = new Set(course.studentIds ?? []);
-    const available = cachedAllStudents.filter(s => !enrolledIds.has(s.id));
+    const available = cachedAllStudents.filter((s) => !enrolledIds.has(s.id));
     renderTemplate(
       el,
       `
       <div class="space-y-3">
         <p class="text-dark-300 font-medium">Enrolled (${roster.length})</p>
-        ${roster.length === 0
-          ? '<p class="text-dark-500 text-sm">None</p>'
-          : `<ul class="space-y-1">${roster.map(s => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(safeStudentDisplayName(s.name))}</span><button type="button" data-action="teacher-remove-student" data-course-id="${esc(courseId)}" data-student-id="${esc(s.id)}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`}
+        ${
+          roster.length === 0
+            ? '<p class="text-dark-500 text-sm">None</p>'
+            : `<ul class="space-y-1">${roster.map((s) => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(safeStudentDisplayName(s.name))}</span><button type="button" data-action="teacher-remove-student" data-course-id="${esc(courseId)}" data-student-id="${esc(s.id)}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`
+        }
         <div>
           <p class="text-dark-300 font-medium mb-1">Add student</p>
           <select data-course-id="${esc(courseId)}" data-action="teacher-add-student-select" class="w-full max-w-xs px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
             <option value="">— Select student —</option>
-            ${available.map(s => `<option value="${esc(s.id)}">${esc(safeStudentDisplayName(s.name))}</option>`).join('')}
+            ${available.map((s) => `<option value="${esc(s.id)}">${esc(safeStudentDisplayName(s.name))}</option>`).join('')}
           </select>
         </div>
       </div>`
@@ -692,11 +742,11 @@ async function loadTeacherRoster(courseId: string): Promise<void> {
 }
 
 async function loadAdminRoster(courseId: string): Promise<void> {
-  const course = (await fetchAllClasses()).find(c => c.id === courseId);
+  const course = (await fetchAllClasses()).find((c) => c.id === courseId);
   if (!course) return;
   const roster = await fetchClassRoster(courseId);
   const enrolledIds = new Set(course.studentIds ?? []);
-  const available = cachedAllStudents.filter(s => !enrolledIds.has(s.id));
+  const available = cachedAllStudents.filter((s) => !enrolledIds.has(s.id));
 
   const el = document.getElementById(`admin-roster-${courseId}`);
   if (!el) return;
@@ -705,14 +755,16 @@ async function loadAdminRoster(courseId: string): Promise<void> {
     `
     <div class="space-y-3">
       <p class="text-dark-300 font-medium">Enrolled (${roster.length})</p>
-      ${roster.length === 0
-        ? '<p class="text-dark-500 text-sm">None</p>'
-        : `<ul class="space-y-1">${roster.map(s => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(safeStudentDisplayName(s.name))}</span><button type="button" data-action="admin-remove-student" data-course-id="${esc(courseId)}" data-student-id="${esc(s.id)}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`}
+      ${
+        roster.length === 0
+          ? '<p class="text-dark-500 text-sm">None</p>'
+          : `<ul class="space-y-1">${roster.map((s) => `<li class="flex items-center justify-between"><span class="text-dark-200">${esc(safeStudentDisplayName(s.name))}</span><button type="button" data-action="admin-remove-student" data-course-id="${esc(courseId)}" data-student-id="${esc(s.id)}" class="text-red-400 text-xs hover:underline">Remove</button></li>`).join('')}</ul>`
+      }
       <div>
         <p class="text-dark-300 font-medium mb-1">Add student</p>
         <select data-course-id="${esc(courseId)}" data-action="admin-add-student-select" class="w-full max-w-xs px-3 py-2 rounded-lg bg-dark-700 border border-dark-600 text-white text-sm">
           <option value="">— Select student —</option>
-          ${available.map(s => `<option value="${esc(s.id)}">${esc(safeStudentDisplayName(s.name))}</option>`).join('')}
+          ${available.map((s) => `<option value="${esc(s.id)}">${esc(safeStudentDisplayName(s.name))}</option>`).join('')}
         </select>
       </div>
     </div>`
@@ -728,7 +780,11 @@ function handleClick(e: Event): void {
     if (link) {
       e.preventDefault();
       const tab = (link as HTMLElement).getAttribute('data-tab');
-      if (tab && typeof (window as unknown as { switchToTab?: (t: string) => void }).switchToTab === 'function') {
+      if (
+        tab &&
+        typeof (window as unknown as { switchToTab?: (t: string) => void }).switchToTab ===
+          'function'
+      ) {
         (window as unknown as { switchToTab: (t: string) => void }).switchToTab(tab);
       }
     }
@@ -741,8 +797,10 @@ function handleClick(e: Event): void {
     case 'teacher-toggle-roster': {
       const row = document.getElementById(`teacher-roster-row-${courseId}`);
       if (!row) return;
-      if (row.classList.contains('hidden')) { row.classList.remove('hidden'); loadTeacherRoster(courseId); }
-      else row.classList.add('hidden');
+      if (row.classList.contains('hidden')) {
+        row.classList.remove('hidden');
+        loadTeacherRoster(courseId);
+      } else row.classList.add('hidden');
       return;
     }
     case 'teacher-edit-class':
@@ -761,8 +819,10 @@ function handleClick(e: Event): void {
     case 'admin-toggle-roster': {
       const row = document.getElementById(`admin-roster-row-${courseId}`);
       if (!row) return;
-      if (row.classList.contains('hidden')) { row.classList.remove('hidden'); loadAdminRoster(courseId); }
-      else row.classList.add('hidden');
+      if (row.classList.contains('hidden')) {
+        row.classList.remove('hidden');
+        loadAdminRoster(courseId);
+      } else row.classList.add('hidden');
       return;
     }
     case 'admin-create-class':
@@ -791,7 +851,10 @@ function handleClick(e: Event): void {
       removeStudentsFromClass(courseId, [studentId])
         .then(() => loadTeacherRoster(courseId))
         .catch((err: unknown) =>
-          showAppToast(formatErrorForUserToast(err, 'Could not remove the student from this class.'), 'error')
+          showAppToast(
+            formatErrorForUserToast(err, 'Could not remove the student from this class.'),
+            'error'
+          )
         )
         .finally(hideLoading);
       return;
@@ -803,7 +866,10 @@ function handleClick(e: Event): void {
       removeStudentsFromClass(courseId, [studentId])
         .then(() => loadAdminRoster(courseId))
         .catch((err: unknown) =>
-          showAppToast(formatErrorForUserToast(err, 'Could not remove the student from this class.'), 'error')
+          showAppToast(
+            formatErrorForUserToast(err, 'Could not remove the student from this class.'),
+            'error'
+          )
         )
         .finally(hideLoading);
       return;
@@ -820,9 +886,15 @@ function handleChange(e: Event): void {
     const courseId = target.getAttribute('data-course-id') || '';
     showLoading();
     addStudentsToClass(courseId, [value])
-      .then(() => { target.value = ''; return loadAdminRoster(courseId); })
+      .then(() => {
+        target.value = '';
+        return loadAdminRoster(courseId);
+      })
       .catch((err: unknown) =>
-        showAppToast(formatErrorForUserToast(err, 'Could not add the student to this class.'), 'error')
+        showAppToast(
+          formatErrorForUserToast(err, 'Could not add the student to this class.'),
+          'error'
+        )
       )
       .finally(hideLoading);
   } else if (action === 'teacher-add-student-select') {
@@ -831,9 +903,15 @@ function handleChange(e: Event): void {
     const courseId = target.getAttribute('data-course-id') || '';
     showLoading();
     addStudentsToClass(courseId, [value])
-      .then(() => { target.value = ''; return loadTeacherRoster(courseId); })
+      .then(() => {
+        target.value = '';
+        return loadTeacherRoster(courseId);
+      })
       .catch((err: unknown) =>
-        showAppToast(formatErrorForUserToast(err, 'Could not add the student to this class.'), 'error')
+        showAppToast(
+          formatErrorForUserToast(err, 'Could not add the student to this class.'),
+          'error'
+        )
       )
       .finally(hideLoading);
   }

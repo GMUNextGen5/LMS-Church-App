@@ -2,113 +2,113 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * FIREBASE CLOUD FUNCTIONS FOR LMS
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * PURPOSE:
  * Server-side logic for secure operations, AI integration, and admin functions.
  * Handles sensitive operations that cannot be performed client-side.
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * ARCHITECTURE OVERVIEW
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * FUNCTIONS PROVIDED:
- * 
+ *
  * 1. getPerformanceSummary (Student AI Feature)
  *    - Analyzes student grades and attendance
  *    - Calls Gemini AI for personalized insights
  *    - Returns HTML-formatted summary
- * 
+ *
  * 2. getStudyTips (Student AI Feature)
  *    - Analyzes performance by category
  *    - Calls Gemini AI for study recommendations
  *    - Returns HTML-formatted tips
- * 
+ *
  * 3. aiAgentChat (Admin AI Feature)
  *    - Conversational AI assistant
  *    - Has access to all student data
  *    - Maintains conversation history
  *    - Returns AI responses to natural language queries
- * 
+ *
  * 4. updateUserRole (Admin Function)
  *    - Changes user roles (admin, teacher, student)
  *    - Admin-only operation
  *    - Updates /users/{uid}/role in Firestore
- * 
+ *
  * 5. getAllUsers (Admin Function)
  *    - Retrieves all registered users
  *    - Admin-only operation
  *    - Returns user list with roles and emails
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * ENVIRONMENT CONFIGURATION
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * ENVIRONMENT VARIABLES:
- * 
+ *
  * LOCAL DEVELOPMENT:
  * - Load from firebase-functions/.env (copy from firebase-functions/.env.example)
  * - Set GEMINI_API_KEY in firebase-functions/.env
- * 
+ *
  * PRODUCTION:
  * - Set GEMINI_API_KEY in Firebase Functions config or Secret Manager (never in code)
  * - Access in code: process.env.GEMINI_API_KEY
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * SECURITY MODEL
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * AUTHENTICATION:
  * - All functions require authentication (request.auth must exist)
  * - Firebase automatically validates auth tokens
  * - User identity from request.auth.uid
- * 
+ *
  * AUTHORIZATION:
  * - Role checked from /users/{uid}/role in Firestore
  * - Different functions have different role requirements:
  *   - AI Student features: Any authenticated user with access to student
  *   - AI Admin features: Admin role only
  *   - User management: Admin role only
- * 
+ *
  * DATA ACCESS:
  * - checkStudentAccess() helper validates permissions
  * - Enforces FERPA compliance
  * - Admin: Access all students
  * - Teacher: Access assigned students (via courses)
  * - Student/Parent: Access own records only
- * 
+ *
  * API KEY PROTECTION:
  * - Gemini API key stored server-side only
  * - Never exposed to client
  * - Used only in Cloud Functions
  * - Billed to Firebase project
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * AI INTEGRATION
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * AI PROVIDER: Google Gemini AI
  * MODEL: gemini-1.5-flash (configurable in ai-config.ts)
- * 
+ *
  * AI FEATURES:
- * 
+ *
  * 1. Performance Summary:
  *    - Input: Student grades + attendance
  *    - Processing: Gemini analyzes patterns and trends
  *    - Output: Personalized feedback with strengths/weaknesses
  *    - Format: HTML with sections and bullet points
- * 
+ *
  * 2. Study Tips:
  *    - Input: Performance by category
  *    - Processing: Gemini suggests targeted improvements
  *    - Output: Actionable study recommendations
  *    - Format: HTML with specific strategies
- * 
+ *
  * 3. Conversational Agent:
  *    - Input: Natural language question + context
  *    - Processing: Gemini analyzes all student data
  *    - Output: Conversational response
  *    - Format: HTML with data-driven insights
- * 
+ *
  * AI CALL FLOW:
  * 1. Client calls Cloud Function
  * 2. Function authenticates and authorizes user
@@ -118,77 +118,77 @@
  * 6. Gemini returns generated text
  * 7. Function returns to client
  * 8. Client displays in modal
- * 
+ *
  * PROMPT ENGINEERING:
  * - System prompts define AI behavior (in ai-config.ts)
  * - User prompts contain structured data
  * - Templates ensure consistent formatting
  * - HTML output for rich display
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * DEPLOYMENT
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * DEPLOYMENT STEPS:
- * 
+ *
  * 1. Set GEMINI_API_KEY in firebase-functions/.env (see firebase-functions/.env.example). Never commit .env.
- * 
+ *
  * 2. Build TypeScript:
  *    cd functions && npm run build
- * 
+ *
  * 3. Deploy Functions:
  *    firebase deploy --only functions
- * 
+ *
  * 4. Verify Deployment:
  *    - Check Firebase Console → Functions
  *    - Check logs: firebase functions:log
  *    - Test from client app
- * 
+ *
  * REGION:
  * - Functions deployed to us-central1 (configurable)
  * - Client must use same region in firebase.ts
- * 
+ *
  * BILLING:
  * - Cloud Functions requires Blaze (pay-as-you-go) plan
  * - Free tier includes 2M invocations/month
  * - Gemini API has separate billing
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * DEBUGGING
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * VIEW LOGS:
  * - Real-time: firebase functions:log
  * - Console: Firebase Console → Functions → Logs tab
  * - Filter by function name
  * - Look for Cloud Functions log output (errors and warnings)
- * 
+ *
  * COMMON ISSUES:
- * 
+ *
  * 1. "GEMINI_API_KEY not set"
  *    FIX: Set GEMINI_API_KEY in firebase-functions/.env (or Firebase config), then redeploy
- * 
+ *
  * 2. "Permission denied"
  *    CHECK:
  *    - User is authenticated
  *    - User role in /users/{uid}
  *    - Firestore security rules
  *    - Function logs for detailed error
- * 
+ *
  * 3. "Function not found"
  *    CHECK:
  *    - Functions are deployed
  *    - Region matches (us-central1)
  *    - Function name is correct
  *    - No deployment errors
- * 
+ *
  * 4. "Timeout"
  *    CHECK:
  *    - Function timeout settings (default 60s, can increase)
  *    - Gemini API response time
  *    - Network connectivity
  *    - Large data queries (optimize with limit())
- * 
+ *
  * 5. "AI returns error"
  *    CHECK:
  *    - Gemini API key is valid
@@ -196,25 +196,25 @@
  *    - Prompt is well-formed
  *    - Data is properly formatted
  *    - Function logs for API error details
- * 
+ *
  * TESTING:
- * 
+ *
  * LOCAL TESTING:
  * 1. Set GEMINI_API_KEY in firebase-functions/.env
  * 2. Deploy: firebase deploy --only functions
  * 3. Run client (npm run dev) and trigger AI features
  * 4. Check Firebase Console > Functions > Logs
- * 
+ *
  * PRODUCTION TESTING:
  * 1. Deploy functions
  * 2. Use client app to call functions
  * 3. Check Firebase Console logs
  * 4. Monitor for errors
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * PERFORMANCE OPTIMIZATION
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * OPTIMIZATIONS:
  * - Firestore queries limited (limit(20), limit(30))
  * - Real-time listeners avoided (use getDocs)
@@ -222,18 +222,18 @@
  * - Efficient data structures
  * - Timeout set appropriately (540s for aiAgentChat)
  * - Memory allocation (512MiB for data-heavy operations)
- * 
+ *
  * COLD STARTS:
  * - First invocation may be slow (10-30 seconds)
  * - Subsequent calls are fast (< 1 second)
  * - maxInstances setting helps with concurrent requests
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * MIGRATION NOTES
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * MOVING TO DEDICATED API SERVICE:
- * 
+ *
  * When migrating to dedicated API service:
  * 1. Keep Cloud Functions as API gateway (or replace with REST API)
  * 2. Move AI logic to dedicated service
@@ -241,21 +241,21 @@
  * 4. Maintain authentication/authorization
  * 5. Update CORS configuration
  * 6. Test thoroughly before switching
- * 
+ *
  * BENEFITS OF DEDICATED SERVICE:
  * - More control over infrastructure
  * - Better scaling options
  * - Potentially lower costs
  * - Easier monitoring/debugging
  * - Independent deployment
- * 
+ *
  * CURRENT ARCHITECTURE (Cloud Functions):
  * - Simple to deploy and maintain
  * - Integrated with Firebase
  * - Automatic scaling
  * - Built-in authentication
  * - Good for MVP and small-medium scale
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -263,13 +263,13 @@
 
 /**
  * Environment Variable Loading
- * 
+ *
  * DEVELOPMENT:
  * - Loads .env file when not in production (e.g. local testing with Gemini API)
- * 
+ *
  * PRODUCTION (Firebase deploy):
  * - Set GEMINI_API_KEY via Firebase config or Secret Manager (never in code)
- * 
+ *
  * GRACEFUL FAILURE:
  * - If dotenv not installed, continues without error
  */
@@ -277,7 +277,7 @@ if (process.env.NODE_ENV !== 'production') {
   try {
     // Only load dotenv in local development
     require('dotenv').config();
-  } catch (e) {
+  } catch {
     // dotenv not installed or .env file doesn't exist - that's okay
     // Environment variables will be read from Firebase config in production
   }
@@ -299,7 +299,7 @@ import {
   buildStudyTipsPrompt,
   prepareGradesData,
   prepareAttendanceData,
-  calculateCategoryAverages
+  calculateCategoryAverages,
 } from './ai-config';
 import { normalizeLegalUserAgent } from './forensic-legal';
 import { isUserRole, isPrivilegedAiRole } from './domain-types';
@@ -353,8 +353,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
     promise.then(
-      (val) => { clearTimeout(timer); resolve(val); },
-      (err) => { clearTimeout(timer); reject(err); }
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
     );
   });
 }
@@ -371,23 +377,23 @@ async function checkStudentAccess(
   if (!userDoc.exists) {
     throw new HttpsError('not-found', 'User profile not found');
   }
-  
+
   const userData = userDoc.data();
   const userRole = userData?.role;
-  
+
   // Get student data
   const studentDoc = await db.doc(`students/${studentId}`).get();
   if (!studentDoc.exists) {
     throw new HttpsError('not-found', 'Student not found');
   }
-  
+
   const studentData = studentDoc.data();
-  
+
   // Admin has access to all students
   if (userRole === 'admin') {
     return { hasAccess: true, role: userRole, studentData };
   }
-  
+
   // Teacher has access to their assigned students
   if (userRole === 'teacher') {
     // Check if teacher has any course with this student
@@ -396,21 +402,19 @@ async function checkStudentAccess(
       .where('teacherId', '==', uid)
       .where('studentIds', 'array-contains', studentId)
       .get();
-    
+
     if (!coursesSnapshot.empty) {
       return { hasAccess: true, role: userRole, studentData };
     }
   }
-  
+
   // Student/Parent has access to their own data
-  const isOwner = 
-    uid === studentData?.parentUid || 
-    uid === studentData?.studentUid;
-  
+  const isOwner = uid === studentData?.parentUid || uid === studentData?.studentUid;
+
   if (isOwner) {
     return { hasAccess: true, role: userRole, studentData };
   }
-  
+
   return { hasAccess: false, role: userRole, studentData };
 }
 
@@ -418,9 +422,9 @@ async function checkStudentAccess(
 
 /**
  * Generate AI-powered performance summary
- * 
+ *
  * PURPOSE: Analyzes student grades and attendance to provide personalized insights
- * 
+ *
  * FLOW:
  * 1. Authenticate user
  * 2. Verify user has access to student data
@@ -428,18 +432,18 @@ async function checkStudentAccess(
  * 4. Prepare data for AI analysis
  * 5. Call AI API with configured prompts
  * 6. Return formatted HTML response
- * 
+ *
  * MIGRATION PATH:
  * - System prompts: Already in ai-config.ts (can be moved to database/env vars)
  * - API calls: Already server-side (can be moved to dedicated API service)
  * - Data preparation: Already server-side (can be optimized)
- * 
+ *
  * DEBUG:
  * - Check Cloud Functions logs for API errors
  * - Verify GEMINI_API_KEY is set
  * - Check student data is being fetched correctly
  * - Review prompt formatting in logs
- * 
+ *
  * ERROR HANDLING:
  * - Returns user-friendly error messages
  * - Logs detailed errors for debugging
@@ -448,128 +452,118 @@ async function checkStudentAccess(
 export const getPerformanceSummary = onCall(
   { timeoutSeconds: 300, memory: '512MiB' },
   async (request) => {
-  // STEP 1: Verify user is authenticated
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'User must be logged in');
-  }
-  
-  const { studentId } = request.data;
-  
-  // STEP 2: Validate input
-  if (!studentId) {
-    throw new HttpsError('invalid-argument', 'studentId is required');
-  }
-  
-  // STEP 3: Verify user has permission to access this student
-  const { hasAccess, studentData } = await checkStudentAccess(
-    request.auth.uid,
-    studentId
-  );
-  
-  if (!hasAccess) {
-    throw new HttpsError(
-      'permission-denied',
-      'You do not have access to this student'
-    );
-  }
-  
-  // STEP 4: Fetch student's grades
-  const gradesSnapshot = await db
-    .collection(`students/${studentId}/grades`)
-    .orderBy('date', 'desc')
-    .limit(20)
-    .get();
-  
-  const grades = gradesSnapshot.docs.map(doc => doc.data());
-  
-  if (grades.length === 0) {
-    throw new HttpsError(
-      'failed-precondition',
-      'No grades available for this student'
-    );
-  }
-  
-  // STEP 5: Fetch student's attendance (optional but recommended)
-  const attendanceSnapshot = await db
-    .collection(`students/${studentId}/attendance`)
-    .orderBy('date', 'desc')
-    .limit(30)
-    .get();
-  
-  const attendance = attendanceSnapshot.docs.map(doc => doc.data());
-  
-  // STEP 6: Prepare data for AI analysis
-  const gradesData = prepareGradesData(grades);
-  const attendanceData = prepareAttendanceData(attendance);
-  
-  // STEP 7: Check if AI is configured
-  if (!genAI) {
-    throw new HttpsError(
-      'failed-precondition',
-      aiNotConfiguredMessage()
-    );
-  }
-  
-  // STEP 8: Call AI API
-  try {
-    // Get AI model with configuration
-    const model = genAI.getGenerativeModel({ 
-      model: AI_MODEL_CONFIG.model
-    });
-    
-    // Build prompts using templates from ai-config.ts
-    const systemPrompt = PERFORMANCE_SUMMARY_SYSTEM_PROMPT;
-    const userPrompt = buildPerformanceSummaryPrompt(
-      studentData?.name ?? 'Student',
-      gradesData,
-      attendanceData
-    );
-    
-    // Generate content using Gemini API (with 90s timeout)
-    const result = await withTimeout(
-      model.generateContent({
-        contents: [{ 
-          role: 'user', 
-          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] 
-        }]
-      }),
-      90_000,
-      'Gemini API (Performance Summary)'
-    );
-    
-    const response = result.response;
-    const text = response.text();
-    if (typeof text !== 'string' || !text.trim()) {
-      throw new Error('AI returned an empty response. Please try again.');
+    // STEP 1: Verify user is authenticated
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'User must be logged in');
     }
-    
-    // STEP 9: Return the model summary payload
-    return { 
-      summaryHtml: text,
-      studentName: studentData?.name ?? 'Student',
-      generatedAt: new Date().toISOString(),
-      metadata: {
-        gradesAnalyzed: grades.length,
-        attendanceRecordsAnalyzed: attendance.length,
-        model: AI_MODEL_CONFIG.model
+
+    const { studentId } = request.data;
+
+    // STEP 2: Validate input
+    if (!studentId) {
+      throw new HttpsError('invalid-argument', 'studentId is required');
+    }
+
+    // STEP 3: Verify user has permission to access this student
+    const { hasAccess, studentData } = await checkStudentAccess(request.auth.uid, studentId);
+
+    if (!hasAccess) {
+      throw new HttpsError('permission-denied', 'You do not have access to this student');
+    }
+
+    // STEP 4: Fetch student's grades
+    const gradesSnapshot = await db
+      .collection(`students/${studentId}/grades`)
+      .orderBy('date', 'desc')
+      .limit(20)
+      .get();
+
+    const grades = gradesSnapshot.docs.map((doc) => doc.data());
+
+    if (grades.length === 0) {
+      throw new HttpsError('failed-precondition', 'No grades available for this student');
+    }
+
+    // STEP 5: Fetch student's attendance (optional but recommended)
+    const attendanceSnapshot = await db
+      .collection(`students/${studentId}/attendance`)
+      .orderBy('date', 'desc')
+      .limit(30)
+      .get();
+
+    const attendance = attendanceSnapshot.docs.map((doc) => doc.data());
+
+    // STEP 6: Prepare data for AI analysis
+    const gradesData = prepareGradesData(grades);
+    const attendanceData = prepareAttendanceData(attendance);
+
+    // STEP 7: Check if AI is configured
+    if (!genAI) {
+      throw new HttpsError('failed-precondition', aiNotConfiguredMessage());
+    }
+
+    // STEP 8: Call AI API
+    try {
+      // Get AI model with configuration
+      const model = genAI.getGenerativeModel({
+        model: AI_MODEL_CONFIG.model,
+      });
+
+      // Build prompts using templates from ai-config.ts
+      const systemPrompt = PERFORMANCE_SUMMARY_SYSTEM_PROMPT;
+      const userPrompt = buildPerformanceSummaryPrompt(
+        studentData?.name ?? 'Student',
+        gradesData,
+        attendanceData
+      );
+
+      // Generate content using Gemini API (with 90s timeout)
+      const result = await withTimeout(
+        model.generateContent({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+            },
+          ],
+        }),
+        90_000,
+        'Gemini API (Performance Summary)'
+      );
+
+      const response = result.response;
+      const text = response.text();
+      if (typeof text !== 'string' || !text.trim()) {
+        throw new Error('AI returned an empty response. Please try again.');
       }
-    };
-    
-  } catch (error: any) {
-    // Provide user-friendly error message
-    const errorMessage = error.message || 'Unknown error occurred';
-    throw new HttpsError(
-      'internal',
-      `Failed to generate AI summary: ${errorMessage}. Please try again later.`
-    );
+
+      // STEP 9: Return the model summary payload
+      return {
+        summaryHtml: text,
+        studentName: studentData?.name ?? 'Student',
+        generatedAt: new Date().toISOString(),
+        metadata: {
+          gradesAnalyzed: grades.length,
+          attendanceRecordsAnalyzed: attendance.length,
+          model: AI_MODEL_CONFIG.model,
+        },
+      };
+    } catch (error: any) {
+      // Provide user-friendly error message
+      const errorMessage = error.message || 'Unknown error occurred';
+      throw new HttpsError(
+        'internal',
+        `Failed to generate AI summary: ${errorMessage}. Please try again later.`
+      );
+    }
   }
-});  // end getPerformanceSummary
+); // end getPerformanceSummary
 
 /**
  * Generate AI-powered study tips
- * 
+ *
  * PURPOSE: Provides personalized study recommendations based on student performance
- * 
+ *
  * FLOW:
  * 1. Authenticate user
  * 2. Verify user has access to student data
@@ -578,92 +572,78 @@ export const getPerformanceSummary = onCall(
  * 5. Prepare data for AI analysis
  * 6. Call AI API with configured prompts
  * 7. Return formatted HTML response
- * 
+ *
  * MIGRATION PATH:
  * - System prompts: Already in ai-config.ts (can be moved to database/env vars)
  * - API calls: Already server-side (can be moved to dedicated API service)
  * - Category analysis: Already server-side (can be optimized)
- * 
+ *
  * DEBUG:
  * - Check Cloud Functions logs for API errors
  * - Verify GEMINI_API_KEY is set
  * - Check category averages calculation
  * - Review prompt formatting in logs
- * 
+ *
  * ERROR HANDLING:
  * - Returns user-friendly error messages
  * - Logs detailed errors for debugging
  * - Handles missing data gracefully
  */
-export const getStudyTips = onCall(
-  { timeoutSeconds: 300, memory: '512MiB' },
-  async (request) => {
+export const getStudyTips = onCall({ timeoutSeconds: 300, memory: '512MiB' }, async (request) => {
   // STEP 1: Verify user is authenticated
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
-  
+
   const { studentId } = request.data;
-  
+
   // STEP 2: Validate input
   if (!studentId) {
     throw new HttpsError('invalid-argument', 'studentId is required');
   }
-  
+
   // STEP 3: Verify user has permission to access this student
-  const { hasAccess, studentData } = await checkStudentAccess(
-    request.auth.uid,
-    studentId
-  );
-  
+  const { hasAccess, studentData } = await checkStudentAccess(request.auth.uid, studentId);
+
   if (!hasAccess) {
-    throw new HttpsError(
-      'permission-denied',
-      'You do not have access to this student'
-    );
+    throw new HttpsError('permission-denied', 'You do not have access to this student');
   }
-  
+
   // STEP 4: Fetch student's grades
   const gradesSnapshot = await db
     .collection(`students/${studentId}/grades`)
     .orderBy('date', 'desc')
     .limit(15)
     .get();
-  
-  const grades = gradesSnapshot.docs.map(doc => doc.data());
-  
+
+  const grades = gradesSnapshot.docs.map((doc) => doc.data());
+
   if (grades.length === 0) {
-    throw new HttpsError(
-      'failed-precondition',
-      'No grades available for this student'
-    );
+    throw new HttpsError('failed-precondition', 'No grades available for this student');
   }
-  
+
   // STEP 5: Analyze grades to identify weak areas
   const categoryAverages = calculateCategoryAverages(grades);
-  
+
   // Prepare recent assignments summary (guard division by zero and missing fields)
-  const recentAssignments = grades.slice(0, 5).map(g => {
+  const recentAssignments = grades.slice(0, 5).map((g) => {
     const total = Number(g.totalPoints);
     const pct = total > 0 ? ((Number(g.score) / total) * 100).toFixed(1) : '0';
     return `- ${g.assignmentName ?? 'Assignment'} (${g.category ?? 'General'}): ${pct}%`;
   });
-  
+
   // STEP 6: Check if AI is configured
   if (!genAI) {
-    throw new HttpsError(
-      'failed-precondition',
-      aiNotConfiguredMessage()
-    );
+    throw new HttpsError('failed-precondition', aiNotConfiguredMessage());
   }
-  
+
   // STEP 7: Call AI API
   try {
     // Get AI model with configuration
-    const model = genAI.getGenerativeModel({ 
-      model: AI_MODEL_CONFIG.model
+    const model = genAI.getGenerativeModel({
+      model: AI_MODEL_CONFIG.model,
     });
-    
+
     // Build prompts using templates from ai-config.ts
     const systemPrompt = STUDY_TIPS_SYSTEM_PROMPT;
     const userPrompt = buildStudyTipsPrompt(
@@ -671,37 +651,38 @@ export const getStudyTips = onCall(
       categoryAverages,
       recentAssignments
     );
-    
+
     // Generate content using Gemini API (with 90s timeout)
     const result = await withTimeout(
       model.generateContent({
-        contents: [{ 
-          role: 'user', 
-          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] 
-        }]
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+          },
+        ],
       }),
       90_000,
       'Gemini API (Study Tips)'
     );
-    
+
     const response = result.response;
     const text = response.text();
     if (typeof text !== 'string' || !text.trim()) {
       throw new Error('AI returned an empty response. Please try again.');
     }
-    
+
     // STEP 8: Return the study tips payload
-    return { 
+    return {
       tipsHtml: text,
       studentName: studentData?.name ?? 'Student',
       generatedAt: new Date().toISOString(),
       metadata: {
         gradesAnalyzed: grades.length,
         categoriesAnalyzed: categoryAverages.length,
-        model: AI_MODEL_CONFIG.model
-      }
+        model: AI_MODEL_CONFIG.model,
+      },
     };
-    
   } catch (error: any) {
     // Provide user-friendly error message
     const errorMessage = error.message || 'Unknown error occurred';
@@ -716,10 +697,10 @@ export const getStudyTips = onCall(
 
 /**
  * AI Agent - Conversational Assistant for Admins
- * 
+ *
  * PURPOSE: Provides a conversational AI interface that can answer questions about students,
  * grades, attendance, and other LMS data using natural language
- * 
+ *
  * FLOW:
  * 1. Authenticate user and verify admin role
  * 2. Load all student data, grades, and attendance
@@ -727,17 +708,17 @@ export const getStudyTips = onCall(
  * 4. Maintain conversation history
  * 5. Call Gemini API with context and conversation
  * 6. Return AI response
- * 
+ *
  * FEATURES:
  * - Conversational (maintains context across messages)
  * - Uses minimized student/grade/attendance payloads for the model (no photos or unnecessary PII)
  * - Can answer questions about grades, attendance, performance
  * - Provides insights and analysis
- * 
+ *
  * MIGRATION PATH:
  * - Can be moved to dedicated API service
  * - Conversation history can be stored in database
- * 
+ *
  * NOTE: Firebase Functions v2 onCall automatically handles CORS - no explicit CORS config needed
  */
 export const aiAgentChat = onCall(
@@ -747,153 +728,156 @@ export const aiAgentChat = onCall(
     // Memory allocation for handling large datasets
     memory: '512MiB',
     // Maximum number of instances (helps with cold starts)
-    maxInstances: 10
+    maxInstances: 10,
   },
   async (request) => {
-  // STEP 1: Verify user is authenticated and is admin
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'User must be logged in');
-  }
-  
-  // Verify admin or teacher role
-  const userDoc = await db.doc(`users/${request.auth.uid}`).get();
-  const role = userDoc.data()?.role;
-  if (!userDoc.exists || !isPrivilegedAiRole(role)) {
-    throw new HttpsError(
-      'permission-denied',
-      'Only administrators and teachers can use the AI Agent'
-    );
-  }
-  
-  const { message, conversationHistory = [] } = request.data;
-  
-  if (!message || typeof message !== 'string' || message.trim().length === 0) {
-    throw new HttpsError('invalid-argument', 'Message is required');
-  }
-  
-  // Validate conversationHistory is an array of { user, assistant }
-  const safeHistory = Array.isArray(conversationHistory)
-    ? conversationHistory
-        .filter((h: any) => h && typeof h.user === 'string' && typeof h.assistant === 'string')
-        .slice(-10)
-        .map((h: any) => ({ user: String(h.user), assistant: String(h.assistant) }))
-    : [];
+    // STEP 1: Verify user is authenticated and is admin
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'User must be logged in');
+    }
 
-  let students: AiStudentRosterEntry[] = [];
-  if (role === 'admin') {
-    const studentsSnapshot = await db.collection('students').get();
-    students = studentsSnapshot.docs.map((doc) => rosterEntryFromStudentDoc(doc.id, doc.data()));
-  } else if (role === 'teacher') {
-    const coursesSnap = await db.collection('courses').where('teacherId', '==', request.auth.uid).get();
-    const allowedIds = new Set<string>();
-    coursesSnap.forEach((c) => {
-      const ids = c.data().studentIds as string[] | undefined;
-      if (Array.isArray(ids)) ids.forEach((id) => allowedIds.add(id));
-    });
-    const idList = Array.from(allowedIds);
-    for (let i = 0; i < idList.length; i += 30) {
-      const chunk = idList.slice(i, i + 30);
-      if (chunk.length === 0) continue;
-      const snaps = await db.collection('students').where(FieldPath.documentId(), 'in', chunk).get();
-      snaps.forEach((doc) => students.push(rosterEntryFromStudentDoc(doc.id, doc.data())));
+    // Verify admin or teacher role
+    const userDoc = await db.doc(`users/${request.auth.uid}`).get();
+    const role = userDoc.data()?.role;
+    if (!userDoc.exists || !isPrivilegedAiRole(role)) {
+      throw new HttpsError(
+        'permission-denied',
+        'Only administrators and teachers can use the AI Agent'
+      );
     }
-  }
-  
-  // STEP 3: Load grades and attendance for all students
-  const allGrades: ReturnType<typeof sanitizeGradeDocForAi>[] = [];
-  const allAttendance: ReturnType<typeof sanitizeAttendanceDocForAi>[] = [];
-  
-  for (const student of students.slice(0, 50)) { // Limit to 50 students for performance
+
+    const { message, conversationHistory = [] } = request.data;
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      throw new HttpsError('invalid-argument', 'Message is required');
+    }
+
+    // Validate conversationHistory is an array of { user, assistant }
+    const safeHistory = Array.isArray(conversationHistory)
+      ? conversationHistory
+          .filter((h: any) => h && typeof h.user === 'string' && typeof h.assistant === 'string')
+          .slice(-10)
+          .map((h: any) => ({ user: String(h.user), assistant: String(h.assistant) }))
+      : [];
+
+    let students: AiStudentRosterEntry[] = [];
+    if (role === 'admin') {
+      const studentsSnapshot = await db.collection('students').get();
+      students = studentsSnapshot.docs.map((doc) => rosterEntryFromStudentDoc(doc.id, doc.data()));
+    } else if (role === 'teacher') {
+      const coursesSnap = await db
+        .collection('courses')
+        .where('teacherId', '==', request.auth.uid)
+        .get();
+      const allowedIds = new Set<string>();
+      coursesSnap.forEach((c) => {
+        const ids = c.data().studentIds as string[] | undefined;
+        if (Array.isArray(ids)) ids.forEach((id) => allowedIds.add(id));
+      });
+      const idList = Array.from(allowedIds);
+      for (let i = 0; i < idList.length; i += 30) {
+        const chunk = idList.slice(i, i + 30);
+        if (chunk.length === 0) continue;
+        const snaps = await db
+          .collection('students')
+          .where(FieldPath.documentId(), 'in', chunk)
+          .get();
+        snaps.forEach((doc) => students.push(rosterEntryFromStudentDoc(doc.id, doc.data())));
+      }
+    }
+
+    // STEP 3: Load grades and attendance for all students
+    const allGrades: ReturnType<typeof sanitizeGradeDocForAi>[] = [];
+    const allAttendance: ReturnType<typeof sanitizeAttendanceDocForAi>[] = [];
+
+    for (const student of students.slice(0, 50)) {
+      // Limit to 50 students for performance
+      try {
+        // Load grades
+        const gradesSnapshot = await db
+          .collection(`students/${student.id}/grades`)
+          .orderBy('date', 'desc')
+          .limit(10)
+          .get();
+
+        gradesSnapshot.docs.forEach((doc) => {
+          allGrades.push(sanitizeGradeDocForAi(student.id, student.name, doc.data()));
+        });
+
+        // Load attendance
+        const attendanceSnapshot = await db
+          .collection(`students/${student.id}/attendance`)
+          .orderBy('date', 'desc')
+          .limit(20)
+          .get();
+
+        attendanceSnapshot.docs.forEach((doc) => {
+          allAttendance.push(sanitizeAttendanceDocForAi(student.id, student.name, doc.data()));
+        });
+      } catch {
+        // Ignore a single student's data load failure; continue with the rest.
+      }
+    }
+
+    // STEP 4: Build context summary
+    const contextSummary = {
+      totalStudents: students.length,
+      studentsSummary: students.slice(0, 20).map((s) => ({
+        name: s.name,
+        memberId: s.memberId,
+        yearOfBirth: s.yearOfBirth,
+      })),
+      totalGrades: allGrades.length,
+      totalAttendance: allAttendance.length,
+      recentGrades: allGrades.slice(0, 30).map((g) => {
+        const total = Number(g.totalPoints);
+        const pct = total > 0 ? ((Number(g.score) / total) * 100).toFixed(1) + '%' : '0%';
+        return {
+          studentName: g.studentName,
+          assignment: g.assignmentName,
+          category: g.category,
+          score: g.score,
+          totalPoints: g.totalPoints,
+          percentage: pct,
+          date: g.date,
+        };
+      }),
+      attendanceStats: allAttendance.reduce(
+        (acc, a) => {
+          if (!acc[a.studentName]) {
+            acc[a.studentName] = { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+          }
+          const row = acc[a.studentName];
+          const st = typeof a.status === 'string' ? a.status : '';
+          if (st === 'present' || st === 'absent' || st === 'late' || st === 'excused') {
+            row[st] = (row[st] || 0) + 1;
+          }
+          row.total += 1;
+          return acc;
+        },
+        {} as Record<
+          string,
+          { present: number; absent: number; late: number; excused: number; total: number }
+        >
+      ),
+    };
+
+    // STEP 5: Check if AI is configured
+    if (!genAI) {
+      if (isDev) {
+        return { response: aiNotConfiguredHtml(), metadata: { devFallback: true } };
+      }
+      throw new HttpsError('failed-precondition', aiNotConfiguredMessage());
+    }
+
+    // STEP 6: Build conversation with context
     try {
-      // Load grades
-      const gradesSnapshot = await db
-        .collection(`students/${student.id}/grades`)
-        .orderBy('date', 'desc')
-        .limit(10)
-        .get();
-      
-      gradesSnapshot.docs.forEach(doc => {
-        allGrades.push(
-          sanitizeGradeDocForAi(student.id, student.name, doc.data())
-        );
+      const model = genAI.getGenerativeModel({
+        model: AI_MODEL_CONFIG.model,
       });
-      
-      // Load attendance
-      const attendanceSnapshot = await db
-        .collection(`students/${student.id}/attendance`)
-        .orderBy('date', 'desc')
-        .limit(20)
-        .get();
-      
-      attendanceSnapshot.docs.forEach(doc => {
-        allAttendance.push(
-          sanitizeAttendanceDocForAi(student.id, student.name, doc.data())
-        );
-      });
-    } catch (error) {
-      // Ignore a single student's data load failure; continue with the rest.
-    }
-  }
-  
-  // STEP 4: Build context summary
-  const contextSummary = {
-    totalStudents: students.length,
-    studentsSummary: students.slice(0, 20).map(s => ({
-      name: s.name,
-      memberId: s.memberId,
-      yearOfBirth: s.yearOfBirth,
-    })),
-    totalGrades: allGrades.length,
-    totalAttendance: allAttendance.length,
-    recentGrades: allGrades.slice(0, 30).map(g => {
-      const total = Number(g.totalPoints);
-      const pct = total > 0 ? ((Number(g.score) / total) * 100).toFixed(1) + '%' : '0%';
-      return {
-        studentName: g.studentName,
-        assignment: g.assignmentName,
-        category: g.category,
-        score: g.score,
-        totalPoints: g.totalPoints,
-        percentage: pct,
-        date: g.date,
-      };
-    }),
-    attendanceStats: allAttendance.reduce(
-      (acc, a) => {
-        if (!acc[a.studentName]) {
-          acc[a.studentName] = { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
-        }
-        const row = acc[a.studentName];
-        const st = typeof a.status === 'string' ? a.status : '';
-        if (st === 'present' || st === 'absent' || st === 'late' || st === 'excused') {
-          row[st] = (row[st] || 0) + 1;
-        }
-        row.total += 1;
-        return acc;
-      },
-      {} as Record<
-        string,
-        { present: number; absent: number; late: number; excused: number; total: number }
-      >
-    ),
-  };
-  
-  // STEP 5: Check if AI is configured
-  if (!genAI) {
-    if (isDev) {
-      return { response: aiNotConfiguredHtml(), metadata: { devFallback: true } };
-    }
-    throw new HttpsError('failed-precondition', aiNotConfiguredMessage());
-  }
-  
-  // STEP 6: Build conversation with context
-  try {
-    const model = genAI.getGenerativeModel({ 
-      model: AI_MODEL_CONFIG.model
-    });
-    
-    // System prompt for the AI agent — polished, concise, HTML-only output
-    const systemPrompt = `You are NG5 AI (ORIA 2.3 nano), a premium educational data assistant built by NIDSARK LAB.
+
+      // System prompt for the AI agent — polished, concise, HTML-only output
+      const systemPrompt = `You are NG5 AI (ORIA 2.3 nano), a premium educational data assistant built by NIDSARK LAB.
 
 ═══════════════════════════════════════
 ABSOLUTE RULES (never break these)
@@ -937,9 +921,9 @@ DATA GROUNDING
 • Cite student names and exact numbers from context.
 • If a student or record isn't found: "No record found for [name]."
 • Never invent or guess data.`;
-    
-    // Build user prompt with context
-    const userPrompt = `=== AVAILABLE DATA FROM FIREBASE ===
+
+      // Build user prompt with context
+      const userPrompt = `=== AVAILABLE DATA FROM FIREBASE ===
 
 📊 DATABASE SUMMARY:
 - Total Registered Students: ${contextSummary.totalStudents}
@@ -947,65 +931,83 @@ DATA GROUNDING
 - Total Attendance Records: ${contextSummary.totalAttendance}
 
 👥 STUDENT ROSTER (${contextSummary.studentsSummary.length} students):
-${contextSummary.studentsSummary.map((s: { name: string; memberId: string; yearOfBirth: number | null }, i: number) => 
-  `${i + 1}. ${s.name} | Member ID: ${s.memberId} | Birth year: ${s.yearOfBirth ?? 'N/A'}`
-).join('\n')}
+${contextSummary.studentsSummary
+  .map(
+    (s: { name: string; memberId: string; yearOfBirth: number | null }, i: number) =>
+      `${i + 1}. ${s.name} | Member ID: ${s.memberId} | Birth year: ${s.yearOfBirth ?? 'N/A'}`
+  )
+  .join('\n')}
 
 📝 RECENT GRADE RECORDS (Last ${contextSummary.recentGrades.length} entries):
-${contextSummary.recentGrades.map((g: any) => 
-  `• ${g.studentName}: ${g.assignment} (${g.category}) - ${g.score}/${g.totalPoints} = ${g.percentage}`
-).join('\n')}
+${contextSummary.recentGrades
+  .map(
+    (g: any) =>
+      `• ${g.studentName}: ${g.assignment} (${g.category}) - ${g.score}/${g.totalPoints} = ${g.percentage}`
+  )
+  .join('\n')}
 
 📅 ATTENDANCE BY STUDENT:
-${Object.entries(contextSummary.attendanceStats).map(([name, stats]: [string, any]) => {
-  const rate = stats.total > 0 ? ((stats.present + stats.late + stats.excused) / stats.total * 100).toFixed(1) : '0';
-  return `• ${name}: ${rate}% attendance (Present: ${stats.present}, Absent: ${stats.absent}, Late: ${stats.late}, Excused: ${stats.excused})`;
-}).join('\n') || 'No attendance records available'}
+${
+  Object.entries(contextSummary.attendanceStats)
+    .map(([name, stats]: [string, any]) => {
+      const rate =
+        stats.total > 0
+          ? (((stats.present + stats.late + stats.excused) / stats.total) * 100).toFixed(1)
+          : '0';
+      return `• ${name}: ${rate}% attendance (Present: ${stats.present}, Absent: ${stats.absent}, Late: ${stats.late}, Excused: ${stats.excused})`;
+    })
+    .join('\n') || 'No attendance records available'
+}
 
 === CONVERSATION CONTEXT ===
-${safeHistory.length > 0 
-  ? safeHistory.map((h: any, i: number) => `[Turn ${i + 1}]\nUser: ${h.user}\nAssistant: ${h.assistant}`).join('\n---\n')
-  : '(New conversation - no previous context)'
+${
+  safeHistory.length > 0
+    ? safeHistory
+        .map((h: any, i: number) => `[Turn ${i + 1}]\nUser: ${h.user}\nAssistant: ${h.assistant}`)
+        .join('\n---\n')
+    : '(New conversation - no previous context)'
 }
 
 === CURRENT REQUEST ===
 User's Question: "${message}"
 
 Instructions: Answer this question using ONLY the data provided above. If the user asks about a specific student, search for their name in the Student Roster and Grade/Attendance records. If the requested information isn't available in the data, clearly state what's missing.`;
-    
-    // Generate response
-    const result = await model.generateContent({
-      contents: [{ 
-        role: 'user', 
-        parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] 
-      }]
-    });
-    
-    const response = result.response;
-    const text = response.text();
-    if (typeof text !== 'string' || !text.trim()) {
-      throw new Error('AI returned an empty response. Please try again.');
-    }
-    
-    // STEP 7: Return response
-    return {
-      response: text,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        studentsAnalyzed: students.length,
-        gradesAnalyzed: allGrades.length,
-        attendanceAnalyzed: allAttendance.length
+
+      // Generate response
+      const result = await model.generateContent({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+          },
+        ],
+      });
+
+      const response = result.response;
+      const text = response.text();
+      if (typeof text !== 'string' || !text.trim()) {
+        throw new Error('AI returned an empty response. Please try again.');
       }
-    };
-    
-  } catch (error: any) {
-    const errorMessage = error.message || 'Unknown error occurred';
-    throw new HttpsError(
-      'internal',
-      `Failed to get AI response: ${errorMessage}. Please try again later.`
-    );
+
+      // STEP 7: Return response
+      return {
+        response: text,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          studentsAnalyzed: students.length,
+          gradesAnalyzed: allGrades.length,
+          attendanceAnalyzed: allAttendance.length,
+        },
+      };
+    } catch (error: any) {
+      const errorMessage = error.message || 'Unknown error occurred';
+      throw new HttpsError(
+        'internal',
+        `Failed to get AI response: ${errorMessage}. Please try again later.`
+      );
+    }
   }
-});
+);
 
 // ==================== ADMIN FUNCTIONS ====================
 
@@ -1017,43 +1019,34 @@ export const updateUserRole = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
-  
+
   // 2. Verify user is an admin
   const adminDoc = await db.doc(`users/${request.auth.uid}`).get();
   if (!adminDoc.exists || adminDoc.data()?.role !== 'admin') {
-    throw new HttpsError(
-      'permission-denied',
-      'Only administrators can change user roles'
-    );
+    throw new HttpsError('permission-denied', 'Only administrators can change user roles');
   }
-  
+
   const { targetUserId, newRole } = request.data;
-  
+
   if (!targetUserId || !newRole) {
-    throw new HttpsError(
-      'invalid-argument',
-      'targetUserId and newRole are required'
-    );
+    throw new HttpsError('invalid-argument', 'targetUserId and newRole are required');
   }
-  
+
   if (!isUserRole(newRole)) {
-    throw new HttpsError(
-      'invalid-argument',
-      'newRole must be admin, teacher, or student'
-    );
+    throw new HttpsError('invalid-argument', 'newRole must be admin, teacher, or student');
   }
-  
+
   // 3. Update the user's role
   await db.doc(`users/${targetUserId}`).update({
     role: newRole,
     roleUpdatedAt: new Date().toISOString(),
-    roleUpdatedBy: request.auth.uid
+    roleUpdatedBy: request.auth.uid,
   });
-  
+
   return {
     success: true,
     message: `User role updated to ${newRole}`,
-    updatedUserId: targetUserId
+    updatedUserId: targetUserId,
   };
 });
 
@@ -1065,23 +1058,20 @@ export const getAllUsers = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
-  
+
   // 2. Verify user is an admin
   const adminDoc = await db.doc(`users/${request.auth.uid}`).get();
   if (!adminDoc.exists || adminDoc.data()?.role !== 'admin') {
-    throw new HttpsError(
-      'permission-denied',
-      'Only administrators can view all users'
-    );
+    throw new HttpsError('permission-denied', 'Only administrators can view all users');
   }
-  
+
   // 3. Get all users from Firestore
   const usersSnapshot = await db.collection('users').get();
-  const users = usersSnapshot.docs.map(doc => ({
+  const users = usersSnapshot.docs.map((doc) => ({
     uid: doc.id,
-    ...doc.data()
+    ...doc.data(),
   }));
-  
+
   return { users };
 });
 

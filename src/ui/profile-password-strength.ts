@@ -1,7 +1,4 @@
-import {
-  evaluatePasswordStrength,
-  type PasswordStrengthTier,
-} from '../core/password-strength';
+import { evaluatePasswordStrength, type PasswordStrengthTier } from '../core/password-strength';
 import { LMS_SEARCH_DEBOUNCE_MS } from '../core/input-timing';
 
 type NonZeroTier = Exclude<PasswordStrengthTier, 0>;

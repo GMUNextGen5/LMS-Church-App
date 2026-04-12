@@ -85,9 +85,7 @@ describe('prepareGradesData', () => {
   });
 
   it('uses fallbacks for missing assignment/category', () => {
-    const result = prepareGradesData([
-      { score: 10, totalPoints: 10 },
-    ]);
+    const result = prepareGradesData([{ score: 10, totalPoints: 10 }]);
     expect(result[0].assignment).toBe('Unknown');
     expect(result[0].category).toBe('Uncategorized');
   });
@@ -132,7 +130,14 @@ describe('prepareGradesData', () => {
 describe('prepareAttendanceData', () => {
   it('returns zeros for non-array input', () => {
     const out = prepareAttendanceData(null as any);
-    expect(out).toEqual({ total: 0, present: 0, absent: 0, late: 0, excused: 0, attendanceRate: '0%' });
+    expect(out).toEqual({
+      total: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      attendanceRate: '0%',
+    });
   });
 
   it('handles empty array', () => {
@@ -173,7 +178,9 @@ describe('prepareAttendanceData', () => {
   });
 
   it('limits input to MAX_ATTENDANCE_FOR_PROMPT', () => {
-    const many = Array.from({ length: MAX_ATTENDANCE_FOR_PROMPT + 20 }, () => ({ status: 'present' }));
+    const many = Array.from({ length: MAX_ATTENDANCE_FOR_PROMPT + 20 }, () => ({
+      status: 'present',
+    }));
     const out = prepareAttendanceData(many);
     expect(out.total).toBe(MAX_ATTENDANCE_FOR_PROMPT);
     expect(out.present).toBe(MAX_ATTENDANCE_FOR_PROMPT);
@@ -208,8 +215,8 @@ describe('calculateCategoryAverages', () => {
     ];
     const result = calculateCategoryAverages(grades);
     expect(result).toHaveLength(2);
-    const quiz = result.find(r => r.category === 'Quiz');
-    const test = result.find(r => r.category === 'Test');
+    const quiz = result.find((r) => r.category === 'Quiz');
+    const test = result.find((r) => r.category === 'Test');
     expect(quiz?.average).toBe('65.0%');
     expect(quiz?.count).toBe(4);
     expect(quiz?.trend).toBe('improving');
@@ -219,9 +226,7 @@ describe('calculateCategoryAverages', () => {
   });
 
   it('uses fallback category for missing', () => {
-    const result = calculateCategoryAverages([
-      { score: 10, totalPoints: 10 },
-    ]);
+    const result = calculateCategoryAverages([{ score: 10, totalPoints: 10 }]);
     expect(result[0].category).toBe('Uncategorized');
   });
 
@@ -250,17 +255,28 @@ describe('buildPerformanceSummaryPrompt', () => {
   });
 
   it('handles null/undefined attendanceData fields', () => {
-    const prompt = buildPerformanceSummaryPrompt(
-      'Bob',
-      [],
-      { total: 0, present: 0, absent: 0, late: 0 }
-    );
+    const prompt = buildPerformanceSummaryPrompt('Bob', [], {
+      total: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+    });
     expect(prompt).toContain('Attendance Rate: 0%');
   });
 
   it('limits gradesData length', () => {
-    const manyGrades = Array.from({ length: MAX_GRADES_FOR_PROMPT + 50 }, (_, i) => ({ assignment: `A${i}`, score: 5, total: 10, percentage: '50%' }));
-    const prompt = buildPerformanceSummaryPrompt('X', manyGrades, { total: 0, present: 0, absent: 0, late: 0 });
+    const manyGrades = Array.from({ length: MAX_GRADES_FOR_PROMPT + 50 }, (_, i) => ({
+      assignment: `A${i}`,
+      score: 5,
+      total: 10,
+      percentage: '50%',
+    }));
+    const prompt = buildPerformanceSummaryPrompt('X', manyGrades, {
+      total: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+    });
     const jsonMatch = prompt.match(/Recent Grades[^[]*\[/);
     expect(jsonMatch).toBeTruthy();
     const afterBracket = prompt.slice(prompt.indexOf('['));
@@ -269,7 +285,12 @@ describe('buildPerformanceSummaryPrompt', () => {
   });
 
   it('sanitizes student name (no control chars in prompt)', () => {
-    const prompt = buildPerformanceSummaryPrompt('Bad\x00Name', [], { total: 0, present: 0, absent: 0, late: 0 });
+    const prompt = buildPerformanceSummaryPrompt('Bad\x00Name', [], {
+      total: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+    });
     expect(prompt).not.toContain('\x00');
     expect(prompt).toContain('Student Name:');
   });

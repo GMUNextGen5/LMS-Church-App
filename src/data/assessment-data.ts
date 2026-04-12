@@ -4,20 +4,37 @@
  */
 import { db } from '../core/firebase';
 import {
-  collection, doc, getDoc, getDocs, setDoc, addDoc,
-  updateDoc, deleteDoc, query, where, orderBy, writeBatch
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import { getCurrentUser } from '../core/auth';
 import { fetchStudents } from './data';
 import { fetchStudentClasses } from './classes-data';
 import type {
-  Assessment, AssessmentQuestion, Submission, QuestionAnswer,
-  QuestionGradeDetail, Course, Student
+  Assessment,
+  AssessmentQuestion,
+  Submission,
+  QuestionAnswer,
+  QuestionGradeDetail,
+  Course,
+  Student,
 } from '../types';
 
 function cleanText(value: unknown, maxLen: number): string {
   if (value == null) return '';
-  const s = String(value).replace(/[\x00-\x1f\x7f]/g, '').trim();
+  const s = String(value)
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .trim();
   return s.length > maxLen ? s.slice(0, maxLen) : s;
 }
 
@@ -103,21 +120,28 @@ export async function unpublishAssessment(classId: string, assessmentId: string)
 export async function deleteAssessment(classId: string, assessmentId: string): Promise<void> {
   requireTeacherOrAdmin();
   // Delete questions subcollection first
-  const questionsSnap = await getDocs(collection(db, 'courses', classId, 'assessments', assessmentId, 'questions'));
+  const questionsSnap = await getDocs(
+    collection(db, 'courses', classId, 'assessments', assessmentId, 'questions')
+  );
   const batch = writeBatch(db);
-  questionsSnap.docs.forEach(d => batch.delete(d.ref));
+  questionsSnap.docs.forEach((d) => batch.delete(d.ref));
   // Delete submissions subcollection
-  const subsSnap = await getDocs(collection(db, 'courses', classId, 'assessments', assessmentId, 'submissions'));
-  subsSnap.docs.forEach(d => batch.delete(d.ref));
+  const subsSnap = await getDocs(
+    collection(db, 'courses', classId, 'assessments', assessmentId, 'submissions')
+  );
+  subsSnap.docs.forEach((d) => batch.delete(d.ref));
   // Delete assessment doc
   batch.delete(doc(db, 'courses', classId, 'assessments', assessmentId));
   await batch.commit();
 }
 
 /** Fetch a single assessment. */
-export async function fetchAssessment(classId: string, assessmentId: string): Promise<Assessment | null> {
+export async function fetchAssessment(
+  classId: string,
+  assessmentId: string
+): Promise<Assessment | null> {
   const snap = await getDoc(doc(db, 'courses', classId, 'assessments', assessmentId));
-  return snap.exists() ? { id: snap.id, ...snap.data() } as Assessment : null;
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Assessment) : null;
 }
 
 /** Fetch all assessments the current teacher/admin can see. */
@@ -126,9 +150,10 @@ export async function fetchTeacherAssessments(): Promise<(Assessment & { courseN
   if (user.role !== 'teacher' && user.role !== 'admin') return [];
 
   const coursesRef = collection(db, 'courses');
-  const cq = user.role === 'admin'
-    ? query(coursesRef)
-    : query(coursesRef, where('teacherId', '==', user.uid));
+  const cq =
+    user.role === 'admin'
+      ? query(coursesRef)
+      : query(coursesRef, where('teacherId', '==', user.uid));
   const coursesSnap = await getDocs(cq);
 
   const results: (Assessment & { courseName: string })[] = [];
@@ -155,7 +180,9 @@ export interface StudentAssessmentRow {
 }
 
 /** Fetch assessments visible to the current student. */
-export async function fetchStudentAssessments(studentProfileIds: string[]): Promise<StudentAssessmentRow[]> {
+export async function fetchStudentAssessments(
+  studentProfileIds: string[]
+): Promise<StudentAssessmentRow[]> {
   if (studentProfileIds.length === 0) return [];
 
   const enrolled = await fetchStudentClasses(studentProfileIds);
@@ -172,8 +199,9 @@ export async function fetchStudentAssessments(studentProfileIds: string[]): Prom
       // If assigned individually, skip if student not in list
       if (
         assessment.assignedMode === 'individual' &&
-        !(assessment.assignedStudentIds ?? []).some(id => studentProfileIds.includes(id))
-      ) continue;
+        !(assessment.assignedStudentIds ?? []).some((id) => studentProfileIds.includes(id))
+      )
+        continue;
 
       // Look for existing submission
       let submission: Submission | undefined;
@@ -218,7 +246,9 @@ function parseAssessmentDueInstantMs(dueDateTime: string): number | null {
  * Earliest published assessment due after now across the student’s enrolled classes.
  * Only includes work the learner still needs to turn in (no submission yet, or in progress).
  */
-export async function fetchNextStudentDeadline(uid: string): Promise<NextStudentDeadlineResult | null> {
+export async function fetchNextStudentDeadline(
+  uid: string
+): Promise<NextStudentDeadlineResult | null> {
   const user = getCurrentUser();
   if (!user || user.role !== 'student' || user.uid !== uid) {
     throw new Error('Not authorized');
@@ -293,7 +323,9 @@ export async function addQuestion(
     ...data,
     prompt: cleanText(data.prompt, 2000),
     options: Array.isArray(data.options) ? data.options.map((o) => cleanText(o, 500)) : [],
-    correctAnswers: Array.isArray(data.correctAnswers) ? data.correctAnswers.map((a) => cleanText(a, 200)) : [],
+    correctAnswers: Array.isArray(data.correctAnswers)
+      ? data.correctAnswers.map((a) => cleanText(a, 200))
+      : [],
   };
   const ref = await addDoc(questionsCol(classId, assessmentId), clean);
   // Update assessment totalPoints and questionCount
@@ -311,7 +343,8 @@ export async function updateQuestion(
   requireTeacherOrAdmin();
   const { id: _omitQid, ...rest } = data as Partial<AssessmentQuestion> & { id?: string };
   const sanitized: Record<string, unknown> = { ...rest };
-  if ('prompt' in rest && rest.prompt !== undefined) sanitized.prompt = cleanText(rest.prompt, 2000);
+  if ('prompt' in rest && rest.prompt !== undefined)
+    sanitized.prompt = cleanText(rest.prompt, 2000);
   if ('options' in rest && rest.options !== undefined) {
     const opts = rest.options;
     sanitized.options = Array.isArray(opts) ? opts.map((o) => cleanText(o, 500)) : [];
@@ -320,21 +353,33 @@ export async function updateQuestion(
     const ca = rest.correctAnswers;
     sanitized.correctAnswers = Array.isArray(ca) ? ca.map((a) => cleanText(a, 200)) : [];
   }
-  await updateDoc(doc(db, 'courses', classId, 'assessments', assessmentId, 'questions', questionId), sanitized);
+  await updateDoc(
+    doc(db, 'courses', classId, 'assessments', assessmentId, 'questions', questionId),
+    sanitized
+  );
   await recalcAssessmentTotals(classId, assessmentId);
 }
 
 /** Delete a question. */
-export async function deleteQuestion(classId: string, assessmentId: string, questionId: string): Promise<void> {
+export async function deleteQuestion(
+  classId: string,
+  assessmentId: string,
+  questionId: string
+): Promise<void> {
   requireTeacherOrAdmin();
-  await deleteDoc(doc(db, 'courses', classId, 'assessments', assessmentId, 'questions', questionId));
+  await deleteDoc(
+    doc(db, 'courses', classId, 'assessments', assessmentId, 'questions', questionId)
+  );
   await recalcAssessmentTotals(classId, assessmentId);
 }
 
 /** Fetch all questions for an assessment, ordered. */
-export async function fetchQuestions(classId: string, assessmentId: string): Promise<AssessmentQuestion[]> {
+export async function fetchQuestions(
+  classId: string,
+  assessmentId: string
+): Promise<AssessmentQuestion[]> {
   const snap = await getDocs(query(questionsCol(classId, assessmentId), orderBy('order', 'asc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as AssessmentQuestion));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as AssessmentQuestion);
 }
 
 /** Recalculate totalPoints and questionCount on the parent assessment doc. */
@@ -364,14 +409,26 @@ export async function startSubmission(
   studentName: string
 ): Promise<Submission> {
   requireAuth();
-  const ref = doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', studentProfileId);
+  const ref = doc(
+    db,
+    'courses',
+    classId,
+    'assessments',
+    assessmentId,
+    'submissions',
+    studentProfileId
+  );
   const snap = await getDoc(ref);
 
   if (snap.exists()) {
     const existing = { id: snap.id, ...snap.data() } as Submission;
     // Allow resume only if in_progress or reopened
     if (existing.status === 'in_progress') return existing;
-    if (existing.status === 'submitted' || existing.status === 'graded' || existing.status === 'late_submitted') {
+    if (
+      existing.status === 'submitted' ||
+      existing.status === 'graded' ||
+      existing.status === 'late_submitted'
+    ) {
       throw new Error('This assessment has already been submitted.');
     }
   }
@@ -404,7 +461,15 @@ export async function saveProgress(
   studentProfileId: string,
   answers: Record<string, QuestionAnswer>
 ): Promise<void> {
-  const ref = doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', studentProfileId);
+  const ref = doc(
+    db,
+    'courses',
+    classId,
+    'assessments',
+    assessmentId,
+    'submissions',
+    studentProfileId
+  );
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('Submission not found');
   const sub = snap.data() as Submission;
@@ -435,10 +500,18 @@ export async function submitAssessment(
   const { autoScore, questionGrades, needsGrading } = autoGrade(questions, answers);
   const totalPoints = questions.reduce((s, q) => s + q.points, 0);
 
-  const status = isLate ? 'late_submitted' as const : 'submitted' as const;
+  const status = isLate ? ('late_submitted' as const) : ('submitted' as const);
   const finalScore = autoScore; // Will increase when teacher grades subjective questions
 
-  const ref = doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', studentProfileId);
+  const ref = doc(
+    db,
+    'courses',
+    classId,
+    'assessments',
+    assessmentId,
+    'submissions',
+    studentProfileId
+  );
   const existingSnap = await getDoc(ref);
   const existingData = existingSnap.exists() ? existingSnap.data() : null;
 
@@ -474,14 +547,17 @@ export async function fetchSubmission(
   const snap = await getDoc(
     doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', studentProfileId)
   );
-  return snap.exists() ? { id: snap.id, ...snap.data() } as Submission : null;
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Submission) : null;
 }
 
 /** Fetch all submissions for an assessment. */
-export async function fetchSubmissions(classId: string, assessmentId: string): Promise<Submission[]> {
+export async function fetchSubmissions(
+  classId: string,
+  assessmentId: string
+): Promise<Submission[]> {
   requireAuth();
   const snap = await getDocs(submissionsCol(classId, assessmentId));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Submission));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Submission);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -499,7 +575,15 @@ export async function gradeQuestion(
   feedback?: string
 ): Promise<void> {
   requireTeacherOrAdmin();
-  const ref = doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', studentProfileId);
+  const ref = doc(
+    db,
+    'courses',
+    classId,
+    'assessments',
+    assessmentId,
+    'submissions',
+    studentProfileId
+  );
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('Submission not found');
 
@@ -527,7 +611,15 @@ export async function finalizeGrading(
   feedbackSummary?: string
 ): Promise<void> {
   const user = requireTeacherOrAdmin();
-  const ref = doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', studentProfileId);
+  const ref = doc(
+    db,
+    'courses',
+    classId,
+    'assessments',
+    assessmentId,
+    'submissions',
+    studentProfileId
+  );
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('Submission not found');
 
@@ -566,7 +658,15 @@ export async function reopenSubmission(
   studentProfileId: string
 ): Promise<void> {
   const user = requireTeacherOrAdmin();
-  const ref = doc(db, 'courses', classId, 'assessments', assessmentId, 'submissions', studentProfileId);
+  const ref = doc(
+    db,
+    'courses',
+    classId,
+    'assessments',
+    assessmentId,
+    'submissions',
+    studentProfileId
+  );
   await updateDoc(ref, {
     status: 'in_progress',
     submittedAt: null,
@@ -596,7 +696,11 @@ export async function reopenSubmission(
 export function autoGrade(
   questions: AssessmentQuestion[],
   answers: Record<string, QuestionAnswer>
-): { autoScore: number; questionGrades: Record<string, QuestionGradeDetail>; needsGrading: boolean } {
+): {
+  autoScore: number;
+  questionGrades: Record<string, QuestionGradeDetail>;
+  needsGrading: boolean;
+} {
   let autoScore = 0;
   let needsGrading = false;
   const questionGrades: Record<string, QuestionGradeDetail> = {};
@@ -627,11 +731,12 @@ export function autoGrade(
     } else if (q.type === 'checkbox') {
       const selected = new Set((ans?.selectedOptions ?? []).map(String));
       const correct = new Set(q.correctAnswers);
-      isCorrect = selected.size === correct.size && [...correct].every(c => selected.has(c));
+      isCorrect = selected.size === correct.size && [...correct].every((c) => selected.has(c));
     } else if (q.type === 'numeric') {
       const studentVal = parseFloat(ans?.value ?? '');
       const correctVal = parseFloat(q.correctAnswers[0]);
-      isCorrect = !isNaN(studentVal) && !isNaN(correctVal) && Math.abs(studentVal - correctVal) < 0.0001;
+      isCorrect =
+        !isNaN(studentVal) && !isNaN(correctVal) && Math.abs(studentVal - correctVal) < 0.0001;
     } else if (q.type === 'short_answer') {
       const studentVal = (ans?.value ?? '').trim().toLowerCase();
       const correctVal = q.correctAnswers[0].trim().toLowerCase();
@@ -681,7 +786,9 @@ export async function countPendingSubmissionsForTeacher(): Promise<number> {
     const aRef = collection(db, 'courses', classId, 'assessments');
     const aSnap = await getDocs(aRef);
     for (const aDoc of aSnap.docs) {
-      const subsSnap = await getDocs(collection(db, 'courses', classId, 'assessments', aDoc.id, 'submissions'));
+      const subsSnap = await getDocs(
+        collection(db, 'courses', classId, 'assessments', aDoc.id, 'submissions')
+      );
       for (const s of subsSnap.docs) {
         const sub = s.data() as Submission;
         if (sub.needsGrading === true) total += 1;
@@ -705,7 +812,9 @@ export interface TeacherGradingQueueRow {
  * Assessments that have at least one `needsGrading` submission, ordered with overdue due dates first,
  * then by due date ascending.
  */
-export async function fetchTeacherGradingQueueRows(limit: number): Promise<TeacherGradingQueueRow[]> {
+export async function fetchTeacherGradingQueueRows(
+  limit: number
+): Promise<TeacherGradingQueueRow[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
   if (user.role !== 'teacher') {
@@ -726,7 +835,7 @@ export async function fetchTeacherGradingQueueRows(limit: number): Promise<Teach
     for (const aDoc of aSnap.docs) {
       const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
       const subs = await fetchSubmissions(classId, aDoc.id);
-      const pendingCount = subs.filter(s => s.needsGrading === true).length;
+      const pendingCount = subs.filter((s) => s.needsGrading === true).length;
       if (pendingCount === 0) continue;
       out.push({
         classId,
@@ -783,7 +892,7 @@ export async function fetchStudentUpcomingAssessmentsMobile(
     throw new Error('Not authorized');
   }
   const profiles = await fetchStudents();
-  const profileIds = profiles.map(p => p.id);
+  const profileIds = profiles.map((p) => p.id);
   if (profileIds.length === 0) return [];
 
   const rows = await fetchStudentAssessments(profileIds);
@@ -796,7 +905,7 @@ export async function fetchStudentUpcomingAssessmentsMobile(
 
     if (
       row.assessment.assignedMode === 'individual' &&
-      !(row.assessment.assignedStudentIds ?? []).some(id => profileIds.includes(id))
+      !(row.assessment.assignedStudentIds ?? []).some((id) => profileIds.includes(id))
     ) {
       continue;
     }
@@ -832,14 +941,18 @@ export interface TeacherAssessmentDashboardRow {
  * Summarizes the teacher’s most recently updated assessments with submission counts and mean scores.
  * Callers must be signed-in teachers; administrators use other dashboard paths.
  */
-export async function fetchTeacherAssessmentDashboardRows(limit = 8): Promise<TeacherAssessmentDashboardRow[]> {
+export async function fetchTeacherAssessmentDashboardRows(
+  limit = 8
+): Promise<TeacherAssessmentDashboardRow[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
   if (user.role === 'student') {
     throw new Error('Teacher assessment dashboard rows are not available to learner accounts.');
   }
   if (user.role !== 'teacher') {
-    throw new Error('Teacher assessment dashboard rows are only available to signed-in teacher accounts.');
+    throw new Error(
+      'Teacher assessment dashboard rows are only available to signed-in teacher accounts.'
+    );
   }
 
   const assessments = await fetchTeacherAssessments();
@@ -854,13 +967,13 @@ export async function fetchTeacherAssessmentDashboardRows(limit = 8): Promise<Te
   for (const a of slice) {
     const subs = await fetchSubmissions(a.classId, a.id);
     const submitted = subs.filter(
-      s =>
+      (s) =>
         s.status === 'submitted' ||
         s.status === 'graded' ||
         s.status === 'late_submitted' ||
         !!s.submittedAt
     );
-    const scored = submitted.filter(s => typeof s.totalPoints === 'number' && s.totalPoints > 0);
+    const scored = submitted.filter((s) => typeof s.totalPoints === 'number' && s.totalPoints > 0);
     let avgPercent: number | null = null;
     const pcts: number[] = [];
     for (const s of scored) {

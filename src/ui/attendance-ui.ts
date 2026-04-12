@@ -1,7 +1,11 @@
 /**
  * Attendance UI: history rows, class roll-call roster (desktop table + mobile cards), live session stats.
  */
-import { initialsForStudentRoster, pickAvatarDiscPalette, safeStudentDisplayName } from '../core/display-fallbacks';
+import {
+  initialsForStudentRoster,
+  pickAvatarDiscPalette,
+  safeStudentDisplayName,
+} from '../core/display-fallbacks';
 import { reportClientFault } from '../core/client-errors';
 import {
   emptyStateBlockHtml,
@@ -16,10 +20,13 @@ const BULK_ROW = ROSTER_ROW;
 
 function statusBadges(): Record<string, string> {
   return {
-    present: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">✓ Present</span>',
-    absent: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">✗ Absent</span>',
+    present:
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">✓ Present</span>',
+    absent:
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">✗ Absent</span>',
     late: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">⏰ Late</span>',
-    excused: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">📝 Excused</span>',
+    excused:
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">📝 Excused</span>',
   };
 }
 
@@ -193,7 +200,8 @@ function applyRollCallSearchAndFilter(root: HTMLElement, mode: 'all' | Attendanc
       sample.querySelector('.font-bold.truncate')?.textContent?.trim().toLowerCase() ??
       '';
     const idText = sample.querySelector('.font-mono')?.textContent?.trim().toLowerCase() ?? '';
-    const matchSearch = !q || name.includes(q) || idText.includes(q) || sid.toLowerCase().includes(q);
+    const matchSearch =
+      !q || name.includes(q) || idText.includes(q) || sid.toLowerCase().includes(q);
     const st = sample.dataset.status as Attendance['status'];
     const matchFilter = mode === 'all' || st === mode;
     const hide = !(matchSearch && matchFilter);
@@ -270,8 +278,12 @@ export function renderBulkAttendanceRoster(students: Student[]): void {
     } else {
       renderTemplate(tableBody, students.map((s) => rosterTableRowHtml(s)).join(''));
       renderTemplate(cardsRoot, students.map((s) => rosterCardHtml(s)).join(''));
-      tableBody.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`).forEach((row) => setRosterRowStatus(row, 'present'));
-      cardsRoot.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`).forEach((row) => setRosterRowStatus(row, 'present'));
+      tableBody
+        .querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`)
+        .forEach((row) => setRosterRowStatus(row, 'present'));
+      cardsRoot
+        .querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`)
+        .forEach((row) => setRosterRowStatus(row, 'present'));
     }
     if (root) {
       applyRollCallSearchAndFilter(root, rollCallFilterMode);
@@ -292,7 +304,9 @@ export function renderBulkAttendanceRoster(students: Student[]): void {
     return;
   }
   renderTemplate(legacyRoot, students.map((s) => rosterCardHtml(s)).join(''));
-  legacyRoot.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`).forEach((row) => setRosterRowStatus(row, 'present'));
+  legacyRoot
+    .querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`)
+    .forEach((row) => setRosterRowStatus(row, 'present'));
 }
 
 export interface InitAttendanceBulkOptions {
@@ -308,7 +322,12 @@ export interface InitAttendanceBulkOptions {
 let bulkOptions: InitAttendanceBulkOptions | null = null;
 let rollCallFilterMode: 'all' | Attendance['status'] = 'all';
 
-function syncTwinRosterRows(container: HTMLElement, studentId: string, source: HTMLElement, status: Attendance['status']): void {
+function syncTwinRosterRows(
+  container: HTMLElement,
+  studentId: string,
+  source: HTMLElement,
+  status: Attendance['status']
+): void {
   container.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`).forEach((r) => {
     if (r !== source && r.dataset.studentId === studentId) setRosterRowStatus(r, status);
   });
@@ -356,7 +375,9 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
   });
 
   markAllBtn.addEventListener('click', () => {
-    rosterMount.querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`).forEach((row) => setRosterRowStatus(row, 'present'));
+    rosterMount
+      .querySelectorAll<HTMLElement>(`.${ROSTER_ROW}`)
+      .forEach((row) => setRosterRowStatus(row, 'present'));
     if (root) {
       syncRollCallSessionStats(root);
       applyRollCallSearchAndFilter(root, rollCallFilterMode);
@@ -374,7 +395,9 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
       btn.addEventListener('click', () => {
         const f = btn.dataset.rollFilter;
         rollCallFilterMode =
-          f === 'all' || f === 'present' || f === 'absent' || f === 'late' || f === 'excused' ? (f as typeof rollCallFilterMode) : 'all';
+          f === 'all' || f === 'present' || f === 'absent' || f === 'late' || f === 'excused'
+            ? (f as typeof rollCallFilterMode)
+            : 'all';
         root.querySelectorAll<HTMLButtonElement>('[data-roll-filter]').forEach((b) => {
           b.classList.remove('ring-2', 'ring-cyan-400/60', 'bg-cyan-500/20', 'text-cyan-200');
           b.classList.add('border-slate-600', 'text-slate-300');
@@ -426,7 +449,8 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
           if (fail === 1) opts.showToast(msg, 'error');
         }
       }
-      if (ok > 0) opts.showToast(`Saved attendance for ${ok} student${ok !== 1 ? 's' : ''}.`, 'success');
+      if (ok > 0)
+        opts.showToast(`Saved attendance for ${ok} student${ok !== 1 ? 's' : ''}.`, 'success');
       await opts.onBulkSaved?.();
     } catch (err) {
       reportClientFault(err);
@@ -441,7 +465,11 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
 /** Call when the student list changes (e.g. after dashboard load). */
 export function refreshAttendanceBulkRoster(): void {
   if (!bulkOptions) return;
-  if (!document.getElementById('bulk-attendance-roster') && !document.getElementById('attendance-roll-call-root')) return;
+  if (
+    !document.getElementById('bulk-attendance-roster') &&
+    !document.getElementById('attendance-roll-call-root')
+  )
+    return;
   renderBulkAttendanceRoster(bulkOptions.getStudents());
 }
 

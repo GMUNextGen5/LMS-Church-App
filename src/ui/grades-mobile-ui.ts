@@ -69,8 +69,7 @@ function gradeCardHtml(g: Grade, canEdit: boolean): string {
   const displayScore = pending ? pendingEdits.get(g.id)!.score : g.score;
   const tp = Number(g.totalPoints);
   const sc = Number(displayScore);
-  const displayPct =
-    Number.isFinite(tp) && tp > 0 && Number.isFinite(sc) ? (sc / tp) * 100 : 0;
+  const displayPct = Number.isFinite(tp) && tp > 0 && Number.isFinite(sc) ? (sc / tp) * 100 : 0;
   const pctLabel = Number.isFinite(displayPct) ? finiteToFixed(displayPct, 0, '0') : '0';
   const letter = pending
     ? pendingEdits.get(g.id)!.letter
@@ -130,7 +129,9 @@ export function renderGradesMobile(
 ): void {
   const panel = document.getElementById('grades-mobile-panel');
   const cardsRoot = document.getElementById('grades-mobile-cards');
-  const selectEl = document.getElementById('grades-mobile-assignment-select') as HTMLSelectElement | null;
+  const selectEl = document.getElementById(
+    'grades-mobile-assignment-select'
+  ) as HTMLSelectElement | null;
   const progressEl = document.getElementById('grades-mobile-progress-inner');
   const saveBtn = document.getElementById('grades-mobile-save-btn');
   if (!panel || !cardsRoot || !progressEl) return;
@@ -173,13 +174,14 @@ export function renderGradesMobile(
       role === 'student'
         ? 'Your instructors will post scores here when work is graded.'
         : 'Add a grade from the desktop form or wait for new assessment results.';
-    const cta =
-      canEdit
-        ? `<button type="button" id="grades-mobile-empty-scroll-add" class="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-semibold hover:bg-cyan-400 transition-colors">Add grade</button>`
-        : '';
+    const cta = canEdit
+      ? `<button type="button" id="grades-mobile-empty-scroll-add" class="px-4 py-2 rounded-lg bg-cyan-500 text-slate-950 text-sm font-semibold hover:bg-cyan-400 transition-colors">Add grade</button>`
+      : '';
     renderTemplate(cardsRoot, emptyStateBlockHtml(noGradesTitle, noGradesSub, cta));
     document.getElementById('grades-mobile-empty-scroll-add')?.addEventListener('click', () => {
-      document.getElementById('grade-entry-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document
+        .getElementById('grade-entry-section')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
     renderTemplate(
       progressEl,
@@ -258,17 +260,17 @@ export function renderGradesMobile(
     </div>`
   );
 
-  renderTemplate(
-    cardsRoot,
-    visible.map((g) => gradeCardHtml(g, canEdit)).join('')
-  );
+  renderTemplate(cardsRoot, visible.map((g) => gradeCardHtml(g, canEdit)).join(''));
 }
 
 export interface InitGradesMobileOptions {
   getStudentId: () => string | null;
   getGrades: () => Grade[];
   updateGrade: (studentId: string, gradeId: string, updates: Partial<Grade>) => Promise<void>;
-  markAttendance: (studentId: string, payload: Omit<Attendance, 'id' | 'studentId'>) => Promise<string>;
+  markAttendance: (
+    studentId: string,
+    payload: Omit<Attendance, 'id' | 'studentId'>
+  ) => Promise<string>;
   showLoading: () => void;
   hideLoading: () => void;
   showToast: (message: string, variant: 'success' | 'error' | 'info') => void;
@@ -278,7 +280,9 @@ export interface InitGradesMobileOptions {
 
 export function initGradesMobileUI(opts: InitGradesMobileOptions): void {
   const panel = document.getElementById('grades-mobile-panel');
-  const selectEl = document.getElementById('grades-mobile-assignment-select') as HTMLSelectElement | null;
+  const selectEl = document.getElementById(
+    'grades-mobile-assignment-select'
+  ) as HTMLSelectElement | null;
   const saveBtn = document.getElementById('grades-mobile-save-btn');
 
   selectEl?.addEventListener('change', () => {
@@ -311,7 +315,10 @@ export function initGradesMobileUI(opts: InitGradesMobileOptions): void {
       if (!gid || !studentId) return;
       const g = opts.getGrades().find((x) => x.id === gid);
       if (!g) return;
-      const raw = window.prompt(`New score for "${g.assignmentName}" (max ${g.totalPoints}):`, String(g.score));
+      const raw = window.prompt(
+        `New score for "${g.assignmentName}" (max ${g.totalPoints}):`,
+        String(g.score)
+      );
       if (raw === null) return;
       const num = Number.parseFloat(raw);
       if (Number.isNaN(num) || num < 0 || num > g.totalPoints) {
@@ -320,14 +327,20 @@ export function initGradesMobileUI(opts: InitGradesMobileOptions): void {
       }
       const tpp = Number(g.totalPoints);
       const pct = Number.isFinite(tpp) && tpp > 0 ? (num / tpp) * 100 : 0;
-      pendingEdits.set(gid, { score: num, letter: letterFromPercentage(Number.isFinite(pct) ? pct : 0) });
+      pendingEdits.set(gid, {
+        score: num,
+        letter: letterFromPercentage(Number.isFinite(pct) ? pct : 0),
+      });
       opts.refreshDisplay();
       return;
     }
 
     const commentBtn = t.closest<HTMLButtonElement>('[data-grade-comment]');
     if (commentBtn && panel.contains(commentBtn)) {
-      opts.showToast('Scores only on mobile — use the desktop gradebook for full comments.', 'info');
+      opts.showToast(
+        'Scores only on mobile — use the desktop gradebook for full comments.',
+        'info'
+      );
       return;
     }
 
@@ -339,7 +352,12 @@ export function initGradesMobileUI(opts: InitGradesMobileOptions): void {
       void (async () => {
         try {
           opts.showLoading();
-          await opts.markAttendance(studentId, { date: today, status: 'absent', notes: 'Marked from gradebook', markedBy: '' });
+          await opts.markAttendance(studentId, {
+            date: today,
+            status: 'absent',
+            notes: 'Marked from gradebook',
+            markedBy: '',
+          });
           opts.showToast('Attendance marked absent for today.', 'success');
         } catch (err) {
           opts.showToast(opts.formatError(err, 'Could not mark attendance.'), 'error');

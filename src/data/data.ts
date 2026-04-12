@@ -20,7 +20,9 @@ import { Student, Grade, Attendance, Course, User } from '../types';
 const GRADE_CATEGORIES = new Set<string>(['Quiz', 'Test', 'Homework', 'Project', 'Exam']);
 
 function coerceGradeCategory(value: unknown): Grade['category'] {
-  return typeof value === 'string' && GRADE_CATEGORIES.has(value) ? (value as Grade['category']) : 'Homework';
+  return typeof value === 'string' && GRADE_CATEGORIES.has(value)
+    ? (value as Grade['category'])
+    : 'Homework';
 }
 import { getCurrentUser, normalizeLegalUserAgent, coerceFirestoreDateToIso } from '../core/auth';
 import { isFirebasePermissionDenied } from '../core/firestore-errors';
@@ -31,7 +33,9 @@ import { reportClientFault } from '../core/client-errors';
 
 function cleanText(value: unknown, maxLen: number): string {
   if (value == null) return '';
-  const s = String(value).replace(/[\x00-\x1f\x7f]/g, '').trim();
+  const s = String(value)
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .trim();
   return s.length > maxLen ? s.slice(0, maxLen) : s;
 }
 
@@ -85,21 +89,25 @@ export async function fetchStudents(): Promise<Student[]> {
   if (user.role === 'admin') {
     const q = query(studentsRef);
     const snapshot = await getDocs(q);
-    students = snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
+    students = snapshot.docs.map((d) =>
+      studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>)
+    );
   } else if (user.role === 'teacher') {
     const coursesRef = collection(db, 'courses');
     const coursesQuery = query(coursesRef, where('teacherId', '==', user.uid));
     const coursesSnapshot = await getDocs(coursesQuery);
     const studentIds = new Set<string>();
-    coursesSnapshot.docs.forEach(courseDoc => {
+    coursesSnapshot.docs.forEach((courseDoc) => {
       const course = courseDoc.data() as Course;
-      course.studentIds.forEach(id => studentIds.add(id));
+      course.studentIds.forEach((id) => studentIds.add(id));
     });
     for (const studentId of studentIds) {
       try {
         const studentDoc = await getDoc(doc(db, 'students', studentId));
         if (studentDoc.exists()) {
-          students.push(studentRecordFromFirestore(studentDoc.id, studentDoc.data() as Record<string, unknown>));
+          students.push(
+            studentRecordFromFirestore(studentDoc.id, studentDoc.data() as Record<string, unknown>)
+          );
         }
       } catch (e) {
         reportClientFault(e);
@@ -124,11 +132,15 @@ export async function fetchAllStudentProfiles(): Promise<Student[]> {
     throw new Error('Only administrators and teachers can list student profiles');
   if (user.role === 'admin') {
     const snapshot = await getDocs(collection(db, 'students'));
-    return snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
+    return snapshot.docs.map((d) =>
+      studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>)
+    );
   }
   const q = query(collection(db, 'students'), where('teacherIds', 'array-contains', user.uid));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>));
+  return snapshot.docs.map((d) =>
+    studentRecordFromFirestore(d.id, d.data() as Record<string, unknown>)
+  );
 }
 
 export async function createStudent(studentData: {
@@ -142,7 +154,8 @@ export async function createStudent(studentData: {
   notes?: string;
 }): Promise<string> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can create student records');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+    throw new Error('Only administrators and teachers can create student records');
 
   const studentUid = cleanText(studentData.studentUid, 128);
   const userRecordRef = doc(db, 'users', studentUid);
@@ -157,7 +170,8 @@ export async function createStudent(studentData: {
     }
   }
 
-  const hadStudentUserDoc = existingUserSnap.exists() && existingUserSnap.data()?.role === 'student';
+  const hadStudentUserDoc =
+    existingUserSnap.exists() && existingUserSnap.data()?.role === 'student';
   if (user.role === 'teacher' && !hadStudentUserDoc) {
     const em = cleanEmail(studentData.contactEmail);
     if (!em) {
@@ -197,7 +211,9 @@ export async function createStudent(studentData: {
           legalAcceptance: {
             termsVersion: LEGAL_TERMS_VERSION,
             privacyVersion: LEGAL_PRIVACY_VERSION,
-            userAgent: normalizeLegalUserAgent(typeof navigator !== 'undefined' ? navigator.userAgent : ''),
+            userAgent: normalizeLegalUserAgent(
+              typeof navigator !== 'undefined' ? navigator.userAgent : ''
+            ),
             acceptedAt: serverTimestamp(),
           },
         });
@@ -231,20 +247,25 @@ export async function createStudent(studentData: {
 
 export async function deleteStudent(studentId: string): Promise<void> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'admin') throw new Error('Only administrators can delete student records');
+  if (!user || user.role !== 'admin')
+    throw new Error('Only administrators can delete student records');
   await deleteDoc(doc(db, 'students', studentId));
 }
 
-export async function updateStudent(studentId: string, data: Partial<{
-  name: string;
-  memberId: string;
-  yearOfBirth: number;
-  contactPhone: string;
-  contactEmail: string;
-  notes: string;
-}>): Promise<void> {
+export async function updateStudent(
+  studentId: string,
+  data: Partial<{
+    name: string;
+    memberId: string;
+    yearOfBirth: number;
+    contactPhone: string;
+    contactEmail: string;
+    notes: string;
+  }>
+): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can update student records');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+    throw new Error('Only administrators and teachers can update student records');
   const ref = doc(db, 'students', studentId);
   const updates: Record<string, unknown> = {};
   if (data.name !== undefined) updates.name = cleanText(data.name, 120);
@@ -277,7 +298,9 @@ async function loadAllowedStudentProfileIdsForLearner(): Promise<Set<string>> {
   }
   try {
     const uSnap = await getDoc(doc(db, 'users', user.uid));
-    const sp = uSnap.exists() ? (uSnap.data() as { studentProfileId?: unknown }).studentProfileId : undefined;
+    const sp = uSnap.exists()
+      ? (uSnap.data() as { studentProfileId?: unknown }).studentProfileId
+      : undefined;
     if (typeof sp === 'string' && sp.trim()) out.add(sp.trim());
   } catch (e) {
     reportClientFault(e);
@@ -422,7 +445,10 @@ export function computeCumulativeGpaFromGrades(grades: Grade[]): number | null {
   return Number.isFinite(rounded) ? rounded : null;
 }
 
-export async function calculateStudentCumulativeGPA(uid: string, forceRefresh = false): Promise<number | null> {
+export async function calculateStudentCumulativeGPA(
+  uid: string,
+  forceRefresh = false
+): Promise<number | null> {
   const user = getCurrentUser();
   if (!user || user.role !== 'student' || user.uid !== uid) {
     throw new Error('Not authorized to view this academic record.');
@@ -455,28 +481,38 @@ export async function calculateStudentCumulativeGPA(uid: string, forceRefresh = 
   return gpa;
 }
 
-export async function addGrade(studentId: string, grade: Omit<Grade, 'id' | 'studentId'>): Promise<string> {
+export async function addGrade(
+  studentId: string,
+  grade: Omit<Grade, 'id' | 'studentId'>
+): Promise<string> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'teacher' && user.role !== 'admin')) throw new Error('Only teachers and administrators can add grades');
+  if (!user || (user.role !== 'teacher' && user.role !== 'admin'))
+    throw new Error('Only teachers and administrators can add grades');
   const gradesRef = collection(db, 'students', studentId, 'grades');
   const docRef = await addDoc(gradesRef, {
     ...grade,
     studentId,
     teacherId: user.uid,
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
   });
   return docRef.id;
 }
 
-export async function updateGrade(studentId: string, gradeId: string, updates: Partial<Grade>): Promise<void> {
+export async function updateGrade(
+  studentId: string,
+  gradeId: string,
+  updates: Partial<Grade>
+): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'teacher' && user.role !== 'admin')) throw new Error('Only teachers and administrators can update grades');
+  if (!user || (user.role !== 'teacher' && user.role !== 'admin'))
+    throw new Error('Only teachers and administrators can update grades');
   await updateDoc(doc(db, 'students', studentId, 'grades', gradeId), updates);
 }
 
 export async function deleteGrade(studentId: string, gradeId: string): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'teacher' && user.role !== 'admin')) throw new Error('Only teachers and administrators can delete grades');
+  if (!user || (user.role !== 'teacher' && user.role !== 'admin'))
+    throw new Error('Only teachers and administrators can delete grades');
   await deleteDoc(doc(db, 'students', studentId, 'grades', gradeId));
 }
 
@@ -513,14 +549,18 @@ export async function fetchAttendance(studentId: string): Promise<Attendance[]> 
   }
 }
 
-export async function markAttendance(studentId: string, attendance: Omit<Attendance, 'id' | 'studentId'>): Promise<string> {
+export async function markAttendance(
+  studentId: string,
+  attendance: Omit<Attendance, 'id' | 'studentId'>
+): Promise<string> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'teacher' && user.role !== 'admin')) throw new Error('Only teachers and administrators can mark attendance');
+  if (!user || (user.role !== 'teacher' && user.role !== 'admin'))
+    throw new Error('Only teachers and administrators can mark attendance');
   const attendanceRef = collection(db, 'students', studentId, 'attendance');
   const docRef = await addDoc(attendanceRef, {
     ...attendance,
     studentId,
-    markedBy: user.uid
+    markedBy: user.uid,
   });
   return docRef.id;
 }
@@ -529,10 +569,13 @@ export async function fetchCourses(): Promise<Course[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
   const coursesRef = collection(db, 'courses');
-  const q = user.role === 'admin' ? query(coursesRef) : query(coursesRef, where('teacherId', '==', user.uid));
+  const q =
+    user.role === 'admin'
+      ? query(coursesRef)
+      : query(coursesRef, where('teacherId', '==', user.uid));
   if (user.role === 'student') return [];
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Course);
 }
 
 export async function createCourse(course: Omit<Course, 'id'>): Promise<string> {
@@ -540,24 +583,26 @@ export async function createCourse(course: Omit<Course, 'id'>): Promise<string> 
   if (!user || user.role !== 'admin') throw new Error('Only administrators can create courses');
   const docRef = await addDoc(collection(db, 'courses'), {
     ...course,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   });
   return docRef.id;
 }
 
 export async function fetchAllUsers(): Promise<User[]> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Only administrators and teachers can list users');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+    throw new Error('Only administrators and teachers can list users');
   const usersRef = collection(db, 'users');
   const q =
-    user.role === 'admin'
-      ? query(usersRef)
-      : query(usersRef, where('role', '==', 'student'));
+    user.role === 'admin' ? query(usersRef) : query(usersRef, where('role', '==', 'student'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
+  return snapshot.docs.map((d) => ({ uid: d.id, ...d.data() }) as User);
 }
 
-export async function updateUserRoleDirect(targetUserId: string, newRole: User['role']): Promise<void> {
+export async function updateUserRoleDirect(
+  targetUserId: string,
+  newRole: User['role']
+): Promise<void> {
   const user = getCurrentUser();
   if (!user || user.role !== 'admin') throw new Error('Only administrators can change roles');
   await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
@@ -619,7 +664,8 @@ export async function createTeacher(data: {
   };
   if (data.email !== undefined && data.email !== '') updates.email = cleanEmail(data.email);
   if (data.notes !== undefined && data.notes !== '') updates.notes = cleanText(data.notes, 2000);
-  if (data.yearOfBirth !== undefined && data.yearOfBirth !== null) updates.yearOfBirth = data.yearOfBirth;
+  if (data.yearOfBirth !== undefined && data.yearOfBirth !== null)
+    updates.yearOfBirth = data.yearOfBirth;
   await setDoc(ref, updates, { merge: true });
 }
 
@@ -689,7 +735,7 @@ export function exportGradesToCSV(grades: Grade[], studentName: string): void {
   }
   const BOM = '\uFEFF';
   let csvContent = 'Assignment,Category,Score,Total Points,Percentage,Date\n';
-  grades.forEach(grade => {
+  grades.forEach((grade) => {
     const tp = Number(grade.totalPoints);
     const sc = Number(grade.score);
     const pct =
@@ -706,7 +752,10 @@ export function exportGradesToCSV(grades: Grade[], studentName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  const safeFileStem = String(studentName).replace(/[^a-zA-Z0-9-_]+/g, '_').slice(0, 80) || 'grades';
+  const safeFileStem =
+    String(studentName)
+      .replace(/[^a-zA-Z0-9-_]+/g, '_')
+      .slice(0, 80) || 'grades';
   link.download = `${safeFileStem}_grades_${new Date().toISOString().split('T')[0]}.csv`;
   link.style.display = 'none';
   document.body.appendChild(link);

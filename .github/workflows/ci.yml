@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            firebase-functions/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Format check, lint, test, build (root)
+        run: npm run format:check && npm run lint && npm run test && npm run build
+
+      - name: Install firebase-functions dependencies
+        working-directory: firebase-functions
+        run: npm ci
+
+      - name: Lint, test, build (firebase-functions)
+        working-directory: firebase-functions
+        run: npm run lint && npm test && npm run build

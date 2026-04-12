@@ -28,7 +28,10 @@ export function safeCourseListLabel(course: { courseCode?: string; courseName?: 
   return code ? `${code} — ${title}` : title;
 }
 
-export function safeCourseChromeTitle(course: { courseCode?: string; courseName?: string }): string {
+export function safeCourseChromeTitle(course: {
+  courseCode?: string;
+  courseName?: string;
+}): string {
   const code = typeof course.courseCode === 'string' ? course.courseCode.trim() : '';
   const title = safeCourseDisplayName(course.courseName);
   return code ? `${code}: ${title}` : title;

@@ -4,13 +4,13 @@ Production-oriented learning management frontend backed by **Firebase** (Authent
 
 ## Architecture
 
-| Layer | Technology | Responsibility |
-|--------|------------|----------------|
-| UI | Vite 7, TypeScript, Tailwind (PostCSS), DOM-first views | Shell, auth UX, assessments, classes, grades, attendance |
-| Client config | `import.meta.env` (`VITE_*`) | Firebase web SDK config only (public keys by design) |
-| Data | Firestore + callable HTTPS functions | Real-time reads/writes per `firestore.rules` |
-| AI & privileged APIs | Firebase Functions v2 (Node 20) | Gemini calls, admin user listing, role updates; secrets via `process.env` / Firebase secrets |
-| CDN / hosting | Cloudflare Pages | Serves `dist/`; `_redirects` / `_headers` in `public/` |
+| Layer                | Technology                                              | Responsibility                                                                               |
+| -------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| UI                   | Vite 7, TypeScript, Tailwind (PostCSS), DOM-first views | Shell, auth UX, assessments, classes, grades, attendance                                     |
+| Client config        | `import.meta.env` (`VITE_*`)                            | Firebase web SDK config only (public keys by design)                                         |
+| Data                 | Firestore + callable HTTPS functions                    | Real-time reads/writes per `firestore.rules`                                                 |
+| AI & privileged APIs | Firebase Functions v2 (Node 20)                         | Gemini calls, admin user listing, role updates; secrets via `process.env` / Firebase secrets |
+| CDN / hosting        | Cloudflare Pages                                        | Serves `dist/`; `_redirects` / `_headers` in `public/`                                       |
 
 **Security model:** No Gemini or other privileged API keys ship in the browser. The client uses Firebase Auth; Cloud Functions re-verify the caller and role before accessing admin or AI paths. Dynamic HTML from AI flows through DOMPurify (`sanitizeHTML` in the UI layer).
 
@@ -45,9 +45,9 @@ npm --prefix firebase-functions install
 
 ### Environment variables
 
-| Location | Purpose |
-|----------|---------|
-| Root `.env` (from `.env.example`) | `VITE_FIREBASE_*` for the Vite client |
+| Location                                                           | Purpose                                         |
+| ------------------------------------------------------------------ | ----------------------------------------------- |
+| Root `.env` (from `.env.example`)                                  | `VITE_FIREBASE_*` for the Vite client           |
 | `firebase-functions/.env` (from `firebase-functions/.env.example`) | `GEMINI_API_KEY` for local Functions / emulator |
 
 Never commit `.env` files. On Cloudflare Pages, define the same `VITE_FIREBASE_*` names for production builds.
@@ -60,14 +60,22 @@ Never commit `.env` files. On Cloudflare Pages, define the same `VITE_FIREBASE_*
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Vite dev server (default port 3000) |
-| `npm run build` | `tsc` + production bundle to `dist/` |
-| `npm run preview` | Local preview of `dist/` |
-| `npm run deploy:backend` | Deploy Firestore rules/indexes + Cloud Functions |
+| Command                                         | Description                                      |
+| ----------------------------------------------- | ------------------------------------------------ |
+| `npm run dev`                                   | Vite dev server (default port 3000)              |
+| `npm run build`                                 | `tsc` + production bundle to `dist/`             |
+| `npm run preview`                               | Local preview of `dist/`                         |
+| `npm run deploy:backend`                        | Deploy Firestore rules/indexes + Cloud Functions |
+| `npm run lint` / `lint:fix`                     | ESLint (flat config: `eslint.config.mjs`)        |
+| `npm run format` / `format:check`               | Prettier across the repo                         |
+| `npm run test` / `test:watch` / `test:coverage` | Vitest (frontend `src/**/*.test.ts`)             |
+| `npm run emulators`                             | Firebase Emulator Suite (`firebase.json` ports)  |
 
-Functions package: `npm --prefix firebase-functions run build` / `test`.
+Functions package: `npm --prefix firebase-functions run build` / `test` / `lint`.
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs Prettier check, ESLint, tests, and production builds for the root app and `firebase-functions` on pushes and pull requests to `main` / `master`.
 
 ## Deploying
 

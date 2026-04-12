@@ -75,7 +75,7 @@ export async function fetchTeacherClasses(): Promise<Course[]> {
   if (!user || user.role !== 'teacher') return [];
   const q = query(collection(db, COURSES), where('teacherId', '==', user.uid));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Course));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Course);
 }
 
 export async function fetchClassRoster(courseId: string): Promise<Student[]> {
@@ -96,7 +96,7 @@ export async function fetchAllClasses(): Promise<Course[]> {
   const user = getCurrentUser();
   if (!user || user.role !== 'admin') return [];
   const snapshot = await getDocs(collection(db, COURSES));
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Course));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Course);
 }
 
 /** Get a single course by ID. Allowed for admin or the assigned teacher. */
@@ -127,7 +127,10 @@ export async function createClass(data: Omit<Course, 'id'>): Promise<string> {
   return docRef.id;
 }
 
-export async function updateClass(courseId: string, data: Partial<Omit<Course, 'id' | 'createdAt'>>): Promise<void> {
+export async function updateClass(
+  courseId: string,
+  data: Partial<Omit<Course, 'id' | 'createdAt'>>
+): Promise<void> {
   const user = getCurrentUser();
   if (!user) throw new Error('Not authenticated');
   if (user.role !== 'admin' && user.role !== 'teacher') throw new Error('Insufficient permissions');
@@ -171,7 +174,8 @@ export async function deleteClass(courseId: string): Promise<void> {
 
 export async function addStudentsToClass(courseId: string, studentIds: string[]): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Insufficient permissions');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+    throw new Error('Insufficient permissions');
   const courseRef = doc(db, COURSES, courseId);
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) throw new Error('Course not found');
@@ -188,9 +192,13 @@ export async function addStudentsToClass(courseId: string, studentIds: string[])
   await reconcileRosterTeacherIds(oldT, oldS, oldT, newS);
 }
 
-export async function removeStudentsFromClass(courseId: string, studentIds: string[]): Promise<void> {
+export async function removeStudentsFromClass(
+  courseId: string,
+  studentIds: string[]
+): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher')) throw new Error('Insufficient permissions');
+  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+    throw new Error('Insufficient permissions');
   const courseRef = doc(db, COURSES, courseId);
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) throw new Error('Course not found');

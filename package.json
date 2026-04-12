@@ -6,7 +6,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy:backend": "firebase deploy --only functions,firestore:rules,firestore:indexes"
+    "deploy:backend": "firebase deploy --only functions,firestore:rules,firestore:indexes",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "emulators": "firebase emulators:start"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
@@ -16,12 +24,22 @@
     "jspdf-autotable": "^3.8.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^22.5.0",
+    "@vitest/coverage-v8": "^4.1.4",
     "autoprefixer": "^10.4.21",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "firebase-tools": "^15.14.0",
+    "globals": "^17.4.0",
+    "jsdom": "^29.0.2",
     "postcss": "^8.5.6",
+    "prettier": "^3.8.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.5.4",
-    "vite": "^7.3.1"
+    "typescript-eslint": "^8.58.1",
+    "vite": "^7.3.1",
+    "vitest": "^4.1.4"
   }
 }

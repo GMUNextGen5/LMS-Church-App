@@ -2,185 +2,185 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * AI CONFIGURATION AND PROMPT MANAGEMENT
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * PURPOSE:
  * Centralized configuration for all AI functionality including model settings,
  * system prompts, prompt templates, and data preparation helpers.
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * ARCHITECTURE
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * COMPONENTS:
- * 
+ *
  * 1. API Configuration
  *    - Model selection (gemini-1.5-flash)
  *    - Generation parameters (temperature, maxTokens, etc.)
  *    - API key management
- * 
+ *
  * 2. System Prompts
  *    - Performance Summary system prompt
  *    - Study Tips system prompt
  *    - Defines AI personality and behavior
- * 
+ *
  * 3. Prompt Templates
  *    - Functions to build user prompts with data
  *    - Structured data formatting
  *    - Consistent prompt patterns
- * 
+ *
  * 4. Data Preparation Helpers
  *    - Transform Firestore data for AI
  *    - Calculate statistics and metrics
  *    - Format data for optimal AI understanding
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * AI MODEL SELECTION
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * CURRENT MODEL: gemini-1.5-flash
- * 
+ *
  * CHARACTERISTICS:
  * - Speed: Very fast (< 2 seconds typical response)
  * - Cost: Low cost per request
  * - Quality: Good for educational content
  * - Context: 1M token context window
  * - Multimodal: Supports text (images not used yet)
- * 
+ *
  * ALTERNATIVES:
- * 
+ *
  * gemini-1.5-pro:
  * - Higher quality responses
  * - Better reasoning capabilities
  * - Slower (3-5 seconds)
  * - More expensive (10x cost)
  * - Use for: Complex analysis, critical decisions
- * 
+ *
  * gemini-pro:
  * - Older version
  * - Less capable than 1.5 models
  * - Not recommended for new projects
- * 
+ *
  * SELECTION CRITERIA:
  * - Response time requirements
  * - Budget constraints
  * - Quality needs
  * - Use case complexity
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * PROMPT ENGINEERING STRATEGY
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * TWO-PROMPT SYSTEM:
- * 
+ *
  * 1. System Prompt:
  *    - Defines AI role and personality
  *    - Sets output format requirements
  *    - Establishes guidelines and constraints
  *    - Consistent across all requests
- * 
+ *
  * 2. User Prompt:
  *    - Contains specific student data
  *    - Includes context and instructions
  *    - Varies per request
  *    - Structured for clarity
- * 
+ *
  * PROMPT STRUCTURE:
- * 
+ *
  * System Prompt:
  * - "You are a [role]..."
  * - Guidelines for behavior
  * - Output format requirements
  * - Tone and style instructions
- * 
+ *
  * User Prompt:
  * - Student name
  * - Structured data (JSON or formatted text)
  * - Specific request
  * - Expected output sections
- * 
+ *
  * OPTIMIZATION TECHNIQUES:
- * 
+ *
  * 1. Clear Instructions:
  *    - Specific, actionable directions
  *    - Examples of desired output
  *    - Format specifications
- * 
+ *
  * 2. Structured Data:
  *    - JSON format for complex data
  *    - Labeled sections
  *    - Clear hierarchy
- * 
+ *
  * 3. Context Management:
  *    - Only include relevant data
  *    - Limit to recent records
  *    - Balance detail vs. token usage
- * 
+ *
  * 4. Output Control:
  *    - Request specific HTML tags
  *    - Define section structure
  *    - Set length expectations
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * PROMPT CUSTOMIZATION
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * TO CHANGE AI BEHAVIOR:
- * 
+ *
  * 1. Modify System Prompts:
  *    - Change tone (encouraging → critical, friendly → formal)
  *    - Add/remove guidelines
  *    - Change output format requirements
  *    - Adjust personality traits
- * 
+ *
  * 2. Modify Prompt Templates:
  *    - Change data format (JSON → plain text)
  *    - Add/remove data fields
  *    - Adjust instructions
  *    - Change expected output
- * 
+ *
  * 3. Modify Data Preparation:
  *    - Include more/less historical data
  *    - Calculate different metrics
  *    - Add contextual information
  *    - Filter or aggregate data differently
- * 
+ *
  * TESTING PROMPT CHANGES:
- * 
+ *
  * 1. Test with diverse datasets:
  *    - High performers
  *    - Low performers
  *    - Mixed performance
  *    - Missing data scenarios
- * 
+ *
  * 2. Verify output quality:
  *    - Accuracy of analysis
  *    - Relevance of recommendations
  *    - Appropriate tone
  *    - Helpful actionability
- * 
+ *
  * 3. Monitor token usage:
  *    - Longer prompts = higher cost
  *    - Balance detail vs. cost
  *    - Consider rate limiting
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * MIGRATION PATH TO PRODUCTION
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * CURRENT STATE (Development):
  * - Prompts hardcoded in this file
  * - Easy to modify during development
  * - Version controlled with code
  * - Requires redeployment to change
- * 
+ *
  * RECOMMENDED PATH (Production):
- * 
+ *
  * PHASE 1: Move to Environment Variables
  * - Store prompts in Firebase Functions config
  * - Command: firebase functions:config:set prompts.performance="..."
  * - Benefits: Change without redeployment
  * - Drawbacks: Limited to 1MB total config
- * 
+ *
  * PHASE 2: Move to Firestore
  * - Store prompts in /config/prompts collection
  * - Load on function initialization
@@ -190,7 +190,7 @@
  *   * Easy A/B testing
  *   * No redeployment needed
  *   * Can cache for performance
- * 
+ *
  * PHASE 3: Dedicated Prompt Management Service
  * - Separate service for prompt management
  * - API for prompt CRUD operations
@@ -200,9 +200,9 @@
  *   * Analytics on prompt performance
  *   * Multi-language support
  *   * Prompt optimization tools
- * 
+ *
  * MIGRATION CHECKLIST:
- * 
+ *
  * □ Test current prompts thoroughly
  * □ Document expected behaviors
  * □ Create prompt versioning system
@@ -211,47 +211,47 @@
  * □ Plan rollback strategy
  * □ Update documentation
  * □ Train users on new system
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * MONITORING AND ANALYTICS
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * KEY METRICS TO TRACK:
- * 
+ *
  * 1. Response Quality:
  *    - User feedback (thumbs up/down)
  *    - Response length
  *    - HTML formatting validity
  *    - Relevance to data
- * 
+ *
  * 2. Performance:
  *    - Response time
  *    - Token usage per request
  *    - Error rate
  *    - API quota consumption
- * 
+ *
  * 3. Usage:
  *    - Requests per user
  *    - Most used features
  *    - Peak usage times
  *    - User retention
- * 
+ *
  * 4. Cost:
  *    - API costs per request
  *    - Total monthly AI spend
  *    - Cost per user
  *    - ROI analysis
- * 
+ *
  * IMPLEMENTATION:
  * - Log key events to Firestore
  * - Use Firebase Analytics
  * - Create dashboards in Firebase Console
  * - Set up alerts for anomalies
- * 
+ *
  * ════════════════════════════════════════════════════════════════════════════
  * DEBUGGING GUIDE
  * ════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * IF AI RESPONSES ARE POOR:
  * 1. Check Cloud Functions logs for prompt and response traces
  * 2. Verify data is formatted correctly
@@ -260,7 +260,7 @@
  * 5. Reduce or expand context
  * 6. Simplify instructions
  * 7. Add examples to system prompt
- * 
+ *
  * IF AI RETURNS ERRORS:
  * 1. Check Gemini API key is valid
  * 2. Verify API quota not exceeded
@@ -268,32 +268,32 @@
  * 4. Verify data format (valid JSON)
  * 5. Check network connectivity
  * 6. Review Cloud Functions logs
- * 
+ *
  * IF RESPONSES ARE INCONSISTENT:
  * 1. Lower temperature for more consistency
  * 2. Make instructions more specific
  * 3. Add more structure to prompts
  * 4. Validate data consistency
  * 5. Test with same data multiple times
- * 
+ *
  * TESTING STRATEGIES:
- * 
+ *
  * 1. Unit Tests:
  *    - Test data preparation functions
  *    - Verify prompt building
  *    - Check helper calculations
- * 
+ *
  * 2. Integration Tests:
  *    - Test with mock Gemini responses
  *    - Verify end-to-end flow
  *    - Check error handling
- * 
+ *
  * 3. Manual Testing:
  *    - Test with real student data
  *    - Verify output quality
  *    - Check HTML formatting
  *    - Validate recommendations
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -315,7 +315,10 @@ const ATTENDANCE_STATUSES = new Set(['present', 'absent', 'late', 'excused']);
  * Sanitize a string for safe inclusion in AI prompts.
  * Truncates to max length and strips control characters to reduce prompt injection risk.
  */
-export function sanitizeForPrompt(value: unknown, maxLength: number = MAX_PROMPT_STRING_LENGTH): string {
+export function sanitizeForPrompt(
+  value: unknown,
+  maxLength: number = MAX_PROMPT_STRING_LENGTH
+): string {
   if (value == null) return '';
   const s = String(value);
   const trimmed = s.replace(/[\x00-\x1f\x7f]/g, '').trim();
@@ -325,18 +328,18 @@ export function sanitizeForPrompt(value: unknown, maxLength: number = MAX_PROMPT
 
 /**
  * AI Model Configuration
- * 
+ *
  * CURRENT: Using Gemini 1.5 Flash (fast, cost-effective)
- * ALTERNATIVES: 
+ * ALTERNATIVES:
  *   - 'gemini-1.5-pro' (more capable, slower, more expensive)
  *   - 'gemini-pro' (older version)
  */
 export const AI_MODEL_CONFIG = {
   model: 'gemini-2.5-flash',
   temperature: 0.7, // Creativity level (0.0 = deterministic, 1.0 = creative)
-  maxTokens: 2000,   // Maximum response length
-  topP: 0.95,        // Nucleus sampling parameter
-  topK: 40          // Top-K sampling parameter
+  maxTokens: 2000, // Maximum response length
+  topP: 0.95, // Nucleus sampling parameter
+  topK: 40, // Top-K sampling parameter
 };
 
 /**
@@ -352,11 +355,11 @@ export function getApiKey(): string {
 
 /**
  * Performance Summary System Prompt
- * 
+ *
  * PURPOSE: Defines the AI's role and behavior for performance analysis
- * 
+ *
  * MIGRATION: Move to server-side config/database when centralizing prompts
- * 
+ *
  * CUSTOMIZATION: Modify this prompt to change AI behavior:
  * - Tone: Adjust "encouraging", "constructive", "positive"
  * - Format: Change HTML formatting requirements
@@ -394,11 +397,11 @@ TONE GUIDELINES:
 
 /**
  * Study Tips System Prompt
- * 
+ *
  * PURPOSE: Defines the AI's role for providing study recommendations
- * 
+ *
  * MIGRATION: Move to server-side config/database when centralizing prompts
- * 
+ *
  * CUSTOMIZATION: Modify this prompt to change AI behavior:
  * - Focus areas: Add/remove study strategy types
  * - Format: Change HTML structure requirements
@@ -438,11 +441,11 @@ PERSONALIZATION:
 
 /**
  * Performance Summary User Prompt Template
- * 
+ *
  * PURPOSE: Template for constructing user prompts with student data
- * 
+ *
  * MIGRATION: Move to server-side template engine when centralizing
- * 
+ *
  * VARIABLES:
  * - {studentName}: Student's full name
  * - {gradesData}: JSON array of grade records
@@ -464,7 +467,7 @@ export function buildPerformanceSummaryPrompt(
   const present = Number(attendanceData?.present) || 0;
   const absent = Number(attendanceData?.absent) || 0;
   const late = Number(attendanceData?.late) || 0;
-  const rate = total > 0 ? ((present + late) / total * 100).toFixed(1) : '0';
+  const rate = total > 0 ? (((present + late) / total) * 100).toFixed(1) : '0';
   return `Please analyze this student's performance:
 
 Student Name: ${name}
@@ -492,11 +495,11 @@ Format your response in HTML with clear sections, headings, and bullet points.`;
 
 /**
  * Study Tips User Prompt Template
- * 
+ *
  * PURPOSE: Template for constructing study tips prompts with student data
- * 
+ *
  * MIGRATION: Move to server-side template engine when centralizing
- * 
+ *
  * VARIABLES:
  * - {studentName}: Student's full name
  * - {categoryAverages}: Array of category performance data
@@ -510,7 +513,7 @@ export function buildStudyTipsPrompt(
   const name = sanitizeForPrompt(studentName, 200);
   const safeAverages = Array.isArray(categoryAverages) ? categoryAverages.slice(0, 50) : [];
   const safeAssignments = Array.isArray(recentAssignments)
-    ? recentAssignments.slice(0, 30).map(s => sanitizeForPrompt(s, 200))
+    ? recentAssignments.slice(0, 30).map((s) => sanitizeForPrompt(s, 200))
     : [];
   return `Please provide personalized study tips for this student:
 
@@ -542,7 +545,7 @@ Format your response in HTML with clear sections, headings, and bullet points.`;
  */
 export function prepareGradesData(grades: any[]): any[] {
   if (!Array.isArray(grades)) return [];
-  return grades.slice(0, MAX_GRADES_FOR_PROMPT).map(grade => {
+  return grades.slice(0, MAX_GRADES_FOR_PROMPT).map((grade) => {
     const total = Number(grade.totalPoints);
     const score = Number(grade.score);
     const safeTotal = Number.isFinite(total) && total >= 0 ? total : 0;
@@ -554,7 +557,7 @@ export function prepareGradesData(grades: any[]): any[] {
       score: safeScore,
       total: safeTotal,
       percentage: pct,
-      date: grade.date
+      date: grade.date,
     };
   });
 }
@@ -576,22 +579,28 @@ export function prepareAttendanceData(attendance: any[]): {
   }
   const limited = attendance.slice(0, MAX_ATTENDANCE_FOR_PROMPT);
   const total = limited.length;
-  const present = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'present').length;
-  const absent = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'absent').length;
-  const late = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'late').length;
-  const excused = limited.filter(a => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'excused').length;
+  const present = limited.filter(
+    (a) => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'present'
+  ).length;
+  const absent = limited.filter(
+    (a) => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'absent'
+  ).length;
+  const late = limited.filter(
+    (a) => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'late'
+  ).length;
+  const excused = limited.filter(
+    (a) => a && ATTENDANCE_STATUSES.has(String(a.status)) && a.status === 'excused'
+  ).length;
   const attended = present + late + excused;
-  const attendanceRate = total > 0 
-    ? ((attended / total) * 100).toFixed(1) 
-    : '0';
-  
+  const attendanceRate = total > 0 ? ((attended / total) * 100).toFixed(1) : '0';
+
   return {
     total,
     present,
     absent,
     late,
     excused,
-    attendanceRate: attendanceRate + '%'
+    attendanceRate: attendanceRate + '%',
   };
 }
 
@@ -608,8 +617,8 @@ export function calculateCategoryAverages(grades: any[]): Array<{
   if (!Array.isArray(grades)) return [];
   const gradesByCategory: { [key: string]: number[] } = {};
   const limited = grades.slice(0, MAX_GRADES_FOR_PROMPT);
-  
-  limited.forEach(grade => {
+
+  limited.forEach((grade) => {
     const total = Number(grade.totalPoints);
     if (!Number.isFinite(total) || total <= 0) return;
     const score = Number(grade.score);
@@ -621,31 +630,29 @@ export function calculateCategoryAverages(grades: any[]): Array<{
     }
     gradesByCategory[category].push(percentage);
   });
-  
+
   return Object.entries(gradesByCategory).map(([category, scores]) => {
     if (scores.length === 0) {
       return { category, average: '0%', count: 0, trend: 'stable' as const };
     }
     const average = scores.reduce((a, b) => a + b, 0) / scores.length;
-    
+
     let trend: 'improving' | 'declining' | 'stable' = 'stable';
     if (scores.length >= 4) {
       const firstHalf = scores.slice(0, Math.floor(scores.length / 2));
       const secondHalf = scores.slice(Math.floor(scores.length / 2));
       const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
       const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-      
+
       if (secondAvg > firstAvg + 5) trend = 'improving';
       else if (secondAvg < firstAvg - 5) trend = 'declining';
     }
-    
+
     return {
       category,
       average: average.toFixed(1) + '%',
       count: scores.length,
-      trend
+      trend,
     };
   });
 }
-
-

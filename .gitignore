@@ -24,6 +24,7 @@ firebase-functions/.env
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+debug-ecf1fb.log
 
 # IDE
 .vscode/

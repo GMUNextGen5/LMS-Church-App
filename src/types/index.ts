@@ -89,7 +89,12 @@ export interface Course {
 export type AssessmentStatus = 'draft' | 'published';
 export type ReleasePolicy = 'auto' | 'manual';
 export type AssignedMode = 'class' | 'individual';
-export type QuestionType = 'multiple_choice' | 'checkbox' | 'short_answer' | 'paragraph' | 'numeric';
+export type QuestionType =
+  | 'multiple_choice'
+  | 'checkbox'
+  | 'short_answer'
+  | 'paragraph'
+  | 'numeric';
 export type SubmissionStatus =
   | 'not_started'
   | 'in_progress'

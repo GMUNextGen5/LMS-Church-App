@@ -33,8 +33,14 @@ import {
   type StudentAssessmentRow,
 } from '../data/assessment-data';
 import type {
-  Assessment, AssessmentQuestion, Submission, QuestionAnswer,
-  QuestionType, Course, Student, UserRole,
+  Assessment,
+  AssessmentQuestion,
+  Submission,
+  QuestionAnswer,
+  QuestionType,
+  Course,
+  Student,
+  UserRole,
 } from '../types';
 
 type ViewState =
@@ -52,10 +58,13 @@ let container: HTMLElement | null = null;
 let cachedCourses: Course[] = [];
 let cachedStudentProfiles: Student[] = [];
 
-function submissionStudentDisplayName(sub: { studentName?: string; studentProfileId: string }): string {
+function submissionStudentDisplayName(sub: {
+  studentName?: string;
+  studentProfileId: string;
+}): string {
   const n = sub.studentName?.trim();
   if (n) return safeStudentDisplayName(n);
-  const fromCache = cachedStudentProfiles.find(s => s.id === sub.studentProfileId)?.name;
+  const fromCache = cachedStudentProfiles.find((s) => s.id === sub.studentProfileId)?.name;
   return safeStudentDisplayName(fromCache);
 }
 // Builder questions are collected from DOM at save time via collectQuestionsFromDOM()
@@ -96,7 +105,9 @@ export async function loadAssessments(): Promise<void> {
     teacherListLimit = 30;
     studentListLimit = 20;
     await renderCurrentView();
-  })().finally(() => { assessmentsTabLoadPromise = null; });
+  })().finally(() => {
+    assessmentsTabLoadPromise = null;
+  });
   return assessmentsTabLoadPromise;
 }
 
@@ -109,15 +120,29 @@ async function renderCurrentView(): Promise<void> {
   showLoading();
   try {
     switch (viewState.view) {
-      case 'list': await renderList(); break;
-      case 'builder': await renderBuilder(); break;
-      case 'take': await renderTake(); break;
-      case 'submissions': await renderSubmissionsList(); break;
-      case 'grade': await renderGradeView(); break;
-      case 'results': await renderResultsView(); break;
+      case 'list':
+        await renderList();
+        break;
+      case 'builder':
+        await renderBuilder();
+        break;
+      case 'take':
+        await renderTake();
+        break;
+      case 'submissions':
+        await renderSubmissionsList();
+        break;
+      case 'grade':
+        await renderGradeView();
+        break;
+      case 'results':
+        await renderResultsView();
+        break;
     }
   } catch (err: unknown) {
-    renderErrorPanel(container, 'This assessments view could not be loaded.', { showBackToList: true });
+    renderErrorPanel(container, 'This assessments view could not be loaded.', {
+      showBackToList: true,
+    });
     showAppToast(formatErrorForUserToast(err, 'Could not load assessments.'), 'error');
   } finally {
     hideLoading();
@@ -155,16 +180,18 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
   const hasMore = allAssessments.length > teacherListLimit;
   const assessments = allAssessments.slice(0, teacherListLimit);
 
-  const rows = assessments.map(a => {
-    const isPast = new Date(a.dueDateTime) < new Date();
-    const statusBadge = a.status === 'published'
-      ? '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">Published</span>'
-      : '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">Draft</span>';
-    const dueBadge = isPast
-      ? `<span class="text-red-400 text-xs">Past due</span>`
-      : `<span class="text-dark-300 text-xs">${formatDate(a.dueDateTime)}</span>`;
+  const rows = assessments
+    .map((a) => {
+      const isPast = new Date(a.dueDateTime) < new Date();
+      const statusBadge =
+        a.status === 'published'
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">Published</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">Draft</span>';
+      const dueBadge = isPast
+        ? `<span class="text-red-400 text-xs">Past due</span>`
+        : `<span class="text-dark-300 text-xs">${formatDate(a.dueDateTime)}</span>`;
 
-    return `
+      return `
       <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors"
           style="content-visibility:auto; contain: content; contain-intrinsic-size: 56px;">
         <td class="py-3 px-4 text-white font-medium">${esc(a.title)}</td>
@@ -184,17 +211,20 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
           </div>
         </td>
       </tr>`;
-  }).join('');
+    })
+    .join('');
 
-  const cards = assessments.map(a => {
-    const isPast = new Date(a.dueDateTime) < new Date();
-    const statusBadge = a.status === 'published'
-      ? '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 whitespace-nowrap">Published</span>'
-      : '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400 whitespace-nowrap">Draft</span>';
-    const dueBadge = isPast
-      ? `<span class="text-red-400 text-xs whitespace-nowrap">Past due</span>`
-      : `<span class="text-dark-300 text-xs whitespace-nowrap">${formatDate(a.dueDateTime)}</span>`;
-    return `
+  const cards = assessments
+    .map((a) => {
+      const isPast = new Date(a.dueDateTime) < new Date();
+      const statusBadge =
+        a.status === 'published'
+          ? '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 whitespace-nowrap">Published</span>'
+          : '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400 whitespace-nowrap">Draft</span>';
+      const dueBadge = isPast
+        ? `<span class="text-red-400 text-xs whitespace-nowrap">Past due</span>`
+        : `<span class="text-dark-300 text-xs whitespace-nowrap">${formatDate(a.dueDateTime)}</span>`;
+      return `
       <div class="bg-dark-800 rounded-xl border border-dark-700 p-5 hover:border-dark-500 transition-all"
            style="content-visibility:auto; contain: content; contain-intrinsic-size: 180px;">
         <div class="flex items-start justify-between gap-3 mb-2">
@@ -218,25 +248,30 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
                   class="px-3 py-2 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 whitespace-nowrap">Delete</button>
         </div>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   renderTemplate(
     container!,
     `
     <div class="space-y-6">
-      ${sectionHeader('Assessments', `
+      ${sectionHeader(
+        'Assessments',
+        `
         <button data-action="create-assessment"
                 class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">
           + Create Assessment
         </button>
-      `)}
-      ${assessments.length === 0
-        ? emptyState(
-            'No assessments yet',
-            'Create your first assessment to get started.',
-            `<button data-action="create-assessment" type="button" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">+ Create assessment</button>`
-          )
-        : `<div class="md:hidden grid gap-4">${cards}</div>
+      `
+      )}
+      ${
+        assessments.length === 0
+          ? emptyState(
+              'No assessments yet',
+              'Create your first assessment to get started.',
+              `<button data-action="create-assessment" type="button" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">+ Create assessment</button>`
+            )
+          : `<div class="md:hidden grid gap-4">${cards}</div>
           <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
             <table class="w-full text-sm">
               <thead class="bg-dark-800/80">
@@ -254,14 +289,18 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
             </table>
           </div>`
       }
-      ${hasMore ? `
+      ${
+        hasMore
+          ? `
         <div class="flex justify-center pt-2">
           <button data-action="load-more-teacher"
                   class="px-4 py-2 rounded-lg bg-dark-700 text-dark-200 text-sm font-semibold hover:bg-dark-600 transition-colors">
             Load more
           </button>
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     </div>`
   );
 }
@@ -270,18 +309,19 @@ async function renderStudentList(_uid: string): Promise<void> {
   // Get student profiles
   renderTemplate(container!, studentListSkeletonHtml());
   cachedStudentProfiles = await fetchStudents();
-  const profileIds = cachedStudentProfiles.map(s => s.id);
+  const profileIds = cachedStudentProfiles.map((s) => s.id);
   const allRows = await fetchStudentAssessmentsCached(profileIds);
   const hasMore = allRows.length > studentListLimit;
   const rows = allRows.slice(0, studentListLimit);
 
-  const cards = rows.map(r => {
-    const a = r.assessment;
-    const sub = r.submission;
-    const isPast = new Date(a.dueDateTime) < new Date();
-    const status = getStudentStatus(a, sub, isPast);
+  const cards = rows
+    .map((r) => {
+      const a = r.assessment;
+      const sub = r.submission;
+      const isPast = new Date(a.dueDateTime) < new Date();
+      const status = getStudentStatus(a, sub, isPast);
 
-    return `
+      return `
       <div class="bg-dark-800 rounded-xl border border-dark-700 p-5 hover:border-dark-500 transition-all">
         <div class="flex items-start justify-between mb-3">
           <div>
@@ -303,14 +343,16 @@ async function renderStudentList(_uid: string): Promise<void> {
           </div>
         </div>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
-  const tableRows = rows.map(r => {
-    const a = r.assessment;
-    const sub = r.submission;
-    const isPast = new Date(a.dueDateTime) < new Date();
-    const status = getStudentStatus(a, sub, isPast);
-    return `
+  const tableRows = rows
+    .map((r) => {
+      const a = r.assessment;
+      const sub = r.submission;
+      const isPast = new Date(a.dueDateTime) < new Date();
+      const status = getStudentStatus(a, sub, isPast);
+      return `
       <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
         <td class="py-3 px-4 text-white font-medium">${esc(a.title)}</td>
         <td class="py-3 px-4 text-dark-300 text-sm">${esc(safeCourseDisplayName(r.courseName))}</td>
@@ -318,20 +360,22 @@ async function renderStudentList(_uid: string): Promise<void> {
         <td class="py-3 px-4 text-dark-300 text-sm whitespace-nowrap">${formatDate(a.dueDateTime)}</td>
         <td class="py-3 px-4 text-right">${renderStudentAction(a, r, sub, profileIds)}</td>
       </tr>`;
-  }).join('');
+    })
+    .join('');
 
   renderTemplate(
     container!,
     `
     <div class="space-y-6">
       ${sectionHeader('My Assessments')}
-      ${rows.length === 0
-        ? emptyState(
-            'No assessments assigned',
-            'Assessments will appear here when your teacher publishes them.',
-            `<button type="button" data-action="goto-classes-tab" class="px-4 py-2 rounded-lg bg-primary-500/20 text-primary-400 text-sm font-semibold hover:bg-primary-500/30 border border-primary-500/30">View my classes</button>`
-          )
-        : `<div class="md:hidden grid gap-4">${cards}</div>
+      ${
+        rows.length === 0
+          ? emptyState(
+              'No assessments assigned',
+              'Assessments will appear here when your teacher publishes them.',
+              `<button type="button" data-action="goto-classes-tab" class="px-4 py-2 rounded-lg bg-primary-500/20 text-primary-400 text-sm font-semibold hover:bg-primary-500/30 border border-primary-500/30">View my classes</button>`
+            )
+          : `<div class="md:hidden grid gap-4">${cards}</div>
           <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
             <table class="w-full text-sm">
               <thead class="bg-dark-800/80">
@@ -347,14 +391,18 @@ async function renderStudentList(_uid: string): Promise<void> {
             </table>
           </div>`
       }
-      ${hasMore ? `
+      ${
+        hasMore
+          ? `
         <div class="flex justify-center pt-2">
           <button data-action="load-more-student"
                   class="px-4 py-2 rounded-lg bg-dark-700 text-dark-200 text-sm font-semibold hover:bg-dark-600 transition-colors">
             Load more
           </button>
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     </div>`
   );
 }
@@ -374,16 +422,21 @@ function statusBadgeHtml(status: string): string {
   const colors: Record<string, string> = {
     'Not Started': 'bg-dark-800/90 text-dark-300 border border-dark-600/90',
     'In Progress': 'bg-blue-900/30 text-blue-400 border border-blue-500/25',
-    'Submitted': 'bg-amber-900/30 text-amber-400 border border-amber-500/25',
-    'Graded': 'bg-green-900/30 text-green-400 border border-green-500/25',
+    Submitted: 'bg-amber-900/30 text-amber-400 border border-amber-500/25',
+    Graded: 'bg-green-900/30 text-green-400 border border-green-500/25',
     'Graded (Pending Release)': 'bg-purple-900/30 text-purple-400 border border-purple-500/25',
-    'Overdue': 'bg-red-900/30 text-red-400 border border-red-500/30',
+    Overdue: 'bg-red-900/30 text-red-400 border border-red-500/30',
   };
   const cls = colors[status] || 'bg-dark-800 text-dark-300 border border-dark-600';
   return `<span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold tracking-tight ${cls}">${esc(status)}</span>`;
 }
 
-function renderStudentAction(a: Assessment, r: StudentAssessmentRow, sub: Submission | undefined, profileIds: string[]): string {
+function renderStudentAction(
+  a: Assessment,
+  r: StudentAssessmentRow,
+  sub: Submission | undefined,
+  profileIds: string[]
+): string {
   const spId = profileIds[0] || '';
   if (sub?.status === 'graded' && sub.released) {
     return `<button data-action="view-results" data-class-id="${esc(r.courseId)}" data-id="${esc(a.id)}" data-sp="${esc(spId)}"
@@ -412,9 +465,13 @@ async function renderBuilder(): Promise<void> {
   // Load courses for dropdown
   cachedCourses = await fetchCourses();
   if (cachedCourses.length === 0) {
-    renderErrorPanel(container, 'No classes found. Create a class/course first before building assessments.', {
-      showBackToList: true,
-    });
+    renderErrorPanel(
+      container,
+      'No classes found. Create a class/course first before building assessments.',
+      {
+        showBackToList: true,
+      }
+    );
     return;
   }
 
@@ -428,9 +485,12 @@ async function renderBuilder(): Promise<void> {
   const isEdit = !!existing;
   const title = isEdit ? 'Edit Assessment' : 'Create Assessment';
 
-  const courseOptions = cachedCourses.map(c =>
-    `<option value="${esc(c.id)}" ${existing?.classId === c.id ? 'selected' : ''}>${esc(safeCourseDisplayName(c.courseName))}${c.courseCode ? ` (${esc(c.courseCode)})` : ''}</option>`
-  ).join('');
+  const courseOptions = cachedCourses
+    .map(
+      (c) =>
+        `<option value="${esc(c.id)}" ${existing?.classId === c.id ? 'selected' : ''}>${esc(safeCourseDisplayName(c.courseName))}${c.courseCode ? ` (${esc(c.courseCode)})` : ''}</option>`
+    )
+    .join('');
 
   // Build questions HTML
   const questionsHtml = existingQuestions.map((q, i) => questionCardHtml(q, i)).join('');
@@ -557,12 +617,16 @@ function questionCardHtml(q: Partial<AssessmentQuestion> & { id?: string }, inde
     { val: 'paragraph', label: 'Paragraph' },
     { val: 'numeric', label: 'Numeric' },
   ];
-  const typeOpts = types.map(t =>
-    `<option value="${t.val}" ${q.type === t.val ? 'selected' : ''}>${t.label}</option>`
-  ).join('');
+  const typeOpts = types
+    .map(
+      (t) => `<option value="${t.val}" ${q.type === t.val ? 'selected' : ''}>${t.label}</option>`
+    )
+    .join('');
 
   const showOptions = q.type === 'multiple_choice' || q.type === 'checkbox';
-  const optionsHtml = (q.options || ['', '']).map((opt, oi) => `
+  const optionsHtml = (q.options || ['', ''])
+    .map(
+      (opt, oi) => `
     <div class="flex items-center gap-2 mb-1.5">
       <input type="${q.type === 'checkbox' ? 'checkbox' : 'radio'}" name="q${index}_correct" value="${oi}"
              ${(q.correctAnswers || []).includes(String(oi)) ? 'checked' : ''}
@@ -572,7 +636,9 @@ function questionCardHtml(q: Partial<AssessmentQuestion> & { id?: string }, inde
              class="flex-1 px-2 py-1 rounded bg-dark-900 border border-dark-600 text-white text-sm">
       <button type="button" data-action="remove-option" data-qi="${index}" data-oi="${oi}"
               class="text-red-400 hover:text-red-300 text-xs">✕</button>
-    </div>`).join('');
+    </div>`
+    )
+    .join('');
 
   return `
     <div class="bg-dark-900 rounded-lg border border-dark-600 p-4 question-card" data-qi="${index}" data-qid="${esc(q.id || '')}">
@@ -605,7 +671,7 @@ function questionCardHtml(q: Partial<AssessmentQuestion> & { id?: string }, inde
         <button type="button" data-action="add-option" data-qi="${index}"
                 class="text-primary-400 text-xs hover:text-primary-300 mt-1">+ Add Option</button>
       </div>
-      <div data-role="correct-text-area" data-qi="${index}" class="${(q.type === 'numeric' || q.type === 'short_answer') ? 'mt-2' : 'mt-2 hide'}">
+      <div data-role="correct-text-area" data-qi="${index}" class="${q.type === 'numeric' || q.type === 'short_answer' ? 'mt-2' : 'mt-2 hide'}">
         <label class="text-dark-400 text-xs">Correct Answer:</label>
         <input type="text" data-role="q-correct-text" data-qi="${index}"
                value="${esc((q.correctAnswers || [])[0] || '')}"
@@ -616,11 +682,15 @@ function questionCardHtml(q: Partial<AssessmentQuestion> & { id?: string }, inde
           <input type="checkbox" data-role="q-required" data-qi="${index}" ${q.required !== false ? 'checked' : ''}
                  class="accent-primary-500"> Required
         </label>
-        ${showOptions ? `
+        ${
+          showOptions
+            ? `
         <label class="flex items-center gap-1">
           <input type="checkbox" data-role="q-shuffle" data-qi="${index}" ${q.shuffleOptions ? 'checked' : ''}
                  class="accent-primary-500"> Shuffle options
-        </label>` : ''}
+        </label>`
+            : ''
+        }
       </div>
     </div>`;
 }
@@ -640,25 +710,30 @@ async function renderTake(): Promise<void> {
   }
 
   const questions = await fetchQuestions(classId, assessmentId);
-  const studentName = cachedStudentProfiles.find(s => s.id === studentProfileId)?.name || '';
+  const studentName = cachedStudentProfiles.find((s) => s.id === studentProfileId)?.name || '';
 
   // Start or resume submission
   let submission: Submission;
   try {
     submission = await startSubmission(classId, assessmentId, studentProfileId, studentName);
   } catch (err: unknown) {
-    renderErrorPanel(container, 'Could not start this assessment. Return to the list and try again.', {
-      showBackToList: true,
-    });
+    renderErrorPanel(
+      container,
+      'Could not start this assessment. Return to the list and try again.',
+      {
+        showBackToList: true,
+      }
+    );
     showAppToast(formatErrorForUserToast(err, 'Could not open the assessment.'), 'error');
     return;
   }
 
   const isPast = new Date(assessment.dueDateTime) < new Date();
 
-  const questionsHtml = questions.map((q, i) => {
-    const ans = submission.answers[q.id];
-    return `
+  const questionsHtml = questions
+    .map((q, i) => {
+      const ans = submission.answers[q.id];
+      return `
       <div class="bg-dark-800 rounded-xl border border-dark-700 p-5 mb-4">
         <div class="flex items-start justify-between mb-2">
           <span class="text-primary-400 font-semibold text-sm">Question ${i + 1}${q.required ? ' *' : ''}</span>
@@ -667,15 +742,19 @@ async function renderTake(): Promise<void> {
         <p class="text-white text-sm mb-3">${esc(q.prompt)}</p>
         ${renderAnswerInput(q, i, ans)}
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   renderTemplate(
     container,
     `
     <div class="max-w-3xl space-y-6">
-      ${sectionHeader(assessment.title, `
+      ${sectionHeader(
+        assessment.title,
+        `
         <button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>
-      `)}
+      `
+      )}
       <div class="text-dark-300 text-sm">
         ${esc(assessment.description)}
         <div class="flex gap-4 mt-2 text-xs text-dark-400">
@@ -706,21 +785,29 @@ async function renderTake(): Promise<void> {
 function renderAnswerInput(q: AssessmentQuestion, _qi: number, ans?: QuestionAnswer): string {
   switch (q.type) {
     case 'multiple_choice':
-      return (q.options || []).map((opt, oi) => `
+      return (q.options || [])
+        .map(
+          (opt, oi) => `
         <label class="flex items-center gap-2 p-2 rounded hover:bg-dark-700 cursor-pointer">
           <input type="radio" name="ans_${esc(q.id)}" value="${oi}"
                  ${ans?.selectedOptions?.[0] === oi ? 'checked' : ''}
                  class="accent-primary-500">
           <span class="text-dark-200 text-sm">${esc(opt)}</span>
-        </label>`).join('');
+        </label>`
+        )
+        .join('');
     case 'checkbox':
-      return (q.options || []).map((opt, oi) => `
+      return (q.options || [])
+        .map(
+          (opt, oi) => `
         <label class="flex items-center gap-2 p-2 rounded hover:bg-dark-700 cursor-pointer">
           <input type="checkbox" name="ans_${esc(q.id)}" value="${oi}"
                  ${(ans?.selectedOptions || []).includes(oi) ? 'checked' : ''}
                  class="accent-primary-500">
           <span class="text-dark-200 text-sm">${esc(opt)}</span>
-        </label>`).join('');
+        </label>`
+        )
+        .join('');
     case 'short_answer':
       return `<input type="text" name="ans_${esc(q.id)}" value="${esc(ans?.value || '')}"
                      class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm">`;
@@ -759,15 +846,16 @@ async function renderSubmissionsList(): Promise<void> {
 
   const submissions = await fetchSubmissions(classId, assessmentId);
 
-  const rows = submissions.map(sub => {
-    const statusCls: Record<string, string> = {
-      submitted: 'bg-yellow-500/20 text-yellow-400',
-      late_submitted: 'bg-orange-500/20 text-orange-400',
-      graded: 'bg-green-500/20 text-green-400',
-      in_progress: 'bg-blue-500/20 text-blue-400',
-    };
-    const cls = statusCls[sub.status] || 'bg-dark-600 text-dark-300';
-    return `
+  const rows = submissions
+    .map((sub) => {
+      const statusCls: Record<string, string> = {
+        submitted: 'bg-yellow-500/20 text-yellow-400',
+        late_submitted: 'bg-orange-500/20 text-orange-400',
+        graded: 'bg-green-500/20 text-green-400',
+        in_progress: 'bg-blue-500/20 text-blue-400',
+      };
+      const cls = statusCls[sub.status] || 'bg-dark-600 text-dark-300';
+      return `
       <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors"
           style="content-visibility:auto; contain: content; contain-intrinsic-size: 56px;">
         <td class="py-3 px-4 text-white">${esc(submissionStudentDisplayName(sub))}</td>
@@ -781,33 +869,42 @@ async function renderSubmissionsList(): Promise<void> {
           <div class="inline-flex items-center gap-1 flex-nowrap overflow-x-auto max-w-full align-middle" style="scrollbar-width: none;">
             <button data-action="grade-submission" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(sub.studentProfileId)}"
                     class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap">Grade</button>
-            ${!sub.released ? `<button data-action="release-single" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(sub.studentProfileId)}"
-                    class="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 whitespace-nowrap">Release</button>` : ''}
+            ${
+              !sub.released
+                ? `<button data-action="release-single" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(sub.studentProfileId)}"
+                    class="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 whitespace-nowrap">Release</button>`
+                : ''
+            }
             <button data-action="reopen-submission" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}" data-sp="${esc(sub.studentProfileId)}"
                     class="px-2 py-1 rounded text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 whitespace-nowrap">Reopen</button>
           </div>
         </td>
       </tr>`;
-  }).join('');
+    })
+    .join('');
 
   renderTemplate(
     container,
     `
     <div class="space-y-6">
-      ${sectionHeader(`Submissions: ${assessment.title}`, `
+      ${sectionHeader(
+        `Submissions: ${assessment.title}`,
+        `
         <div class="flex gap-2">
           <button data-action="release-all" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}"
                   class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700">Release All Grades</button>
           <button data-action="back-to-list" class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back</button>
         </div>
-      `)}
-      ${submissions.length === 0
-        ? emptyState(
-            'No submissions yet',
-            'Students haven\'t started this assessment.',
-            `<button data-action="back-to-list" type="button" class="px-4 py-2 rounded-lg bg-dark-700 text-dark-200 text-sm font-semibold hover:bg-dark-600 transition-colors">&larr; Back to assessments</button>`
-          )
-        : `<div class="overflow-x-auto rounded-xl border border-dark-700">
+      `
+      )}
+      ${
+        submissions.length === 0
+          ? emptyState(
+              'No submissions yet',
+              "Students haven't started this assessment.",
+              `<button data-action="back-to-list" type="button" class="px-4 py-2 rounded-lg bg-dark-700 text-dark-200 text-sm font-semibold hover:bg-dark-600 transition-colors">&larr; Back to assessments</button>`
+            )
+          : `<div class="overflow-x-auto rounded-xl border border-dark-700">
             <table class="w-full text-sm">
               <thead class="bg-dark-800/80">
                 <tr class="text-dark-300 text-xs uppercase tracking-wider">
@@ -853,30 +950,33 @@ async function renderGradeView(): Promise<void> {
     return;
   }
 
-  const questionsHtml = questions.map((q, i) => {
-    const ans = submission.answers[q.id];
-    const grade = submission.questionGrades[q.id];
-    const isAuto = grade?.autoGraded ?? false;
+  const questionsHtml = questions
+    .map((q, i) => {
+      const ans = submission.answers[q.id];
+      const grade = submission.questionGrades[q.id];
+      const isAuto = grade?.autoGraded ?? false;
 
-    let answerDisplay = '';
-    if (q.type === 'multiple_choice' || q.type === 'checkbox') {
-      const selected = ans?.selectedOptions || [];
-      answerDisplay = (q.options || []).map((opt, oi) => {
-        const isSelected = selected.includes(oi);
-        const isCorrect = (q.correctAnswers || []).includes(String(oi));
-        const icon = isSelected ? (isCorrect ? '✅' : '❌') : (isCorrect ? '🟢' : '');
-        return `<div class="flex items-center gap-2 text-sm ${isSelected ? 'text-white' : 'text-dark-400'}">
+      let answerDisplay = '';
+      if (q.type === 'multiple_choice' || q.type === 'checkbox') {
+        const selected = ans?.selectedOptions || [];
+        answerDisplay = (q.options || [])
+          .map((opt, oi) => {
+            const isSelected = selected.includes(oi);
+            const isCorrect = (q.correctAnswers || []).includes(String(oi));
+            const icon = isSelected ? (isCorrect ? '✅' : '❌') : isCorrect ? '🟢' : '';
+            return `<div class="flex items-center gap-2 text-sm ${isSelected ? 'text-white' : 'text-dark-400'}">
           ${icon} ${esc(opt)}
         </div>`;
-      }).join('');
-    } else {
-      answerDisplay = `<p class="text-white text-sm">${esc(ans?.value || '(no answer)')}</p>`;
-      if (q.correctAnswers?.length) {
-        answerDisplay += `<p class="text-dark-400 text-xs mt-1">Expected: ${esc(q.correctAnswers[0])}</p>`;
+          })
+          .join('');
+      } else {
+        answerDisplay = `<p class="text-white text-sm">${esc(ans?.value || '(no answer)')}</p>`;
+        if (q.correctAnswers?.length) {
+          answerDisplay += `<p class="text-dark-400 text-xs mt-1">Expected: ${esc(q.correctAnswers[0])}</p>`;
+        }
       }
-    }
 
-    return `
+      return `
       <div class="bg-dark-800 rounded-xl border border-dark-700 p-5">
         <div class="flex items-start justify-between mb-2">
           <span class="text-primary-400 font-semibold text-sm">Q${i + 1}: ${esc(q.prompt)}</span>
@@ -903,16 +1003,20 @@ async function renderGradeView(): Promise<void> {
           ${isAuto ? '<span class="text-green-400 text-xs whitespace-nowrap">Auto-graded</span>' : '<span class="text-yellow-400 text-xs whitespace-nowrap">Manual</span>'}
         </div>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   renderTemplate(
     container,
     `
     <div class="max-w-4xl space-y-6">
-      ${sectionHeader(`Grade: ${submissionStudentDisplayName(submission)}`, `
+      ${sectionHeader(
+        `Grade: ${submissionStudentDisplayName(submission)}`,
+        `
         <button data-action="view-submissions" data-class-id="${esc(classId)}" data-id="${esc(assessmentId)}"
                 class="px-3 py-1.5 rounded-lg text-xs bg-dark-700 text-dark-300 hover:bg-dark-600">&larr; Back to Submissions</button>
-      `)}
+      `
+      )}
       <div class="bg-dark-800/50 rounded-lg p-4 text-sm text-dark-300 flex gap-6">
         <span>Assessment: ${esc(assessment.title)}</span>
         <span>Submitted: ${submission.submittedAt ? formatDate(submission.submittedAt) : '—'}</span>
@@ -976,34 +1080,46 @@ async function renderResultsView(): Promise<void> {
     return;
   }
 
-  const pct = submission.totalPoints > 0 ? Math.round((submission.finalScore / submission.totalPoints) * 100) : 0;
+  const pct =
+    submission.totalPoints > 0
+      ? Math.round((submission.finalScore / submission.totalPoints) * 100)
+      : 0;
   const letter = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
 
-  const questionsHtml = questions.map((q, i) => {
-    const ans = submission.answers[q.id];
-    const grade = submission.questionGrades[q.id];
+  const questionsHtml = questions
+    .map((q, i) => {
+      const ans = submission.answers[q.id];
+      const grade = submission.questionGrades[q.id];
 
-    let answerDisplay = '';
-    if (q.type === 'multiple_choice' || q.type === 'checkbox') {
-      const selected = ans?.selectedOptions || [];
-      answerDisplay = (q.options || []).map((opt, oi) => {
-        const isSelected = selected.includes(oi);
-        const isCorrect = (q.correctAnswers || []).includes(String(oi));
-        let bg = '';
-        if (isSelected && isCorrect) bg = 'bg-green-500/10 border-green-500/30';
-        else if (isSelected && !isCorrect) bg = 'bg-red-500/10 border-red-500/30';
-        else if (isCorrect) bg = 'bg-green-500/5';
-        return `<div class="flex items-center gap-2 text-sm p-1.5 rounded border border-transparent ${bg}">
+      let answerDisplay = '';
+      if (q.type === 'multiple_choice' || q.type === 'checkbox') {
+        const selected = ans?.selectedOptions || [];
+        answerDisplay = (q.options || [])
+          .map((opt, oi) => {
+            const isSelected = selected.includes(oi);
+            const isCorrect = (q.correctAnswers || []).includes(String(oi));
+            let bg = '';
+            if (isSelected && isCorrect) bg = 'bg-green-500/10 border-green-500/30';
+            else if (isSelected && !isCorrect) bg = 'bg-red-500/10 border-red-500/30';
+            else if (isCorrect) bg = 'bg-green-500/5';
+            return `<div class="flex items-center gap-2 text-sm p-1.5 rounded border border-transparent ${bg}">
           <span class="${isSelected ? 'text-white' : 'text-dark-400'}">${esc(opt)}</span>
         </div>`;
-      }).join('');
-    } else {
-      answerDisplay = `<p class="text-white text-sm">${esc(ans?.value || '(no answer)')}</p>`;
-    }
+          })
+          .join('');
+      } else {
+        answerDisplay = `<p class="text-white text-sm">${esc(ans?.value || '(no answer)')}</p>`;
+      }
 
-    const ptColor = grade ? (grade.points === grade.maxPoints ? 'text-green-400' : grade.points > 0 ? 'text-yellow-400' : 'text-red-400') : 'text-dark-400';
+      const ptColor = grade
+        ? grade.points === grade.maxPoints
+          ? 'text-green-400'
+          : grade.points > 0
+            ? 'text-yellow-400'
+            : 'text-red-400'
+        : 'text-dark-400';
 
-    return `
+      return `
       <div class="bg-dark-800 rounded-xl border border-dark-700 p-5">
         <div class="flex items-start justify-between mb-2">
           <span class="text-dark-200 font-medium text-sm">Q${i + 1}: ${esc(q.prompt)}</span>
@@ -1012,7 +1128,8 @@ async function renderResultsView(): Promise<void> {
         <div class="pl-2 border-l-2 border-dark-600 mb-2">${answerDisplay}</div>
         ${grade?.feedback ? `<p class="text-dark-300 text-xs italic mt-1">Feedback: ${esc(grade.feedback)}</p>` : ''}
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   renderTemplate(
     container,
@@ -1135,7 +1252,11 @@ async function handleClick(e: Event): Promise<void> {
       case 'release-all': {
         showLoading();
         const subs = await fetchSubmissions(classId, id);
-        await releaseGrades(classId, id, subs.map(s => s.studentProfileId));
+        await releaseGrades(
+          classId,
+          id,
+          subs.map((s) => s.studentProfileId)
+        );
         hideLoading();
         navigate({ view: 'submissions', classId, assessmentId: id });
         break;
@@ -1151,7 +1272,10 @@ async function handleClick(e: Event): Promise<void> {
     }
   } catch (err: unknown) {
     hideLoading();
-    showAppToast(formatErrorForUserToast(err, 'That assessment action could not be completed.'), 'error');
+    showAppToast(
+      formatErrorForUserToast(err, 'That assessment action could not be completed.'),
+      'error'
+    );
   }
 }
 
@@ -1170,8 +1294,12 @@ function handleChange(e: Event): void {
   if (target.getAttribute('data-role') === 'q-type') {
     const qi = target.getAttribute('data-qi');
     const val = (target as HTMLSelectElement).value;
-    const optionsArea = document.querySelector(`[data-role="options-area"][data-qi="${qi}"]`) as HTMLElement;
-    const correctTextArea = document.querySelector(`[data-role="correct-text-area"][data-qi="${qi}"]`) as HTMLElement;
+    const optionsArea = document.querySelector(
+      `[data-role="options-area"][data-qi="${qi}"]`
+    ) as HTMLElement;
+    const correctTextArea = document.querySelector(
+      `[data-role="correct-text-area"][data-qi="${qi}"]`
+    ) as HTMLElement;
     if (optionsArea) {
       optionsArea.classList.toggle('hide', val !== 'multiple_choice' && val !== 'checkbox');
     }
@@ -1239,7 +1367,9 @@ function addOptionToBuilder(qi: number): void {
   const list = document.querySelector(`[data-role="options-list"][data-qi="${qi}"]`);
   if (!list) return;
   const oi = list.children.length;
-  const typeSelect = document.querySelector(`[data-role="q-type"][data-qi="${qi}"]`) as HTMLSelectElement;
+  const typeSelect = document.querySelector(
+    `[data-role="q-type"][data-qi="${qi}"]`
+  ) as HTMLSelectElement;
   const inputType = typeSelect?.value === 'checkbox' ? 'checkbox' : 'radio';
 
   const row = document.createElement('div');
@@ -1255,7 +1385,8 @@ function addOptionToBuilder(qi: number): void {
   textInput.setAttribute('data-role', 'option-text');
   textInput.setAttribute('data-qi', String(qi));
   textInput.setAttribute('data-oi', String(oi));
-  textInput.className = 'flex-1 px-2 py-1 rounded bg-dark-900 border border-dark-600 text-white text-sm';
+  textInput.className =
+    'flex-1 px-2 py-1 rounded bg-dark-900 border border-dark-600 text-white text-sm';
   const rm = document.createElement('button');
   rm.type = 'button';
   rm.setAttribute('data-action', 'remove-option');
@@ -1283,10 +1414,16 @@ function collectQuestionsFromDOM(): Omit<AssessmentQuestion, 'id'>[] {
 
   cards.forEach((card, i) => {
     const prompt = (card.querySelector(`[data-role="q-prompt"]`) as HTMLInputElement)?.value || '';
-    const type = (card.querySelector(`[data-role="q-type"]`) as HTMLSelectElement)?.value as QuestionType || 'multiple_choice';
-    const points = parseFloat((card.querySelector(`[data-role="q-points"]`) as HTMLInputElement)?.value || '10');
-    const required = (card.querySelector(`[data-role="q-required"]`) as HTMLInputElement)?.checked ?? true;
-    const shuffle = (card.querySelector(`[data-role="q-shuffle"]`) as HTMLInputElement)?.checked ?? false;
+    const type =
+      ((card.querySelector(`[data-role="q-type"]`) as HTMLSelectElement)?.value as QuestionType) ||
+      'multiple_choice';
+    const points = parseFloat(
+      (card.querySelector(`[data-role="q-points"]`) as HTMLInputElement)?.value || '10'
+    );
+    const required =
+      (card.querySelector(`[data-role="q-required"]`) as HTMLInputElement)?.checked ?? true;
+    const shuffle =
+      (card.querySelector(`[data-role="q-shuffle"]`) as HTMLInputElement)?.checked ?? false;
 
     let options: string[] | undefined;
     let correctAnswers: string[] | undefined;
@@ -1301,13 +1438,16 @@ function collectQuestionsFromDOM(): Omit<AssessmentQuestion, 'id'>[] {
           options!.push((inp as HTMLInputElement).value);
         });
         // Get checked correct answers using type-agnostic selector within the options list
-        const correctInputs = optionsList.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked');
-        correctInputs.forEach(inp => {
+        const correctInputs = optionsList.querySelectorAll(
+          'input[type="radio"]:checked, input[type="checkbox"]:checked'
+        );
+        correctInputs.forEach((inp) => {
           correctAnswers!.push((inp as HTMLInputElement).value);
         });
       }
     } else if (type === 'numeric' || type === 'short_answer') {
-      const correctText = (card.querySelector(`[data-role="q-correct-text"]`) as HTMLInputElement)?.value || '';
+      const correctText =
+        (card.querySelector(`[data-role="q-correct-text"]`) as HTMLInputElement)?.value || '';
       correctAnswers = correctText ? [correctText] : [];
     }
     // Firestore does not allow undefined; use empty arrays when not applicable
@@ -1315,7 +1455,10 @@ function collectQuestionsFromDOM(): Omit<AssessmentQuestion, 'id'>[] {
     const correctAnswersSafe = correctAnswers ?? [];
 
     questions.push({
-      type, prompt, required, points,
+      type,
+      prompt,
+      required,
+      points,
       options: optionsSafe,
       correctAnswers: correctAnswersSafe,
       order: i + 1,
@@ -1330,7 +1473,7 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
   const fd = new FormData(form);
   const existingId = fd.get('assessmentId') as string;
   const existingClassId = fd.get('existingClassId') as string;
-  const classId = existingClassId || fd.get('classId') as string;
+  const classId = existingClassId || (fd.get('classId') as string);
 
   if (!classId) {
     showAppToast('Please select a class.', 'info');
@@ -1342,7 +1485,7 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
     showAppToast('Please add at least one question.', 'info');
     return;
   }
-  if (questions.some(q => !q.prompt.trim())) {
+  if (questions.some((q) => !q.prompt.trim())) {
     showAppToast('All questions must have a prompt.', 'info');
     return;
   }
@@ -1352,18 +1495,22 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
   const dueDateTime = dueRaw ? new Date(dueRaw).toISOString() : new Date().toISOString();
 
   const assignedMode = fd.get('assignedMode') as 'class' | 'individual';
-  const assignedStudentIds = assignedMode === 'individual'
-    ? (fd.get('assignedStudentIds') as string || '').split(',').map(s => s.trim()).filter(Boolean)
-    : [];
+  const assignedStudentIds =
+    assignedMode === 'individual'
+      ? ((fd.get('assignedStudentIds') as string) || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
 
   const assessmentData = {
     title: fd.get('title') as string,
-    description: fd.get('description') as string || '',
-    status: publish ? 'published' as const : 'draft' as const,
+    description: (fd.get('description') as string) || '',
+    status: publish ? ('published' as const) : ('draft' as const),
     dueDateTime,
     allowLate: fd.get('allowLate') === 'true',
-    latePolicy: fd.get('latePolicy') as string || '',
-    timeLimit: parseInt(fd.get('timeLimit') as string || '0') || 0,
+    latePolicy: (fd.get('latePolicy') as string) || '',
+    timeLimit: parseInt((fd.get('timeLimit') as string) || '0') || 0,
     releasePolicy: fd.get('releasePolicy') as 'auto' | 'manual',
     assignedMode,
     assignedStudentIds,
@@ -1405,24 +1552,38 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
 //  STUDENT SUBMISSION LOGIC
 // ────────────────────────────────────────────────────────────────────────────
 
-function collectAnswersFromDOM(form: HTMLFormElement, questions: AssessmentQuestion[]): Record<string, QuestionAnswer> {
+function collectAnswersFromDOM(
+  form: HTMLFormElement,
+  questions: AssessmentQuestion[]
+): Record<string, QuestionAnswer> {
   const answers: Record<string, QuestionAnswer> = {};
   for (const q of questions) {
     if (q.type === 'multiple_choice') {
-      const checked = form.querySelector(`input[name="ans_${q.id}"]:checked`) as HTMLInputElement | null;
+      const checked = form.querySelector(
+        `input[name="ans_${q.id}"]:checked`
+      ) as HTMLInputElement | null;
       answers[q.id] = { selectedOptions: checked ? [parseInt(checked.value)] : [] };
     } else if (q.type === 'checkbox') {
       const checked = form.querySelectorAll(`input[name="ans_${q.id}"]:checked`);
-      answers[q.id] = { selectedOptions: Array.from(checked).map(c => parseInt((c as HTMLInputElement).value)) };
+      answers[q.id] = {
+        selectedOptions: Array.from(checked).map((c) => parseInt((c as HTMLInputElement).value)),
+      };
     } else {
-      const input = form.querySelector(`[name="ans_${q.id}"]`) as HTMLInputElement | HTMLTextAreaElement | null;
+      const input = form.querySelector(`[name="ans_${q.id}"]`) as
+        | HTMLInputElement
+        | HTMLTextAreaElement
+        | null;
       answers[q.id] = { value: input?.value || '' };
     }
   }
   return answers;
 }
 
-async function handleSaveProgress(classId: string, assessmentId: string, studentProfileId: string): Promise<void> {
+async function handleSaveProgress(
+  classId: string,
+  assessmentId: string,
+  studentProfileId: string
+): Promise<void> {
   const form = document.getElementById('take-assessment-form') as HTMLFormElement;
   if (!form) return;
 
@@ -1445,7 +1606,12 @@ async function handleSubmitAssessment(form: HTMLFormElement): Promise<void> {
   const assessmentId = form.dataset.id || '';
   const sp = form.dataset.sp || '';
 
-  if (!confirm('Submit this assessment? You will not be able to change your answers after submitting.')) return;
+  if (
+    !confirm(
+      'Submit this assessment? You will not be able to change your answers after submitting.'
+    )
+  )
+    return;
 
   const questions = await fetchQuestions(classId, assessmentId);
   const answers = collectAnswersFromDOM(form, questions);
@@ -1471,7 +1637,12 @@ async function handleSubmitAssessment(form: HTMLFormElement): Promise<void> {
 //  GRADING LOGIC
 // ────────────────────────────────────────────────────────────────────────────
 
-async function handleSaveGrades(classId: string, assessmentId: string, studentProfileId: string, release: boolean): Promise<void> {
+async function handleSaveGrades(
+  classId: string,
+  assessmentId: string,
+  studentProfileId: string,
+  release: boolean
+): Promise<void> {
   const gradingContainer = document.getElementById('grading-questions');
   if (!gradingContainer) return;
 
@@ -1485,7 +1656,9 @@ async function handleSaveGrades(classId: string, assessmentId: string, studentPr
       const qid = el.dataset.qid || '';
       const max = parseFloat(el.dataset.max || '0');
       const pts = parseFloat(el.value) || 0;
-      const feedbackEl = gradingContainer.querySelector(`[data-role="grade-feedback"][data-qid="${qid}"]`) as HTMLInputElement;
+      const feedbackEl = gradingContainer.querySelector(
+        `[data-role="grade-feedback"][data-qid="${qid}"]`
+      ) as HTMLInputElement;
       const feedback = feedbackEl?.value || '';
       await gradeQuestion(classId, assessmentId, studentProfileId, qid, pts, max, feedback);
     }
@@ -1551,7 +1724,7 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
 
 async function fetchTeacherAssessmentsCached(): Promise<TeacherAssessmentRow[]> {
   const now = Date.now();
-  if (teacherAssessmentsCache && (now - teacherAssessmentsCache.ts) < CACHE_TTL_MS) {
+  if (teacherAssessmentsCache && now - teacherAssessmentsCache.ts < CACHE_TTL_MS) {
     return teacherAssessmentsCache.data;
   }
   if (teacherAssessmentsInFlight) return teacherAssessmentsInFlight;
@@ -1560,13 +1733,17 @@ async function fetchTeacherAssessmentsCached(): Promise<TeacherAssessmentRow[]> 
       teacherAssessmentsCache = { ts: Date.now(), data };
       return data;
     })
-    .finally(() => { teacherAssessmentsInFlight = null; });
+    .finally(() => {
+      teacherAssessmentsInFlight = null;
+    });
   return teacherAssessmentsInFlight;
 }
 
-async function fetchStudentAssessmentsCached(profileIds: string[]): Promise<StudentAssessmentRow[]> {
+async function fetchStudentAssessmentsCached(
+  profileIds: string[]
+): Promise<StudentAssessmentRow[]> {
   const now = Date.now();
-  if (studentAssessmentsCache && (now - studentAssessmentsCache.ts) < CACHE_TTL_MS) {
+  if (studentAssessmentsCache && now - studentAssessmentsCache.ts < CACHE_TTL_MS) {
     return studentAssessmentsCache.data;
   }
   if (studentAssessmentsInFlight) return studentAssessmentsInFlight;
@@ -1575,7 +1752,9 @@ async function fetchStudentAssessmentsCached(profileIds: string[]): Promise<Stud
       studentAssessmentsCache = { ts: Date.now(), data };
       return data;
     })
-    .finally(() => { studentAssessmentsInFlight = null; });
+    .finally(() => {
+      studentAssessmentsInFlight = null;
+    });
   return studentAssessmentsInFlight;
 }
 
@@ -1612,12 +1791,15 @@ function teacherListSkeletonHtml(): string {
     </tr>`;
   return `
     <div class="space-y-6">
-      ${sectionHeader('Assessments', `
+      ${sectionHeader(
+        'Assessments',
+        `
         <button data-action="create-assessment"
                 class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">
           + Create Assessment
         </button>
-      `)}
+      `
+      )}
       <div class="md:hidden grid gap-4">${card.repeat(6)}</div>
       <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
         <table class="w-full text-sm">

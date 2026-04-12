@@ -1,0 +1,9 @@
+dist
+node_modules
+coverage
+firebase-functions/lib
+package-lock.json
+firebase-functions/package-lock.json
+*.min.js
+.wrangler
+.firebase

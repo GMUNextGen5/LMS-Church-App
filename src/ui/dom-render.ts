@@ -36,7 +36,9 @@ export function emptyStateBlockHtml(
   const brand = branded
     ? `<p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-2">DSKM LMS</p>`
     : '';
-  const cta = ctaHtml ? `<div class="mt-6 flex flex-wrap justify-center gap-3">${ctaHtml}</div>` : '';
+  const cta = ctaHtml
+    ? `<div class="mt-6 flex flex-wrap justify-center gap-3">${ctaHtml}</div>`
+    : '';
   const sub = subtitle
     ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${escapeHtmlText(subtitle)}</p>`
     : '';
@@ -51,7 +53,12 @@ export function emptyStateBlockHtml(
 }
 
 /** Single table row spanning `colspan` with the same empty-state treatment (for gradebook / history tables). */
-export function emptyStateTableRowHtml(colspan: number, title: string, subtitle?: string, ctaHtml?: string): string {
+export function emptyStateTableRowHtml(
+  colspan: number,
+  title: string,
+  subtitle?: string,
+  ctaHtml?: string
+): string {
   const inner = emptyStateBlockHtml(title, subtitle, ctaHtml).trim();
   return `<tr><td colspan="${colspan}" class="p-0 border-0 bg-transparent">${inner}</td></tr>`;
 }
@@ -87,13 +94,11 @@ export function renderErrorPanel(
   icon.textContent = '⚠️';
 
   const h3 = document.createElement('h3');
-  h3.className =
-    'font-display text-lg font-semibold text-slate-900 dark:text-primary-300';
+  h3.className = 'font-display text-lg font-semibold text-on-surface dark:text-primary-300';
   h3.textContent = 'Access or data unavailable';
 
   const p = document.createElement('p');
-  p.className =
-    'mt-2 text-sm text-slate-700 dark:text-dark-300 leading-relaxed';
+  p.className = 'mt-2 text-sm text-on-surface-muted leading-relaxed';
   p.textContent = message;
 
   wrap.append(icon, h3, p);
@@ -102,7 +107,7 @@ export function renderErrorPanel(
     const btn = document.createElement('button');
     btn.setAttribute('data-action', 'back-to-list');
     btn.className =
-      'mt-6 px-4 py-2.5 rounded-xl text-sm font-medium border border-primary-400/40 text-slate-900 dark:text-primary-300 hover:bg-primary-400/10 transition-colors';
+      'mt-6 px-4 py-2.5 rounded-xl text-sm font-medium border border-primary-400/40 text-on-surface dark:text-primary-300 hover:bg-primary-400/10 transition-colors';
     btn.textContent = '\u2190 Back to List';
     wrap.appendChild(btn);
   }

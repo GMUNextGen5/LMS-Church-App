@@ -31,23 +31,60 @@ export function sanitizeHTML(html: string): string {
   installDomPurifyLinkHooks();
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
-      'p', 'span', 'strong', 'b', 'i', 'em', 'u', 'br', 'hr',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'ul', 'ol', 'li',
-      'table', 'thead', 'tbody', 'tr', 'th', 'td',
-      'div', 'section', 'article', 'blockquote', 'pre', 'code',
-      'a', 'aside', 'nav', 'header', 'footer',
-      'button', 'input',
+      'p',
+      'span',
+      'strong',
+      'b',
+      'i',
+      'em',
+      'u',
+      'br',
+      'hr',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'ul',
+      'ol',
+      'li',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
+      'div',
+      'section',
+      'article',
+      'blockquote',
+      'pre',
+      'code',
+      'a',
+      'aside',
+      'nav',
+      'header',
+      'footer',
+      'button',
+      'input',
     ],
     ALLOWED_ATTR: [
-      'class', 'id',
-      'href', 'target', 'rel',
-      'colspan', 'rowspan',
-      'type', 'value', 'readonly', 'aria-label',
+      'class',
+      'id',
+      'href',
+      'target',
+      'rel',
+      'colspan',
+      'rowspan',
+      'type',
+      'value',
+      'readonly',
+      'aria-label',
     ],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z.+.-]+(?:[^a-z+.:-]|$))/i,
     FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form']
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
   });
 }
 
@@ -209,7 +246,7 @@ function installAiModalDelegatedClicks(): void {
 export function initUI(): void {
   loginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
   signupTabBtn?.addEventListener('click', () => switchAuthTab('signup'));
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLElement;
       const tabName = target.dataset.tab;
@@ -260,9 +297,11 @@ export function showAppContainer(): void {
  */
 export function hideAllRoleRegionsForAuthHandshake(): void {
   currentUserRole = null;
-  document.querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav').forEach((el) => {
-    (el as HTMLElement).classList.add('hide');
-  });
+  document
+    .querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav')
+    .forEach((el) => {
+      (el as HTMLElement).classList.add('hide');
+    });
 }
 
 export function configureUIForRole(user: User): void {
@@ -272,9 +311,11 @@ export function configureUIForRole(user: User): void {
   if (!isValidRole) {
     currentUserRole = null;
     // Hide role-based regions until we have a valid profile.
-    document.querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav').forEach(el => {
-      (el as HTMLElement).classList.add('hide');
-    });
+    document
+      .querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav')
+      .forEach((el) => {
+        (el as HTMLElement).classList.add('hide');
+      });
     document.dispatchEvent(new CustomEvent('lms-role-configured', { detail: { role: null } }));
     return;
   }
@@ -289,33 +330,43 @@ export function configureUIForRole(user: User): void {
   if (roleBadgeEl) {
     roleBadgeEl.textContent = role.charAt(0).toUpperCase() + role.slice(1);
   }
-  document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach(el => {
+  document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach((el) => {
     (el as HTMLElement).classList.add('hide');
   });
   if (role === 'admin') {
-    document.querySelectorAll('.admin-only, .teacher-only').forEach(el => {
+    document.querySelectorAll('.admin-only, .teacher-only').forEach((el) => {
       (el as HTMLElement).classList.remove('hide');
     });
   } else if (role === 'teacher') {
-    document.querySelectorAll('.teacher-only').forEach(el => {
+    document.querySelectorAll('.teacher-only').forEach((el) => {
       (el as HTMLElement).classList.remove('hide');
     });
   } else {
-    document.querySelectorAll('.student-only').forEach(el => {
+    document.querySelectorAll('.student-only').forEach((el) => {
       (el as HTMLElement).classList.remove('hide');
     });
   }
 
-  document.querySelectorAll('.lms-my-account-nav').forEach(el => {
+  document.querySelectorAll('.lms-my-account-nav').forEach((el) => {
     (el as HTMLElement).classList.remove('hide');
   });
 
-  document.dispatchEvent(new CustomEvent('lms-role-configured', { detail: { role: role as UserRole } }));
+  document.dispatchEvent(
+    new CustomEvent('lms-role-configured', { detail: { role: role as UserRole } })
+  );
 }
 
 const VALID_MAIN_TABS = new Set([
-  'dashboard', 'grades', 'attendance', 'assessments', 'classes', 'registration',
-  'teacher-registration', 'users', 'ai-agent', 'student-profile',
+  'dashboard',
+  'grades',
+  'attendance',
+  'assessments',
+  'classes',
+  'registration',
+  'teacher-registration',
+  'users',
+  'ai-agent',
+  'student-profile',
 ]);
 
 /**
@@ -323,7 +374,7 @@ const VALID_MAIN_TABS = new Set([
  */
 function switchTab(tabName: string): void {
   if (!VALID_MAIN_TABS.has(tabName)) return;
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.classList.remove('tab-active');
     btn.classList.add('text-dark-300');
   });
@@ -332,7 +383,7 @@ function switchTab(tabName: string): void {
     activeBtn.classList.add('tab-active');
     activeBtn.classList.remove('text-dark-300');
   }
-  document.querySelectorAll('.tab-content').forEach(content => {
+  document.querySelectorAll('.tab-content').forEach((content) => {
     content.classList.add('hide');
   });
   const activeContent = document.getElementById(`${tabName}-content`);
@@ -400,8 +451,7 @@ const TOAST_STYLES: Record<AppToastKind, string> = {
     'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-primary-100 border-primary-400/35',
   error:
     'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-red-100 border-red-500/40',
-  info:
-    'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-dark-100 border-secondary-400/30',
+  info: 'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-dark-100 border-secondary-400/30',
 };
 
 /**
@@ -432,7 +482,9 @@ export function formatErrorForUserToast(err: unknown, context: string): string {
     !/^\s*FirebaseError/i.test(msg) &&
     !/\bat\s+[\w.$]+\s*\(/i.test(msg) &&
     !/\n\s*at\s/.test(msg);
-  return safe ? `${context} ${msg}` : `${context} Please try again, or refresh the page if the problem continues.`;
+  return safe
+    ? `${context} ${msg}`
+    : `${context} Please try again, or refresh the page if the problem continues.`;
 }
 
 /** Short-lived toast for confirmations and errors (replaces `alert` in production flows). */
@@ -564,13 +616,7 @@ export function closeModal(): void {
   runModalDismissPipeline();
 }
 
-export {
-  loginForm,
-  signupForm,
-  logoutBtn,
-  loginError,
-  signupError
-};
+export { loginForm, signupForm, logoutBtn, loginError, signupError };
 
 export function getCurrentUserRole(): UserRole | null {
   return currentUserRole;
