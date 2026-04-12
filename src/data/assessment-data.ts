@@ -48,6 +48,19 @@ function requireAuth() {
   return user;
 }
 
+/** Whether any of `studentProfileIds` may see this assessment (entire class vs individual / legacy ID lists). */
+function studentProfileMatchesAssessmentVisibility(
+  assessment: Assessment,
+  studentProfileIds: string[]
+): boolean {
+  const assignedIds = assessment.assignedStudentIds ?? [];
+  const treatsAsIndividual =
+    assessment.assignedMode === 'individual' ||
+    (assessment.assignedMode !== 'class' && assignedIds.length > 0);
+  if (!treatsAsIndividual) return true;
+  return assignedIds.some((id) => studentProfileIds.includes(id));
+}
+
 function requireTeacherOrAdmin() {
   const user = requireAuth();
   if (user.role !== 'teacher' && user.role !== 'admin') {
@@ -207,11 +220,9 @@ export async function fetchStudentAssessments(
       for (const aDoc of aSnap.docs) {
         const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;
 
-        if (
-          assessment.assignedMode === 'individual' &&
-          !(assessment.assignedStudentIds ?? []).some((id) => studentProfileIds.includes(id))
-        )
+        if (!studentProfileMatchesAssessmentVisibility(assessment, studentProfileIds)) {
           continue;
+        }
 
         let submission: Submission | undefined;
         let submissionProfileId = '';
@@ -298,10 +309,7 @@ export async function fetchNextStudentDeadline(
         const dueMs = parseAssessmentDueInstantMs(assessment.dueDateTime);
         if (dueMs === null || dueMs <= nowMs) continue;
 
-        if (
-          assessment.assignedMode === 'individual' &&
-          !(assessment.assignedStudentIds ?? []).some((id) => profileIds.includes(id))
-        ) {
+        if (!studentProfileMatchesAssessmentVisibility(assessment, profileIds)) {
           continue;
         }
 
@@ -936,13 +944,6 @@ export async function fetchStudentUpcomingAssessmentsMobile(
   for (const row of rows) {
     const dueMs = Date.parse(row.assessment.dueDateTime);
     if (!Number.isFinite(dueMs) || dueMs <= nowMs) continue;
-
-    if (
-      row.assessment.assignedMode === 'individual' &&
-      !(row.assessment.assignedStudentIds ?? []).some((id) => profileIds.includes(id))
-    ) {
-      continue;
-    }
 
     if (!submissionStillActionable(row.submission)) continue;
 

@@ -1,5 +1,6 @@
 /** Application bootstrap: auth, shell state, and tab wiring. */
 
+import '@fontsource-variable/geist';
 import './assets/styles/tailwind.css';
 import './core/shims/chart-bridge';
 import './core/shims/jspdf-bridge';
@@ -202,6 +203,7 @@ const MOBILE_NAV_TEACHER: MobileBottomNavItem[] = [
 const MOBILE_NAV_STUDENT: MobileBottomNavItem[] = [
   { tab: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { tab: 'classes', label: 'Classes', icon: 'school' },
+  { tab: 'assessments', label: 'Assess', icon: 'assignment' },
   { tab: 'grades', label: 'Grades', icon: 'analytics' },
   { tab: 'student-profile', label: 'Profile', icon: 'person' },
 ];
@@ -1252,19 +1254,20 @@ function renderCsvPreview(errors: string[] = []): void {
   csvParsedRows.forEach((row, i) => {
     const statusIcon =
       row._status === 'success'
-        ? '<span class="text-green-400" aria-label="Registered">&#10003;</span>'
+        ? '<span class="text-green-600 dark:text-green-400" aria-label="Registered">&#10003;</span>'
         : row._status === 'error'
-          ? `<span class="text-red-400" title="${escapeHtmlAttr(row._error || '')}" aria-label="Error">&#10007;</span>`
-          : '<span class="text-dark-500" aria-hidden="true">&mdash;</span>';
+          ? `<span class="text-red-600 dark:text-red-400" title="${escapeHtmlAttr(row._error || '')}" aria-label="Error">&#10007;</span>`
+          : '<span class="text-slate-400 dark:text-dark-500" aria-hidden="true">&mdash;</span>';
     const tr = document.createElement('tr');
-    tr.className = 'border-b border-dark-700/50 hover:bg-dark-800/40 transition-colors';
+    tr.className =
+      'border-b border-slate-200/90 hover:bg-slate-50/90 dark:border-dark-700/50 dark:hover:bg-dark-800/40 transition-colors';
     tr.innerHTML = `
-      <td class="py-2 px-3 text-dark-300">${i + 1}</td>
-      <td class="py-2 px-3 text-dark-100 font-medium">${escapeHtmlText(row.name)}</td>
-      <td class="py-2 px-3 text-dark-300 font-mono text-xs">${escapeHtmlText(row.memberId)}</td>
-      <td class="py-2 px-3 text-dark-300">${row.yearOfBirth ? escapeHtmlText(String(row.yearOfBirth)) : '—'}</td>
-      <td class="py-2 px-3 text-dark-300">${escapeHtmlText(row.contactPhone || '—')}</td>
-      <td class="py-2 px-3 text-dark-300">${escapeHtmlText(row.contactEmail || '—')}</td>
+      <td class="py-2 px-3 text-slate-500 dark:text-dark-300">${i + 1}</td>
+      <td class="py-2 px-3 text-slate-900 font-medium dark:text-dark-100">${escapeHtmlText(row.name)}</td>
+      <td class="py-2 px-3 text-slate-600 font-mono text-xs dark:text-dark-300">${escapeHtmlText(row.memberId)}</td>
+      <td class="py-2 px-3 text-slate-600 dark:text-dark-300">${row.yearOfBirth ? escapeHtmlText(String(row.yearOfBirth)) : '—'}</td>
+      <td class="py-2 px-3 text-slate-600 dark:text-dark-300">${escapeHtmlText(row.contactPhone || '—')}</td>
+      <td class="py-2 px-3 text-slate-600 dark:text-dark-300">${escapeHtmlText(row.contactEmail || '—')}</td>
       <td class="py-2 px-3 text-center">${statusIcon}</td>`;
     tbody.appendChild(tr);
   });
@@ -2256,14 +2259,19 @@ function updateAttendanceClassChrome(): void {
   const dateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
   if (metaDate && dateInput?.value) {
     const d = new Date(`${dateInput.value}T12:00:00`);
+    const narrow =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(max-width: 639px)')?.matches === true;
     metaDate.textContent = Number.isNaN(d.getTime())
       ? dateInput.value
-      : d.toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
+      : narrow
+        ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : d.toLocaleDateString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          });
   }
   const courseId = sel?.value?.trim() ?? '';
   const metaExtra = document.getElementById('attendance-meta-extra');
@@ -2280,7 +2288,7 @@ function updateAttendanceClassChrome(): void {
       const bits = [c.schedule, c.description].filter(
         (x) => typeof x === 'string' && x.trim()
       ) as string[];
-      metaExtra.textContent = bits.length ? ` · ${bits.join(' · ')}` : '';
+      metaExtra.textContent = bits.length ? bits.join(' · ') : '';
     } else {
       metaExtra.textContent = '';
     }
@@ -2373,19 +2381,19 @@ async function loadRegisteredStudents(): Promise<void> {
         const name = escapeHtmlText((student.name || '').toLowerCase());
         const email = escapeHtmlText((student.contactEmail || '').toLowerCase());
         return `
-      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors registered-student-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
-        <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(student.memberId || 'N/A')}</td>
-        <td class="py-3 px-4 text-white">${escapeHtmlText(safeStudentDisplayName(student.name))}</td>
-        <td class="py-3 px-4 text-center text-dark-300">${student.yearOfBirth ?? 'N/A'}</td>
-        <td class="py-3 px-4 text-dark-300 text-sm">
+      <tr class="border-b border-slate-200 hover:bg-slate-50/90 dark:border-dark-700 dark:hover:bg-white/5 transition-colors registered-student-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
+        <td class="py-3 px-4 text-slate-900 font-semibold dark:text-white">${escapeHtmlText(student.memberId || 'N/A')}</td>
+        <td class="py-3 px-4 text-slate-900 dark:text-white">${escapeHtmlText(safeStudentDisplayName(student.name))}</td>
+        <td class="py-3 px-4 text-center text-slate-600 dark:text-dark-300">${student.yearOfBirth ?? 'N/A'}</td>
+        <td class="py-3 px-4 text-slate-600 dark:text-dark-300 text-sm">
           ${escapeHtmlText(student.contactEmail || 'N/A')}<br>
           ${escapeHtmlText(student.contactPhone || '')}
         </td>
         <td class="py-3 px-4 text-center">
           <button type="button" data-lms-action="edit-student" data-student-id="${escapeHtmlText(student.id)}"
-            class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm mr-2">Edit</button>
+            class="px-3 py-1 rounded-md border border-primary-600/15 bg-primary-600/10 text-primary-800 hover:bg-primary-600/15 dark:border-transparent dark:bg-primary-500/20 dark:text-primary-400 dark:hover:bg-primary-500/30 transition-all text-sm mr-2">Edit</button>
           <button type="button" data-lms-action="delete-student" data-student-id="${escapeHtmlText(student.id)}"
-            class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
+            class="px-3 py-1 rounded-md border border-red-600/15 bg-red-600/10 text-red-800 hover:bg-red-600/15 dark:border-transparent dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
     `;
@@ -2423,16 +2431,16 @@ async function loadRegisteredTeachers(): Promise<void> {
         const name = escapeHtmlText(displayName.toLowerCase());
         const email = escapeHtmlText((t.email || '').toLowerCase());
         return `
-      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors registered-teacher-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
-        <td class="py-3 px-4 text-white font-semibold">${escapeHtmlText(t.memberId || 'N/A')}</td>
-        <td class="py-3 px-4 text-white">${escapeHtmlText(displayName === '—' ? t.email || 'N/A' : displayName)}</td>
-        <td class="py-3 px-4 text-center text-dark-300">${t.yearOfBirth ?? 'N/A'}</td>
-        <td class="py-3 px-4 text-dark-300 text-sm">
+      <tr class="border-b border-slate-200 hover:bg-slate-50/90 dark:border-dark-700 dark:hover:bg-white/5 transition-colors registered-teacher-row" data-member-id="${memberId}" data-name="${name}" data-email="${email}">
+        <td class="py-3 px-4 text-slate-900 font-semibold dark:text-white">${escapeHtmlText(t.memberId || 'N/A')}</td>
+        <td class="py-3 px-4 text-slate-900 dark:text-white">${escapeHtmlText(displayName === '—' ? t.email || 'N/A' : displayName)}</td>
+        <td class="py-3 px-4 text-center text-slate-600 dark:text-dark-300">${t.yearOfBirth ?? 'N/A'}</td>
+        <td class="py-3 px-4 text-slate-600 dark:text-dark-300 text-sm">
           ${escapeHtmlText(t.email || 'N/A')}<br>${escapeHtmlText(t.phone || t.phoneNumber || '')}
         </td>
         <td class="py-3 px-4 text-center">
           <button type="button" data-lms-action="delete-teacher" data-user-id="${escapeHtmlText(t.uid)}"
-            class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button>
+            class="px-3 py-1 rounded-md border border-red-600/15 bg-red-600/10 text-red-800 hover:bg-red-600/15 dark:border-transparent dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30 transition-all text-sm">Delete</button>
         </td>
       </tr>
     `;
@@ -2462,10 +2470,10 @@ function userManagementInitials(displayLabel: string, email: string): string {
 
 function userManagementAvatarPaletteClass(uid: string): string {
   const palettes = [
-    'bg-primary-500/25 text-primary-100 ring-1 ring-inset ring-primary-400/35',
-    'bg-secondary-600/30 text-secondary-100 ring-1 ring-inset ring-secondary-400/40',
-    'bg-teal-500/25 text-teal-100 ring-1 ring-inset ring-teal-400/35',
-    'bg-amber-500/25 text-amber-100 ring-1 ring-inset ring-amber-400/35',
+    'bg-primary-500/20 text-primary-900 ring-1 ring-inset ring-primary-500/35 dark:bg-primary-500/25 dark:text-primary-100 dark:ring-primary-400/35',
+    'bg-violet-200/80 text-violet-950 ring-1 ring-inset ring-violet-400/50 dark:bg-secondary-600/30 dark:text-secondary-100 dark:ring-secondary-400/40',
+    'bg-teal-200/70 text-teal-950 ring-1 ring-inset ring-teal-500/40 dark:bg-teal-500/25 dark:text-teal-100 dark:ring-teal-400/35',
+    'bg-amber-200/80 text-amber-950 ring-1 ring-inset ring-amber-500/45 dark:bg-amber-500/25 dark:text-amber-100 dark:ring-amber-400/35',
   ];
   let h = 0;
   for (let i = 0; i < uid.length; i++) h = (h + uid.charCodeAt(i) * (i + 1)) % 2147483647;
@@ -2491,14 +2499,14 @@ function setUsersMobileShellState(
 
 const USERS_MOBILE_SKELETON_LI = `
 <li class="list-none">
-  <div class="rounded-2xl border border-surface-default bg-surface-container-tonal p-4 motion-safe:animate-pulse" aria-hidden="true">
+  <div class="rounded-2xl border border-slate-200/90 bg-slate-50 p-4 motion-safe:animate-pulse dark:border-surface-default dark:bg-surface-container-tonal" aria-hidden="true">
     <div class="flex gap-3">
-      <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/20 dark:bg-white/10"></div>
+      <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/80 dark:bg-white/10"></div>
       <div class="min-w-0 flex-1 space-y-2 pt-0.5">
-        <div class="h-3 w-24 rounded bg-slate-300/25 dark:bg-white/15"></div>
-        <div class="h-4 w-full max-w-[14rem] rounded bg-slate-300/20 dark:bg-white/10"></div>
-        <div class="h-3 w-40 rounded bg-slate-300/15 dark:bg-white/10"></div>
-        <div class="mt-3 h-11 w-full rounded-xl bg-slate-300/15 dark:bg-white/10"></div>
+        <div class="h-3 w-24 rounded bg-slate-300/70 dark:bg-white/15"></div>
+        <div class="h-4 w-full max-w-[14rem] rounded bg-slate-300/50 dark:bg-white/10"></div>
+        <div class="h-3 w-40 rounded bg-slate-300/45 dark:bg-white/10"></div>
+        <div class="mt-3 h-11 w-full rounded-xl bg-slate-300/40 dark:bg-white/10"></div>
       </div>
     </div>
   </div>
@@ -2509,7 +2517,7 @@ async function loadAllUsers(): Promise<void> {
   const mobileList = document.getElementById('users-mobile-list');
   if (!tableBody) return;
   const loadingTableHtml =
-    '<tr><td colspan="4" class="text-center py-8 text-dark-300"><div class="loading-spinner mx-auto mb-2"></div>Loading users...</td></tr>';
+    '<tr><td colspan="4" class="text-center py-8 text-slate-600 dark:text-dark-300"><div class="loading-spinner mx-auto mb-2"></div>Loading users...</td></tr>';
   const loadingMobileHtml = `${USERS_MOBILE_SKELETON_LI}${USERS_MOBILE_SKELETON_LI}`;
   try {
     if (getCurrentUserRole() !== 'admin') return;
@@ -2534,10 +2542,10 @@ async function loadAllUsers(): Promise<void> {
         renderTemplate(
           mobileList,
           `<li class="list-none">
-  <div class="rounded-2xl border border-dashed border-surface-default bg-surface-container-tonal px-5 py-12 text-center">
-    <i data-lucide="users" class="mx-auto block h-11 w-11 text-slate-400 opacity-90 dark:text-slate-500" aria-hidden="true"></i>
-    <p class="mt-4 text-base font-semibold text-on-surface">No accounts in the directory</p>
-    <p class="mt-2 text-sm text-on-surface-muted max-w-sm mx-auto leading-relaxed">User records will appear here as administrators, teachers, and learners are provisioned.</p>
+  <div class="rounded-2xl border border-dashed border-slate-300/90 bg-slate-50 px-5 py-12 text-center dark:border-surface-default dark:bg-surface-container-tonal">
+    <i data-lucide="users" class="mx-auto block h-11 w-11 text-slate-500 dark:text-slate-500" aria-hidden="true"></i>
+    <p class="mt-4 text-base font-semibold text-slate-900 dark:text-on-surface">No accounts in the directory</p>
+    <p class="mt-2 text-sm text-slate-600 dark:text-on-surface-muted max-w-sm mx-auto leading-relaxed">User records will appear here as administrators, teachers, and learners are provisioned.</p>
   </div>
 </li>`
         );
@@ -2548,13 +2556,13 @@ async function loadAllUsers(): Promise<void> {
     const getRoleBadgeClass = (role: string) => {
       switch (role) {
         case 'admin':
-          return 'bg-red-500/20 text-red-400 ring-1 ring-inset ring-red-400/25';
+          return 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-200/90 dark:bg-red-500/20 dark:text-red-300 dark:ring-red-400/25';
         case 'teacher':
-          return 'bg-blue-500/20 text-blue-400 ring-1 ring-inset ring-blue-400/25';
+          return 'bg-sky-50 text-sky-900 ring-1 ring-inset ring-sky-200/90 dark:bg-blue-500/20 dark:text-blue-300 dark:ring-blue-400/25';
         case 'student':
-          return 'bg-green-500/20 text-green-400 ring-1 ring-inset ring-green-400/25';
+          return 'bg-emerald-50 text-emerald-900 ring-1 ring-inset ring-emerald-200/90 dark:bg-green-500/20 dark:text-green-300 dark:ring-green-400/25';
         default:
-          return 'bg-gray-500/20 text-gray-400 ring-1 ring-inset ring-gray-400/25';
+          return 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-gray-500/20 dark:text-gray-300 dark:ring-gray-400/25';
       }
     };
     const usersRowsHtml = users
@@ -2566,17 +2574,17 @@ async function loadAllUsers(): Promise<void> {
         const roleAttr = escapeHtmlText(user.role);
         const roleLabel = escapeHtmlText(user.role.charAt(0).toUpperCase() + user.role.slice(1));
         return `
-      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors user-management-row" data-email="${emailAttr}" data-name="${nameAttr}">
-        <td class="py-3 px-4 text-white">${escapeHtmlText(user.email)}</td>
+      <tr class="border-b border-slate-200 hover:bg-slate-50/90 dark:border-dark-700 dark:hover:bg-white/5 transition-colors user-management-row" data-email="${emailAttr}" data-name="${nameAttr}">
+        <td class="py-3 px-4 text-slate-900 dark:text-white font-medium [overflow-wrap:anywhere]">${escapeHtmlText(user.email)}</td>
         <td class="py-3 px-4 text-center">
           <span class="px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeClass(user.role)}">
             ${roleLabel}
           </span>
         </td>
-        <td class="py-3 px-4 text-center text-dark-300 text-sm">${escapeHtmlText(accountLabel)}</td>
+        <td class="py-3 px-4 text-center text-slate-600 dark:text-dark-300 text-sm">${escapeHtmlText(accountLabel)}</td>
         <td class="py-3 px-4 text-center">
           <button type="button" data-lms-action="change-role" data-user-id="${uidAttr}" data-user-role="${roleAttr}"
-            class="px-3 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-all text-sm">Change Role</button>
+            class="px-3 py-1.5 rounded-lg border border-primary-500/30 bg-primary-50 text-primary-800 text-sm font-semibold hover:bg-primary-100 transition-colors dark:border-transparent dark:bg-primary-500/20 dark:text-primary-300 dark:hover:bg-primary-500/30">Change Role</button>
         </td>
       </tr>
     `;
@@ -2599,23 +2607,23 @@ async function loadAllUsers(): Promise<void> {
           const avatarPalette = userManagementAvatarPaletteClass(user.uid);
           return `
 <li class="user-management-card list-none" data-email="${emailAttr}" data-name="${nameAttr}">
-  <article class="relative overflow-hidden rounded-2xl border border-surface-default bg-surface-container shadow-sm transition-[transform,box-shadow] duration-200 motion-safe:active:scale-[0.99] dark:shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
-    <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary-400/40 to-transparent opacity-60" aria-hidden="true"></div>
+  <article class="relative overflow-hidden rounded-2xl border border-slate-200/95 bg-white shadow-md shadow-slate-900/[0.06] transition-[transform,box-shadow] duration-200 motion-safe:active:scale-[0.99] dark:border-surface-default dark:bg-surface-container dark:shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
+    <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary-500/35 to-transparent opacity-70 dark:via-primary-400/40" aria-hidden="true"></div>
     <div class="flex gap-3.5 p-4">
       <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarPalette}" aria-hidden="true">${initials}</div>
       <div class="min-w-0 flex-1">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0 flex-1">
-            <p class="text-[0.65rem] font-semibold uppercase tracking-wide text-on-surface-subtle">Account</p>
-            <p class="mt-0.5 text-base font-semibold leading-snug text-on-surface truncate" title="${accountSafe}">${accountSafe}</p>
-            <p class="mt-1 text-xs leading-relaxed text-on-surface-muted break-all" title="${emailSafe}">${emailSafe}</p>
+            <p class="text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600 dark:text-on-surface-subtle">Account</p>
+            <p class="mt-0.5 text-base font-semibold leading-snug text-slate-950 dark:text-on-surface truncate" title="${accountSafe}">${accountSafe}</p>
+            <p class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-on-surface-muted break-all [overflow-wrap:anywhere]" title="${emailSafe}">${emailSafe}</p>
           </div>
           <span class="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[0.7rem] font-semibold leading-none ${getRoleBadgeClass(user.role)}">
             ${roleLabel}
           </span>
         </div>
         <button type="button" data-lms-action="change-role" data-user-id="${uidAttr}" data-user-role="${roleAttr}"
-          class="mt-4 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-primary-500/35 bg-primary-500/15 px-4 py-3 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent dark:text-primary-300 dark:hover:bg-primary-500/20 touch-manipulation">
+          class="mt-4 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-primary-600/25 bg-primary-600/[0.08] px-4 py-3 text-sm font-semibold text-primary-900 transition-colors hover:bg-primary-600/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-primary-500/35 dark:bg-primary-500/15 dark:text-primary-300 dark:hover:bg-primary-500/20 dark:focus-visible:ring-offset-transparent touch-manipulation">
           <span>Change role</span>
           <i data-lucide="chevron-right" class="h-4 w-4 opacity-80" aria-hidden="true"></i>
         </button>
@@ -2632,7 +2640,7 @@ async function loadAllUsers(): Promise<void> {
     if (tableBody) {
       renderTemplate(
         tableBody,
-        '<tr><td colspan="4" class="text-center py-8 text-dark-300">Could not load the user list. Use Refresh or try again shortly.</td></tr>'
+        '<tr><td colspan="4" class="text-center py-8 text-slate-600 dark:text-dark-300">Could not load the user list. Use Refresh or try again shortly.</td></tr>'
       );
     }
     if (mobileList) {
@@ -2640,10 +2648,10 @@ async function loadAllUsers(): Promise<void> {
       renderTemplate(
         mobileList,
         `<li class="list-none">
-  <div class="rounded-2xl border border-red-500/35 bg-red-500/[0.06] px-5 py-8 text-center">
-    <i data-lucide="alert-triangle" class="mx-auto block h-10 w-10 text-red-400/90" aria-hidden="true"></i>
-    <p class="mt-3 text-sm font-semibold text-on-surface">Could not load users</p>
-    <p class="mt-2 text-xs text-on-surface-muted leading-relaxed">Tap <span class="font-medium text-primary-600 dark:text-primary-300">Refresh</span> at the top to try again.</p>
+  <div class="rounded-2xl border border-red-300/90 bg-red-50 px-5 py-8 text-center dark:border-red-500/35 dark:bg-red-500/[0.06]">
+    <i data-lucide="alert-triangle" class="mx-auto block h-10 w-10 text-red-600 dark:text-red-400/90" aria-hidden="true"></i>
+    <p class="mt-3 text-sm font-semibold text-slate-900 dark:text-on-surface">Could not load users</p>
+    <p class="mt-2 text-xs text-slate-600 dark:text-on-surface-muted leading-relaxed">Tap <span class="font-semibold text-primary-700 dark:text-primary-300">Refresh</span> at the top to try again.</p>
   </div>
 </li>`
       );
@@ -2761,7 +2769,7 @@ async function populateStudentAccountDropdown(): Promise<void> {
       opt.setAttribute('data-email', (user.email || '').toLowerCase());
       opt.setAttribute('data-name', (user.name || user.displayName || '').toLowerCase());
       opt.textContent = displayText;
-      opt.className = 'px-4 py-2 cursor-pointer hover:bg-dark-700 text-white text-sm';
+      opt.className = 'lms-dropdown-option';
       listEl.appendChild(opt);
     });
     if (searchInput) {
@@ -2771,7 +2779,7 @@ async function populateStudentAccountDropdown(): Promise<void> {
   } catch {
     listEl.replaceChildren();
     const msg = document.createElement('div');
-    msg.className = 'px-4 py-3 text-dark-400 text-sm';
+    msg.className = 'lms-dropdown-error';
     msg.textContent =
       'Could not load registered accounts. Use manual UID entry below, or open Refresh and try again.';
     listEl.appendChild(msg);
@@ -2798,7 +2806,7 @@ async function populateTeacherAccountDropdown(): Promise<void> {
       opt.setAttribute('data-email', (user.email || '').toLowerCase());
       opt.setAttribute('data-name', (user.name || user.displayName || '').toLowerCase());
       opt.textContent = displayText;
-      opt.className = 'px-4 py-2 cursor-pointer hover:bg-dark-700 text-white text-sm';
+      opt.className = 'lms-dropdown-option';
       listEl.appendChild(opt);
     });
     if (searchInput) {
@@ -2808,7 +2816,7 @@ async function populateTeacherAccountDropdown(): Promise<void> {
   } catch {
     listEl.replaceChildren();
     const msg = document.createElement('div');
-    msg.className = 'px-4 py-3 text-dark-400 text-sm';
+    msg.className = 'lms-dropdown-error';
     msg.textContent = 'Could not load teacher accounts. Use manual UID entry below.';
     listEl.appendChild(msg);
   }

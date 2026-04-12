@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
 
 @tailwind base;
@@ -26,14 +26,17 @@
   }
 
   html {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
+    font-optical-sizing: auto;
   }
 
   h1,
   h2,
   h3,
   .font-display {
-    font-family: Manrope, Inter, system-ui, sans-serif;
+    font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -66,5 +69,107 @@
   /** Extra bottom inset for scroll regions above the home indicator (use with fixed nav layouts). */
   .pb-safe {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@layer components {
+  /** Registration / roster panels — matches User Management shell for light + dark. Pair with `glass-effect` in markup. */
+  .lms-reg-shell {
+    @apply rounded-xl md:rounded-2xl overflow-hidden min-w-0;
+    @apply border border-slate-200/80 bg-white/[0.92] backdrop-blur-xl;
+    @apply shadow-[0_1px_0_0_rgba(255,255,255,0.95)_inset,0_1px_2px_rgba(15,23,42,0.05),0_10px_36px_-6px_rgba(15,23,42,0.1)];
+    @apply dark:border-white/[0.09] dark:bg-dark-900/35;
+    @apply dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_12px_48px_-8px_rgba(0,0,0,0.55)];
+  }
+
+  .lms-form-label {
+    @apply block text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2 text-slate-700 dark:text-dark-200;
+  }
+
+  .lms-form-input {
+    @apply w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm transition-all;
+    @apply bg-white border border-slate-300 text-slate-900 placeholder:text-slate-500 shadow-sm shadow-slate-900/5;
+    @apply focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15;
+    @apply dark:bg-dark-800 dark:border-dark-600 dark:text-white dark:placeholder-dark-400 dark:shadow-none dark:focus:ring-primary-500/20;
+  }
+
+  .lms-form-textarea {
+    @apply lms-form-input md:min-h-[5.5rem];
+  }
+
+  .lms-account-trigger {
+    @apply lms-form-input flex items-center justify-between cursor-pointer;
+  }
+
+  .lms-dropdown-panel {
+    @apply rounded-lg border shadow-xl;
+    @apply bg-white border-slate-200 text-slate-900;
+    @apply dark:bg-dark-800 dark:border-dark-600;
+  }
+
+  .lms-dropdown-search {
+    @apply w-full px-4 py-2 border-b rounded-t-lg text-sm;
+    @apply border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-500;
+    @apply focus:outline-none focus:border-primary-500;
+    @apply dark:border-dark-600 dark:bg-dark-900 dark:text-white dark:placeholder-dark-400;
+  }
+
+  .lms-info-callout {
+    @apply mb-3 sm:mb-6 p-3 sm:p-4 rounded-lg border;
+    @apply bg-sky-50 border-sky-200/90;
+    @apply dark:bg-blue-500/10 dark:border-blue-500/30;
+  }
+
+  .lms-info-callout-title {
+    @apply font-semibold text-sm sm:text-base mb-1.5 sm:mb-2 flex items-center gap-2;
+    @apply text-sky-900 dark:text-blue-400;
+  }
+
+  .lms-info-callout-body {
+    @apply text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-dark-300;
+  }
+
+  .lms-inline-link {
+    @apply text-sm text-blue-700 underline hover:text-blue-900;
+    @apply dark:text-blue-400 dark:hover:text-blue-300;
+  }
+
+  .lms-btn-icon-refresh {
+    @apply w-full sm:w-auto sm:shrink-0 min-h-[44px] px-4 py-2.5 sm:py-3 rounded-lg inline-flex items-center justify-center transition-all;
+    @apply border border-slate-300 bg-slate-100 text-primary-800 hover:bg-slate-200;
+    @apply dark:border-transparent dark:bg-dark-700 dark:text-primary-400 dark:hover:bg-dark-600;
+  }
+
+  .lms-warn-hint {
+    @apply text-[11px] sm:text-xs rounded p-2 leading-snug border;
+    @apply bg-amber-50 text-amber-950 border-amber-200/90;
+    @apply dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/30;
+  }
+
+  .lms-reg-page-title {
+    @apply text-xl sm:text-2xl font-bold mb-3 sm:mb-6 text-slate-900 dark:text-white;
+  }
+
+  .lms-reg-section-title {
+    @apply text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-slate-900 dark:text-white;
+  }
+
+  .lms-reg-bulk-title {
+    @apply text-lg sm:text-2xl font-bold mb-2 flex items-center gap-3 text-slate-900 dark:text-white;
+  }
+
+  .lms-csv-template-btn {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm min-h-[44px] transition-all border;
+    @apply border-primary-600/20 bg-primary-600/10 text-primary-900 hover:bg-primary-600/15;
+    @apply dark:border-primary-500/30 dark:bg-primary-500/15 dark:text-primary-400 dark:hover:bg-primary-500/25;
+  }
+
+  .lms-dropdown-option {
+    @apply px-4 py-2 cursor-pointer text-sm text-slate-900 hover:bg-slate-100;
+    @apply dark:text-white dark:hover:bg-dark-700;
+  }
+
+  .lms-dropdown-error {
+    @apply px-4 py-3 text-sm text-slate-600 dark:text-dark-400;
   }
 }

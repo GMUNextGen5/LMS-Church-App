@@ -5,8 +5,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Geist Variable', 'Geist', 'system-ui', 'sans-serif'],
+        display: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
       },
       colors: {
         burgundy: {

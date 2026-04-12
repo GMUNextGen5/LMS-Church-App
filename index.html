@@ -10,6 +10,12 @@
     <title>DSKM LMS</title>
     <link rel="icon" href="data:," />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
     <script>
       function safeGetStorage(key) {
         try {
@@ -156,15 +162,18 @@
 
       body {
         font-family:
-          'Inter',
+          'Geist Variable',
+          'Geist',
           -apple-system,
           BlinkMacSystemFont,
+          system-ui,
           sans-serif;
         background: var(--login-bg-primary);
         color: var(--login-text-primary);
         overflow-x: hidden;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        font-optical-sizing: auto;
       }
 
       /* ==================== ANIMATED BACKGROUND ==================== */
@@ -427,9 +436,10 @@
 
       /* ==================== TYPOGRAPHY ==================== */
       .hero-title {
+        font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
         font-size: clamp(2.5rem, 6vw, 4rem);
-        font-weight: 800;
-        letter-spacing: -0.03em;
+        font-weight: 400;
+        letter-spacing: -0.02em;
         color: #ffffff;
         text-align: center;
         margin-bottom: 0.75rem;
@@ -1639,6 +1649,102 @@
           0 4px 12px rgba(15, 23, 42, 0.08);
       }
 
+      /* Mark Attendance: date field — avoid horizontal overflow on narrow phones (iOS/WebKit) */
+      .lms-mark-attendance-date-field {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        border-radius: 0.5rem;
+        border: 1px solid rgb(71 85 105 / 0.85);
+        background: rgb(30 41 59);
+        overflow: hidden;
+      }
+      [data-theme='light'] .lms-mark-attendance-date-field {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+      }
+      #mark-attendance-form input#attendance-date[type='date'] {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        margin: 0;
+        border: 0;
+        border-radius: 0.5rem;
+        background: transparent;
+        color: inherit;
+        -webkit-appearance: none;
+        appearance: none;
+        min-height: 44px;
+        line-height: 1.5;
+      }
+      #mark-attendance-form input#attendance-date[type='date']::-webkit-calendar-picker-indicator {
+        opacity: 0.85;
+        cursor: pointer;
+        margin-inline-end: 2px;
+      }
+      [data-theme='light'] #mark-attendance-form input#attendance-date[type='date'] {
+        color: #0f172a;
+        color-scheme: light;
+      }
+      @media (max-width: 639px) {
+        #mark-attendance-form input#attendance-date[type='date'] {
+          font-size: 16px;
+        }
+      }
+
+      /* Assessment builder: due datetime — full-width, no horizontal overflow on phones */
+      .lms-assessment-datetime-field {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        border-radius: 0.5rem;
+        border: 1px solid rgb(71 85 105 / 0.85);
+        background: rgb(30 41 59);
+        overflow: hidden;
+      }
+      [data-theme='light'] .lms-assessment-datetime-field {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+      }
+      #assessment-form input#builder-due-datetime[type='datetime-local'] {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        margin: 0;
+        border: 0;
+        border-radius: 0.5rem;
+        background: transparent;
+        color: inherit;
+        -webkit-appearance: none;
+        appearance: none;
+        min-height: 44px;
+        line-height: 1.5;
+      }
+      #assessment-form input#builder-due-datetime[type='datetime-local']::-webkit-calendar-picker-indicator {
+        opacity: 0.85;
+        cursor: pointer;
+        margin-inline-end: 2px;
+      }
+      [data-theme='light'] #assessment-form input#builder-due-datetime[type='datetime-local'] {
+        color: #0f172a;
+        color-scheme: light;
+      }
+      [data-theme='dark'] #assessment-form input#builder-due-datetime[type='datetime-local'] {
+        color: #f8fafc;
+        color-scheme: dark;
+      }
+      @media (max-width: 639px) {
+        #assessment-form input#builder-due-datetime[type='datetime-local'] {
+          font-size: 16px;
+        }
+      }
+
       /* ── Attendance: light-mode overrides (comprehensive) ── */
 
       /* --- Stat cards (both student + teacher) --- */
@@ -2844,7 +2950,7 @@
         transform: translateY(-2px);
       }
 
-      /* ==================== THEME TOGGLE BUTTON ==================== */
+      /* ==================== THEME SWITCHER (Geist-style: light / system / dark) ==================== */
       .auth-theme-toggle {
         position: fixed;
         top: 2rem;
@@ -2859,158 +2965,116 @@
         }
       }
 
-      .theme-toggle {
-        position: relative;
-        width: 52px;
-        height: 28px;
-        flex-shrink: 0;
-        background: rgba(15, 23, 42, 0.75);
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        border-radius: 9999px;
-        cursor: pointer;
-        transition:
-          background 0.22s ease,
-          border-color 0.22s ease,
-          box-shadow 0.22s ease;
-        display: flex;
+      .lms-theme-switch {
+        display: inline-flex;
         align-items: center;
-        padding: 2px;
+        gap: 2px;
+        padding: 3px;
+        border-radius: 9999px;
+        flex-shrink: 0;
+        background: rgba(15, 23, 42, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.28);
         box-shadow:
           inset 0 1px 1px rgba(0, 0, 0, 0.18),
           0 1px 2px rgba(0, 0, 0, 0.12);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
       }
 
-      .theme-toggle:hover {
-        border-color: rgba(148, 163, 184, 0.45);
-        background: rgba(30, 41, 59, 0.88);
-        box-shadow:
-          inset 0 1px 1px rgba(0, 0, 0, 0.2),
-          0 2px 6px rgba(0, 0, 0, 0.14);
+      .lms-theme-seg {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 28px;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 9999px;
+        background: transparent;
+        color: rgba(148, 163, 184, 0.95);
+        cursor: pointer;
+        transition:
+          background 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+          color 0.2s ease,
+          box-shadow 0.2s ease,
+          transform 0.15s ease;
       }
 
-      .theme-toggle:focus-visible {
+      .lms-theme-seg:hover {
+        color: #f1f5f9;
+      }
+
+      .lms-theme-seg:active {
+        transform: scale(0.96);
+      }
+
+      .lms-theme-seg:focus-visible {
         outline: 2px solid rgba(148, 163, 184, 0.85);
         outline-offset: 2px;
       }
 
-      /* Theme toggle — light chrome (header + auth) */
-      [data-theme='light'] .theme-toggle {
-        background: #ffffff;
-        border: 1px solid #cbd5e1;
-        box-shadow:
-          0 1px 2px rgba(15, 23, 42, 0.05),
-          inset 0 1px 0 rgba(255, 255, 255, 1);
-      }
-
-      [data-theme='light'] .theme-toggle:hover {
-        border-color: #94a3b8;
-        box-shadow:
-          0 2px 8px rgba(15, 23, 42, 0.07),
-          inset 0 1px 0 rgba(255, 255, 255, 1);
-      }
-
-      [data-theme='light'] .theme-toggle:focus-visible {
-        outline: 2px solid #0ea5e9;
-        outline-offset: 2px;
-      }
-
-      .theme-toggle-slider {
-        position: absolute;
-        left: 2px;
-        top: 50%;
-        margin-top: -12px;
-        width: 24px;
-        height: 24px;
-        background: #f1f5f9;
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        border-radius: 50%;
-        transition:
-          transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-          background 0.22s ease,
-          border-color 0.22s ease,
-          box-shadow 0.22s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow:
-          0 1px 2px rgba(15, 23, 42, 0.1),
-          0 2px 4px rgba(0, 0, 0, 0.08);
-        transform: translateX(0);
-      }
-
-      .theme-toggle:hover .theme-toggle-slider {
-        box-shadow:
-          0 1px 3px rgba(15, 23, 42, 0.12),
-          0 2px 6px rgba(0, 0, 0, 0.1);
-      }
-
-      /* Thumb on right when app is in light mode */
-      [data-theme='light'] .theme-toggle-slider {
-        transform: translateX(24px);
-        background: #0f172a;
-        border-color: rgba(15, 23, 42, 0.55);
+      .lms-theme-seg[aria-pressed='true'] {
+        background: rgba(255, 255, 255, 0.14);
+        color: #f8fafc;
         box-shadow:
           0 1px 2px rgba(0, 0, 0, 0.2),
-          0 2px 6px rgba(0, 0, 0, 0.15);
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
       }
 
-      [data-theme='light'] .theme-toggle:hover .theme-toggle-slider {
-        border-color: rgba(15, 23, 42, 0.65);
+      .lms-theme-seg-icon {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+        pointer-events: none;
       }
 
-      .theme-icon {
-        width: 13px;
-        height: 13px;
-        color: #64748b;
-        stroke-width: 2;
+      .lms-theme-switch--compact .lms-theme-seg {
+        width: 30px;
+        height: 26px;
       }
 
-      [data-theme='light'] .theme-toggle-slider .theme-icon {
-        color: #fbbf24;
+      .lms-theme-switch--compact .lms-theme-seg-icon {
+        width: 14px;
+        height: 14px;
       }
 
-      /* Slightly larger in desktop header only */
       @media (min-width: 768px) {
-        #theme-toggle-btn.theme-toggle {
-          width: 56px;
+        .lms-theme-switch--header .lms-theme-seg {
+          width: 36px;
           height: 30px;
         }
 
-        #theme-toggle-btn .theme-toggle-slider {
-          width: 26px;
-          height: 26px;
-          margin-top: -13px;
-        }
-
-        #theme-toggle-btn .theme-icon {
-          width: 14px;
-          height: 14px;
-        }
-
-        [data-theme='light'] #theme-toggle-btn .theme-toggle-slider {
-          transform: translateX(26px);
+        .lms-theme-switch--header .lms-theme-seg-icon {
+          width: 16px;
+          height: 16px;
         }
       }
 
-      /* Compact — mobile app bar + auth (default 52×28 above) */
-      .lms-mobile-theme-toggle.theme-toggle {
-        width: 52px;
-        height: 28px;
+      [data-theme='light'] .lms-theme-switch {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow:
+          0 1px 2px rgba(15, 23, 42, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 1);
       }
 
-      .lms-mobile-theme-toggle .theme-toggle-slider {
-        width: 24px;
-        height: 24px;
-        margin-top: -12px;
+      [data-theme='light'] .lms-theme-seg {
+        color: #64748b;
       }
 
-      .lms-mobile-theme-toggle .theme-icon {
-        width: 12px;
-        height: 12px;
+      [data-theme='light'] .lms-theme-seg:hover {
+        color: #0f172a;
       }
 
-      [data-theme='light'] .lms-mobile-theme-toggle .theme-toggle-slider {
-        transform: translateX(24px);
+      [data-theme='light'] .lms-theme-seg:focus-visible {
+        outline-color: #0ea5e9;
+      }
+
+      [data-theme='light'] .lms-theme-seg[aria-pressed='true'] {
+        background: #0f172a;
+        color: #fbbf24;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
       }
 
       /* Hide scrollbar for Chrome, Safari and Opera */
@@ -6120,45 +6184,78 @@
     <div id="auth-container" role="main" aria-label="Authentication">
       <!-- Theme Toggle (Top Right) -->
       <div class="auth-theme-toggle">
-        <button
-          id="auth-theme-toggle-btn"
-          class="theme-toggle"
-          title="Toggle dark/light mode"
-          aria-label="Toggle dark/light mode"
+        <div
+          class="lms-theme-switch lms-theme-switch--compact"
+          data-lms-theme-switch
+          role="group"
+          aria-label="Color theme"
         >
-          <div class="theme-toggle-slider">
+          <button
+            type="button"
+            class="lms-theme-seg"
+            data-theme-pref="light"
+            aria-label="Light theme"
+            title="Light"
+          >
             <svg
-              class="theme-icon moon-icon"
+              class="lms-theme-seg-icon"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4"></circle>
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+              ></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="lms-theme-seg"
+            data-theme-pref="system"
+            aria-label="Match system theme"
+            title="System"
+          >
+            <svg
+              class="lms-theme-seg-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="lms-theme-seg"
+            data-theme-pref="dark"
+            aria-label="Dark theme"
+            title="Dark"
+          >
+            <svg
+              class="lms-theme-seg-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
             >
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
-            <svg
-              class="theme-icon sun-icon hide"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-          </div>
-        </button>
+          </button>
+        </div>
       </div>
 
       <!-- Professional Badge -->
@@ -6791,42 +6888,77 @@
               class="flex-1 text-center font-display font-bold text-xs tracking-[0.14em] text-primary-800 dark:text-primary-300"
               >DSKM LMS</span
             >
-            <button
-              type="button"
-              id="lms-mobile-theme-toggle-btn"
-              class="lms-mobile-theme-toggle theme-toggle"
-              title="Toggle dark/light mode"
-              aria-label="Toggle theme"
+            <div
+              class="lms-theme-switch lms-theme-switch--compact"
+              data-lms-theme-switch
+              role="group"
+              aria-label="Color theme"
             >
-              <div class="theme-toggle-slider">
+              <button
+                type="button"
+                class="lms-theme-seg"
+                data-theme-pref="light"
+                aria-label="Light theme"
+                title="Light"
+              >
                 <svg
-                  class="theme-icon moon-icon"
+                  class="lms-theme-seg-icon"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="4" stroke-width="2"></circle>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+                  ></path>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="lms-theme-seg"
+                data-theme-pref="system"
+                aria-label="Match system theme"
+                title="System"
+              >
+                <svg
+                  class="lms-theme-seg-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke-width="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21" stroke-width="2"></line>
+                  <line x1="12" y1="17" x2="12" y2="21" stroke-width="2"></line>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="lms-theme-seg"
+                data-theme-pref="dark"
+                aria-label="Dark theme"
+                title="Dark"
+              >
+                <svg
+                  class="lms-theme-seg-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="2"
-                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                    d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
                   ></path>
                 </svg>
-                <svg
-                  class="theme-icon sun-icon hide"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                  ></path>
-                </svg>
-              </div>
-            </button>
+              </button>
+            </div>
             <button
               type="button"
               id="lms-mobile-notifications-btn"
@@ -6982,42 +7114,77 @@
                 class="hidden xl:inline-flex px-2.5 py-1 rounded-lg text-[0.65rem] font-semibold uppercase tracking-wide bg-primary-400/10 text-primary-300 border border-primary-400/25"
               ></span>
 
-              <button
-                id="theme-toggle-btn"
-                class="theme-toggle"
-                title="Toggle dark/light mode"
-                type="button"
-                aria-label="Toggle theme"
+              <div
+                class="lms-theme-switch lms-theme-switch--header"
+                data-lms-theme-switch
+                role="group"
+                aria-label="Color theme"
               >
-                <div class="theme-toggle-slider">
+                <button
+                  type="button"
+                  class="lms-theme-seg"
+                  data-theme-pref="light"
+                  aria-label="Light theme"
+                  title="Light"
+                >
                   <svg
-                    class="theme-icon moon-icon"
+                    class="lms-theme-seg-icon"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="4" stroke-width="2"></circle>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+                    ></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="lms-theme-seg"
+                  data-theme-pref="system"
+                  aria-label="Match system theme"
+                  title="System"
+                >
+                  <svg
+                    class="lms-theme-seg-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke-width="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21" stroke-width="2"></line>
+                    <line x1="12" y1="17" x2="12" y2="21" stroke-width="2"></line>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="lms-theme-seg"
+                  data-theme-pref="dark"
+                  aria-label="Dark theme"
+                  title="Dark"
+                >
+                  <svg
+                    class="lms-theme-seg-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                      d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
                     ></path>
                   </svg>
-                  <svg
-                    class="theme-icon sun-icon hide"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                    ></path>
-                  </svg>
-                </div>
-              </button>
+                </button>
+              </div>
             </div>
           </header>
 
@@ -7737,19 +7904,19 @@
 
                 <!-- Mark Attendance Form (Teacher/Admin Only) -->
                 <div
-                  class="teacher-only admin-only glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 hide min-w-0 max-w-full overflow-hidden border border-white/5"
+                  class="teacher-only admin-only glass-effect lms-reg-shell p-4 sm:p-6 hide min-w-0 max-w-full"
                 >
-                  <h3 class="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Mark Attendance</h3>
+                  <h3 class="lms-reg-section-title">Mark Attendance</h3>
                   <form id="mark-attendance-form" class="space-y-3 sm:space-y-4 min-w-0">
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
+                      <label class="lms-form-label"
                         >Student</label
                       >
                       <input
                         type="text"
                         id="attendance-student-search"
                         placeholder="Search by name or email..."
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 mb-2"
+                        class="lms-form-input mb-2"
                         aria-label="Search students by name or email"
                       />
                       <p
@@ -7760,25 +7927,29 @@
                       <select
                         id="attendance-student-select"
                         required
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm sm:text-base focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input text-sm sm:text-base"
                       >
                         <option value="">-- Select a student --</option>
                       </select>
                     </div>
-                    <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
+                    <div class="min-w-0 max-w-full">
+                      <label
+                        class="lms-form-label"
+                        for="attendance-date"
                         >Date</label
                       >
-                      <input
-                        type="date"
-                        id="attendance-date"
-                        name="date"
-                        required
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm focus:outline-none focus:border-primary-500 input-glow transition-all"
-                      />
+                      <div class="lms-mark-attendance-date-field focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-shadow">
+                        <input
+                          type="date"
+                          id="attendance-date"
+                          name="date"
+                          required
+                          class="px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:text-white dark:placeholder-dark-400"
+                        />
+                      </div>
                     </div>
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
+                      <label class="lms-form-label"
                         >Status</label
                       >
                       <div class="grid grid-cols-2 gap-2 min-w-0">
@@ -7791,10 +7962,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-green-500 peer-checked:bg-green-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-green-600 peer-checked:bg-green-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-green-500 dark:peer-checked:bg-green-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-green-400 shrink-0"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-green-600 dark:text-green-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7806,7 +7977,7 @@
                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Present</span
                             >
                           </div>
@@ -7820,10 +7991,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-red-500 peer-checked:bg-red-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-red-600 peer-checked:bg-red-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-red-500 dark:peer-checked:bg-red-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-red-400 shrink-0"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-red-600 dark:text-red-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7835,7 +8006,7 @@
                                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Absent</span
                             >
                           </div>
@@ -7849,10 +8020,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-yellow-500 peer-checked:bg-yellow-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-amber-600 peer-checked:bg-amber-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-yellow-500 dark:peer-checked:bg-yellow-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-yellow-400 shrink-0"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-amber-600 dark:text-yellow-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7864,7 +8035,7 @@
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Late</span
                             >
                           </div>
@@ -7878,10 +8049,10 @@
                             class="hidden peer"
                           />
                           <div
-                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-dark-800 border-2 border-dark-600 text-center cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-500/20 hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
+                            class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-blue-600 peer-checked:bg-blue-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-blue-500 dark:peer-checked:bg-blue-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
                           >
                             <svg
-                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-blue-400 shrink-0"
+                              class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-blue-600 dark:text-blue-400 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -7893,7 +8064,7 @@
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                               ></path>
                             </svg>
-                            <span class="text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Excused</span
                             >
                           </div>
@@ -7901,18 +8072,18 @@
                       </div>
                     </div>
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2"
+                      <label class="lms-form-label"
                         >Notes (Optional)</label
                       >
                       <textarea
                         name="notes"
                         rows="2"
                         placeholder="Additional notes..."
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       ></textarea>
                     </div>
-                    <div id="mark-attendance-error" class="text-red-400 text-xs sm:text-sm hide"></div>
-                    <div id="mark-attendance-success" class="text-green-400 text-xs sm:text-sm hide"></div>
+                    <div id="mark-attendance-error" class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"></div>
+                    <div id="mark-attendance-success" class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"></div>
                     <button
                       type="submit"
                       class="w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-sm sm:text-base font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
@@ -7939,10 +8110,16 @@
                         </h4>
                         <p
                           id="attendance-active-class-meta"
-                          class="text-slate-400 text-xs sm:text-sm flex flex-wrap gap-x-2 gap-y-1 min-w-0"
+                          class="text-slate-400 text-xs sm:text-sm flex flex-col gap-1 min-w-0 max-w-full sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-1"
                         >
-                          <span id="attendance-meta-date" class="break-words"></span>
-                          <span id="attendance-meta-extra" class="break-words min-w-0"></span>
+                          <span
+                            id="attendance-meta-date"
+                            class="min-w-0 max-w-full break-words text-slate-300 [overflow-wrap:anywhere]"
+                          ></span>
+                          <span
+                            id="attendance-meta-extra"
+                            class="min-w-0 max-w-full break-words empty:hidden sm:before:mr-2 sm:before:inline-block sm:before:text-slate-500 sm:before:content-['·'] [overflow-wrap:anywhere]"
+                          ></span>
                         </p>
                       </div>
                       <div
@@ -8137,13 +8314,13 @@
               class="tab-content admin-only teacher-only hide min-w-0 max-w-full overflow-x-hidden space-y-4 md:space-y-6"
             >
               <div
-                class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 overflow-hidden min-w-0 max-md:max-h-[min(calc(100dvh-6.5rem),36rem)] max-md:overflow-y-auto max-md:overscroll-contain"
+                class="glass-effect lms-reg-shell p-4 sm:p-6 max-md:max-h-[min(calc(100dvh-6.5rem),36rem)] max-md:overflow-y-auto max-md:overscroll-contain"
               >
-                <h3 class="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-6">Student Registration</h3>
+                <h3 class="lms-reg-page-title">Student Registration</h3>
 
                 <!-- Instructions -->
-                <div class="mb-3 sm:mb-6 p-3 sm:p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                  <h4 class="text-blue-400 font-semibold text-sm sm:text-base mb-1.5 sm:mb-2 flex items-center gap-2">
+                <div class="lms-info-callout">
+                  <h4 class="lms-info-callout-title">
                     <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         stroke-linecap="round"
@@ -8154,9 +8331,9 @@
                     </svg>
                     Registration Instructions
                   </h4>
-                  <p class="text-xs sm:text-sm text-dark-300 leading-relaxed">
+                  <p class="lms-info-callout-body">
                     Fill in the student information below to register a new student in the system.
-                    All fields marked with <span class="text-red-400">*</span>
+                    All fields marked with <span class="text-red-600 dark:text-red-400">*</span>
                     are required.
                   </p>
                 </div>
@@ -8166,35 +8343,35 @@
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 min-w-0">
                     <!-- Student Name -->
                     <div>
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Student Name <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Student Name <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <input
                         type="text"
                         name="studentName"
                         required
                         placeholder="John Smith"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Membership ID (optional) -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
+                      <label class="lms-form-label">
                         Membership ID
                       </label>
                       <input
                         type="text"
                         name="memberId"
                         placeholder="STU001 (optional)"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Year of Birth -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Year of Birth <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Year of Birth <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <input
                         type="number"
@@ -8203,42 +8380,42 @@
                         min="1990"
                         max="2025"
                         placeholder="2010"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Contact Info (Phone) -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Contact Phone <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Contact Phone <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <input
                         type="tel"
                         name="contactPhone"
                         required
                         placeholder="+1 (555) 123-4567"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Contact Email -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Contact Email <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Contact Email <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <input
                         type="email"
                         name="contactEmail"
                         required
                         placeholder="parent@example.com"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Link to Student Account -->
                     <div class="min-w-0 md:col-span-2">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Link to Student Account <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Link to Student Account <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
 
                       <!-- Dropdown Method (requires Cloud Functions) -->
@@ -8249,7 +8426,7 @@
                             class="account-dropdown flex-1 relative min-w-0"
                           >
                             <div
-                              class="account-dropdown-trigger flex items-center justify-between w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all"
+                              class="account-dropdown-trigger lms-account-trigger"
                               tabindex="0"
                               role="combobox"
                               aria-expanded="false"
@@ -8260,7 +8437,7 @@
                                 >-- Select Registered Account --</span
                               >
                               <svg
-                                class="w-5 h-5 text-dark-400 flex-shrink-0 ml-2"
+                                class="w-5 h-5 text-slate-500 dark:text-dark-400 flex-shrink-0 ml-2"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -8274,11 +8451,11 @@
                               </svg>
                             </div>
                             <div
-                              class="account-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 rounded-lg bg-dark-800 border border-dark-600 shadow-xl hide"
+                              class="account-dropdown-panel lms-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 hide"
                             >
                               <input
                                 type="text"
-                                class="account-dropdown-search w-full px-4 py-2 border-b border-dark-600 bg-dark-900 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 rounded-t-lg"
+                                class="account-dropdown-search lms-dropdown-search"
                                 placeholder="Search by email..."
                                 autocomplete="off"
                                 aria-label="Search accounts by email"
@@ -8292,7 +8469,7 @@
                           <button
                             type="button"
                             id="refresh-accounts-btn"
-                            class="w-full sm:w-auto sm:shrink-0 min-h-[44px] px-4 py-2.5 sm:py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all inline-flex items-center justify-center"
+                            class="lms-btn-icon-refresh"
                             title="Refresh accounts list"
                           >
                             <svg
@@ -8310,11 +8487,7 @@
                             </svg>
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          id="use-manual-uid-btn"
-                          class="text-sm text-blue-400 hover:text-blue-300 underline"
-                        >
+                        <button type="button" id="use-manual-uid-btn" class="lms-inline-link">
                           Or enter UID manually (Cloud Functions not deployed?)
                         </button>
                       </div>
@@ -8325,18 +8498,12 @@
                           type="text"
                           id="manual-student-uid"
                           placeholder="Paste Firebase Auth UID here"
-                          class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all font-mono"
+                          class="lms-form-input font-mono"
                         />
-                        <button
-                          type="button"
-                          id="use-dropdown-btn"
-                          class="text-sm text-blue-400 hover:text-blue-300 underline"
-                        >
+                        <button type="button" id="use-dropdown-btn" class="lms-inline-link">
                           Back to dropdown
                         </button>
-                        <div
-                          class="text-[11px] sm:text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded p-2 leading-snug"
-                        >
+                        <div class="lms-warn-hint">
                           <strong>How to get UID:</strong>
                           <ol class="ml-3 sm:ml-4 mt-1 list-decimal space-y-0.5">
                             <li>
@@ -8344,7 +8511,7 @@
                               <a
                                 href="https://console.firebase.google.com"
                                 target="_blank"
-                                class="underline"
+                                class="lms-inline-link"
                                 >Firebase Console</a
                               >
                               → your project → Authentication → Users
@@ -8363,22 +8530,22 @@
 
                   <!-- Additional Notes -->
                   <div class="min-w-0">
-                    <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
+                    <label class="lms-form-label">
                       Additional Notes (Optional)
                     </label>
                     <textarea
                       name="notes"
                       rows="2"
                       placeholder="Any additional information about the student..."
-                      class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all md:min-h-[5.5rem]"
+                      class="lms-form-textarea"
                     ></textarea>
                   </div>
 
                   <!-- Error Message -->
-                  <div id="registration-error" class="text-red-400 text-xs sm:text-sm hide"></div>
+                  <div id="registration-error" class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"></div>
 
                   <!-- Success Message -->
-                  <div id="registration-success" class="text-green-400 text-xs sm:text-sm hide"></div>
+                  <div id="registration-success" class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"></div>
 
                   <!-- Submit Button -->
                   <button
@@ -8391,12 +8558,10 @@
               </div>
 
               <!-- Bulk CSV Upload -->
-              <div
-                class="glass-effect rounded-xl md:rounded-3xl p-4 sm:p-6 md:p-8 mt-4 md:mt-6 min-w-0 overflow-hidden border border-white/5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.4)] md:shadow-[0_12px_48px_-8px_rgba(0,0,0,0.5)]"
-              >
-                <h3 class="text-lg sm:text-2xl font-bold text-white mb-2 flex items-center gap-3">
+              <div class="glass-effect lms-reg-shell p-4 sm:p-6 md:p-8 mt-4 md:mt-6 md:rounded-3xl">
+                <h3 class="lms-reg-bulk-title">
                   <svg
-                    class="w-6 h-6 sm:w-7 sm:h-7 text-primary-400 shrink-0"
+                    class="w-6 h-6 sm:w-7 sm:h-7 text-primary-700 dark:text-primary-400 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -8411,18 +8576,14 @@
                   </svg>
                   Bulk CSV Upload
                 </h3>
-                <p class="text-xs sm:text-sm text-dark-300 mb-4 leading-relaxed">
+                <p class="text-xs sm:text-sm text-on-surface-muted mb-4 leading-relaxed">
                   Upload a CSV to register multiple students. Rows are matched to existing
-                  <span class="text-dark-200 font-medium">student</span> accounts by display name or email
+                  <span class="font-medium text-slate-800 dark:text-dark-200">student</span> accounts by display name or email
                   username when possible. Admins may import rows with no match as roster-only records;
                   teachers must have a matching account per row.
                 </p>
                 <div class="mb-4 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    id="csv-download-template-btn"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-500/15 text-primary-400 font-semibold text-sm hover:bg-primary-500/25 transition-all border border-primary-500/30 min-h-[44px]"
-                  >
+                  <button type="button" id="csv-download-template-btn" class="lms-csv-template-btn">
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path
                         stroke-linecap="round"
@@ -8436,7 +8597,7 @@
                 </div>
                 <div
                   id="csv-drop-zone"
-                  class="relative border-2 border-dashed border-dark-600 rounded-xl sm:rounded-2xl p-4 sm:p-8 text-center cursor-pointer hover:border-primary-500/70 hover:bg-primary-500/5 transition-all group min-h-[8rem]"
+                  class="relative border-2 border-dashed border-slate-300 rounded-xl sm:rounded-2xl p-4 sm:p-8 text-center cursor-pointer hover:border-primary-500 hover:bg-primary-500/5 dark:border-dark-600 dark:hover:border-primary-500/70 transition-all group min-h-[8rem]"
                 >
                   <input
                     type="file"
@@ -8447,7 +8608,7 @@
                   />
                   <div class="pointer-events-none">
                     <svg
-                      class="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-dark-500 group-hover:text-primary-400 transition-colors"
+                      class="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-slate-400 group-hover:text-primary-600 dark:text-dark-500 dark:group-hover:text-primary-400 transition-colors"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -8460,14 +8621,14 @@
                         d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    <p class="text-dark-200 font-medium text-sm sm:text-base">Drag &amp; drop your CSV file here</p>
-                    <p class="text-dark-500 text-xs sm:text-sm mt-1">or click to browse</p>
+                    <p class="text-slate-800 dark:text-dark-200 font-medium text-sm sm:text-base">Drag &amp; drop your CSV file here</p>
+                    <p class="text-slate-500 dark:text-dark-500 text-xs sm:text-sm mt-1">or click to browse</p>
                   </div>
                 </div>
                 <div id="csv-preview-container" class="hide mt-4">
                   <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <h4 class="text-dark-100 font-semibold text-sm sm:text-base flex items-center gap-2">
-                      <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <h4 class="text-slate-900 dark:text-dark-100 font-semibold text-sm sm:text-base flex items-center gap-2">
+                      <svg class="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path
                           stroke-linecap="round"
                           stroke-linejoin="round"
@@ -8477,21 +8638,29 @@
                       </svg>
                       Preview (<span id="csv-row-count">0</span> students)
                     </h4>
-                    <button type="button" id="csv-clear-btn" class="text-sm text-red-400 hover:text-red-300 underline min-h-[44px] px-1">
+                    <button
+                      type="button"
+                      id="csv-clear-btn"
+                      class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 underline min-h-[44px] px-1"
+                    >
                       Clear
                     </button>
                   </div>
-                  <div class="overflow-x-auto max-h-72 overflow-y-auto rounded-xl border border-dark-600">
+                  <div
+                    class="overflow-x-auto max-h-72 overflow-y-auto rounded-xl border border-slate-200/90 dark:border-dark-600"
+                  >
                     <table class="w-full text-xs sm:text-sm min-w-[640px]">
-                      <thead class="sticky top-0 bg-dark-900/95 backdrop-blur-sm z-[1]">
-                        <tr class="border-b border-dark-600">
-                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">#</th>
-                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Name</th>
-                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Member ID</th>
-                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Year of Birth</th>
-                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Phone</th>
-                          <th class="py-2 px-3 text-left text-dark-300 font-semibold">Email</th>
-                          <th class="py-2 px-3 text-center text-dark-300 font-semibold">Status</th>
+                      <thead
+                        class="sticky top-0 z-[1] border-b border-slate-200 bg-slate-50/95 backdrop-blur-sm dark:border-dark-600 dark:bg-dark-900/95"
+                      >
+                        <tr>
+                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">#</th>
+                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Name</th>
+                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Member ID</th>
+                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Year of Birth</th>
+                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Phone</th>
+                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Email</th>
+                          <th class="py-2 px-3 text-center text-slate-700 dark:text-dark-300 font-semibold">Status</th>
                         </tr>
                       </thead>
                       <tbody id="csv-preview-body"></tbody>
@@ -8521,10 +8690,10 @@
                   </button>
                   <div id="csv-progress-container" class="hide mt-3">
                     <div class="flex items-center justify-between text-xs sm:text-sm mb-1">
-                      <span class="text-dark-300" id="csv-progress-label">Registering...</span>
-                      <span class="text-primary-400 font-semibold" id="csv-progress-pct">0%</span>
+                      <span class="text-slate-600 dark:text-dark-300" id="csv-progress-label">Registering...</span>
+                      <span class="text-primary-700 dark:text-primary-400 font-semibold" id="csv-progress-pct">0%</span>
                     </div>
-                    <div class="h-2 bg-dark-700 rounded-full overflow-hidden">
+                    <div class="h-2 bg-slate-200 dark:bg-dark-700 rounded-full overflow-hidden">
                       <div
                         id="csv-progress-bar"
                         class="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-300"
@@ -8536,37 +8705,49 @@
               </div>
 
               <!-- Registered Students List -->
-              <div class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 mt-0 md:mt-6 min-w-0 overflow-hidden">
-                <h3 class="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Registered Students</h3>
+              <div class="glass-effect lms-reg-shell p-4 sm:p-6 mt-0 md:mt-6">
+                <h3 class="lms-reg-section-title">Registered Students</h3>
                 <div class="mb-3 sm:mb-4 min-w-0">
                   <input
                     type="text"
                     id="registered-students-search"
                     placeholder="Search by Member ID, name, or email..."
-                    class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                    class="lms-form-input"
                     aria-label="Search registered students"
                   />
                 </div>
                 <div class="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x">
                   <table class="w-full min-w-[520px] text-xs sm:text-sm">
                     <thead>
-                      <tr class="border-b border-dark-600">
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                      <tr
+                        class="border-b border-slate-200 bg-slate-50/90 dark:border-dark-600 dark:bg-transparent"
+                      >
+                        <th
+                          class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold whitespace-nowrap"
+                        >
                           Member ID
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Name</th>
-                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                          Name
+                        </th>
+                        <th
+                          class="text-center py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold whitespace-nowrap"
+                        >
                           Year
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Contact</th>
-                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                          Contact
+                        </th>
+                        <th
+                          class="text-center py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold whitespace-nowrap"
+                        >
                           Actions
                         </th>
                       </tr>
                     </thead>
                     <tbody id="registered-students-table-body">
                       <tr>
-                        <td colspan="5" class="text-center py-8 text-dark-300">
+                        <td colspan="5" class="text-center py-8 text-slate-600 dark:text-dark-300">
                           No students registered yet
                         </td>
                       </tr>
@@ -8582,13 +8763,13 @@
               class="tab-content admin-only hide min-w-0 max-w-full overflow-x-hidden space-y-4 md:space-y-6"
             >
               <div
-                class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 overflow-hidden min-w-0 max-md:max-h-[min(calc(100dvh-6.5rem),36rem)] max-md:overflow-y-auto max-md:overscroll-contain"
+                class="glass-effect lms-reg-shell p-4 sm:p-6 max-md:max-h-[min(calc(100dvh-6.5rem),36rem)] max-md:overflow-y-auto max-md:overscroll-contain"
               >
-                <h3 class="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-6">Teacher Registration</h3>
+                <h3 class="lms-reg-page-title">Teacher Registration</h3>
 
                 <!-- Instructions (same style as Student Registration) -->
-                <div class="mb-3 sm:mb-6 p-3 sm:p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                  <h4 class="text-blue-400 font-semibold text-sm sm:text-base mb-1.5 sm:mb-2 flex items-center gap-2">
+                <div class="lms-info-callout">
+                  <h4 class="lms-info-callout-title">
                     <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         stroke-linecap="round"
@@ -8599,9 +8780,9 @@
                     </svg>
                     Registration Instructions
                   </h4>
-                  <p class="text-xs sm:text-sm text-dark-300 leading-relaxed">
+                  <p class="lms-info-callout-body">
                     Fill in the teacher information below to register a new teacher in the system.
-                    All fields marked with <span class="text-red-400">*</span> are required.
+                    All fields marked with <span class="text-red-600 dark:text-red-400">*</span> are required.
                   </p>
                 </div>
 
@@ -8610,34 +8791,34 @@
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 min-w-0">
                     <!-- Teacher Name -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Teacher Name <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Teacher Name <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <input
                         type="text"
                         name="teacherName"
                         required
                         placeholder="Jane Doe"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Membership ID (optional) -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
+                      <label class="lms-form-label">
                         Membership ID
                       </label>
                       <input
                         type="text"
                         name="teacherMemberId"
                         placeholder="TCH001 (optional)"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Year of Birth / Year Joined (optional, same column position as student) -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
+                      <label class="lms-form-label">
                         Year of Birth
                       </label>
                       <input
@@ -8646,42 +8827,42 @@
                         min="1950"
                         max="2010"
                         placeholder="1985 (optional)"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Contact Phone -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Contact Phone <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Contact Phone <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <input
                         type="tel"
                         name="teacherPhone"
                         required
                         placeholder="+1 (555) 123-4567"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Contact Email -->
                     <div class="min-w-0">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Contact Email <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Contact Email <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <input
                         type="email"
                         name="teacherEmail"
                         required
                         placeholder="teacher@example.com"
-                        class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                        class="lms-form-input"
                       />
                     </div>
 
                     <!-- Link to Teacher Account -->
                     <div class="min-w-0 md:col-span-2">
-                      <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
-                        Link to Teacher Account <span class="text-red-400">*</span>
+                      <label class="lms-form-label">
+                        Link to Teacher Account <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <div id="teacher-dropdown-method" class="space-y-2 min-w-0">
                         <div class="flex flex-col sm:flex-row gap-2 items-stretch min-w-0">
@@ -8690,7 +8871,7 @@
                             class="account-dropdown flex-1 relative min-w-0"
                           >
                             <div
-                              class="account-dropdown-trigger flex items-center justify-between w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm cursor-pointer focus:outline-none focus:border-primary-500 input-glow transition-all"
+                              class="account-dropdown-trigger lms-account-trigger"
                               tabindex="0"
                               role="combobox"
                               aria-expanded="false"
@@ -8701,7 +8882,7 @@
                                 >-- Select Registered Account --</span
                               >
                               <svg
-                                class="w-5 h-5 text-dark-400 flex-shrink-0 ml-2"
+                                class="w-5 h-5 text-slate-500 dark:text-dark-400 flex-shrink-0 ml-2"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -8715,11 +8896,11 @@
                               </svg>
                             </div>
                             <div
-                              class="account-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 rounded-lg bg-dark-800 border border-dark-600 shadow-xl hide"
+                              class="account-dropdown-panel lms-dropdown-panel absolute left-0 right-0 top-full mt-1 z-50 hide"
                             >
                               <input
                                 type="text"
-                                class="account-dropdown-search w-full px-4 py-2 border-b border-dark-600 bg-dark-900 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 rounded-t-lg"
+                                class="account-dropdown-search lms-dropdown-search"
                                 placeholder="Search by email..."
                                 autocomplete="off"
                                 aria-label="Search accounts by email"
@@ -8733,7 +8914,7 @@
                           <button
                             type="button"
                             id="refresh-teacher-accounts-btn"
-                            class="w-full sm:w-auto sm:shrink-0 min-h-[44px] px-4 py-2.5 sm:py-3 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 transition-all inline-flex items-center justify-center"
+                            class="lms-btn-icon-refresh"
                             title="Refresh accounts list"
                           >
                             <svg
@@ -8751,11 +8932,7 @@
                             </svg>
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          id="use-manual-teacher-uid-btn"
-                          class="text-sm text-blue-400 hover:text-blue-300 underline"
-                        >
+                        <button type="button" id="use-manual-teacher-uid-btn" class="lms-inline-link">
                           Or enter UID manually
                         </button>
                       </div>
@@ -8764,18 +8941,12 @@
                           type="text"
                           id="manual-teacher-uid"
                           placeholder="Paste Firebase Auth UID here"
-                          class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all font-mono"
+                          class="lms-form-input font-mono"
                         />
-                        <button
-                          type="button"
-                          id="use-dropdown-teacher-btn"
-                          class="text-sm text-blue-400 hover:text-blue-300 underline"
-                        >
+                        <button type="button" id="use-dropdown-teacher-btn" class="lms-inline-link">
                           Back to dropdown
                         </button>
-                        <div
-                          class="text-[11px] sm:text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded p-2 leading-snug"
-                        >
+                        <div class="lms-warn-hint">
                           <strong>How to get UID:</strong> Firebase Console → Authentication → copy
                           User UID.
                         </div>
@@ -8786,19 +8957,19 @@
 
                   <!-- Additional Notes (Optional) -->
                   <div class="min-w-0">
-                    <label class="block text-dark-200 text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">
+                    <label class="lms-form-label">
                       Additional Notes (Optional)
                     </label>
                     <textarea
                       name="teacherNotes"
                       rows="2"
                       placeholder="Any additional information about the teacher..."
-                      class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all md:min-h-[5.5rem]"
+                      class="lms-form-textarea"
                     ></textarea>
                   </div>
 
-                  <div id="teacher-registration-error" class="text-red-400 text-xs sm:text-sm hide"></div>
-                  <div id="teacher-registration-success" class="text-green-400 text-xs sm:text-sm hide"></div>
+                  <div id="teacher-registration-error" class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"></div>
+                  <div id="teacher-registration-success" class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"></div>
 
                   <button
                     type="submit"
@@ -8810,37 +8981,49 @@
               </div>
 
               <!-- Registered Teachers List (same structure as Registered Students) -->
-              <div class="glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 mt-0 md:mt-6 min-w-0 overflow-hidden">
-                <h3 class="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Registered Teachers</h3>
+              <div class="glass-effect lms-reg-shell p-4 sm:p-6 mt-0 md:mt-6">
+                <h3 class="lms-reg-section-title">Registered Teachers</h3>
                 <div class="mb-3 sm:mb-4 min-w-0">
                   <input
                     type="text"
                     id="registered-teachers-search"
                     placeholder="Search by Member ID, name, or email..."
-                    class="w-full min-w-0 max-w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-dark-800 border border-dark-600 text-white text-sm placeholder-dark-400 focus:outline-none focus:border-primary-500 input-glow transition-all"
+                    class="lms-form-input"
                     aria-label="Search registered teachers"
                   />
                 </div>
                 <div class="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x">
                   <table class="w-full min-w-[520px] text-xs sm:text-sm">
                     <thead>
-                      <tr class="border-b border-dark-600">
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                      <tr
+                        class="border-b border-slate-200 bg-slate-50/90 dark:border-dark-600 dark:bg-transparent"
+                      >
+                        <th
+                          class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold whitespace-nowrap"
+                        >
                           Member ID
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Name</th>
-                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                          Name
+                        </th>
+                        <th
+                          class="text-center py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold whitespace-nowrap"
+                        >
                           Year
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold">Contact</th>
-                        <th class="text-center py-2 sm:py-3 px-2 sm:px-4 text-dark-200 font-semibold whitespace-nowrap">
+                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                          Contact
+                        </th>
+                        <th
+                          class="text-center py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold whitespace-nowrap"
+                        >
                           Actions
                         </th>
                       </tr>
                     </thead>
                     <tbody id="registered-teachers-table-body">
                       <tr>
-                        <td colspan="5" class="text-center py-8 text-dark-300">
+                        <td colspan="5" class="text-center py-8 text-slate-600 dark:text-dark-300">
                           No teachers registered yet
                         </td>
                       </tr>
@@ -9579,16 +9762,19 @@
             </div>
 
             <!-- User Management Tab (Admin Only) -->
-            <div id="users-content" class="tab-content admin-only hide">
+            <div
+              id="users-content"
+              class="tab-content admin-only hide min-w-0 max-w-full overflow-x-hidden"
+            >
               <div
-                class="lms-users-section glass-effect rounded-[1.35rem] md:rounded-3xl border border-slate-200/70 bg-white/[0.65] p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.85)_inset,0_1px_2px_rgba(15,23,42,0.04),0_8px_28px_-4px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/[0.09] dark:bg-dark-900/35 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_12px_48px_-8px_rgba(0,0,0,0.55)] md:p-8"
+                class="lms-users-section glass-effect rounded-[1.35rem] md:rounded-3xl border border-slate-200/80 bg-white/[0.92] p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.95)_inset,0_1px_2px_rgba(15,23,42,0.05),0_10px_36px_-6px_rgba(15,23,42,0.1)] backdrop-blur-xl dark:border-white/[0.09] dark:bg-dark-900/35 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_12px_48px_-8px_rgba(0,0,0,0.55)] md:p-8"
               >
                 <div
                   class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6 mb-5 md:mb-7"
                 >
                   <div class="min-w-0 space-y-1">
                     <p
-                      class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-primary-600/90 dark:text-primary-400/95"
+                      class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-primary-700 dark:text-primary-400/95"
                     >
                       Administration
                     </p>
@@ -9597,6 +9783,9 @@
                     >
                       User Management
                     </h3>
+                    <p class="text-sm text-slate-700 dark:text-dark-400 md:hidden max-w-xl leading-relaxed">
+                      Search the directory, then open a card to change someone's role.
+                    </p>
                     <p class="hidden text-sm text-slate-600 dark:text-dark-400 md:block max-w-xl leading-relaxed">
                       View accounts, search by name or email, and update roles when needed.
                     </p>
@@ -9627,30 +9816,30 @@
                   </p>
                 </div>
                 <div
-                  class="mb-4 md:hidden flex gap-3 rounded-2xl border border-primary-500/18 bg-gradient-to-br from-primary-500/[0.09] to-primary-600/[0.04] px-3.5 py-3.5 shadow-sm shadow-primary-900/10"
+                  class="mb-4 md:hidden flex gap-3 rounded-2xl border border-primary-600/20 bg-gradient-to-br from-primary-50 to-white px-3.5 py-3.5 shadow-sm shadow-slate-900/[0.06] dark:border-primary-500/18 dark:from-primary-500/[0.09] dark:to-primary-600/[0.04] dark:shadow-primary-900/10"
                 >
                   <i
                     data-lucide="info"
-                    class="mt-0.5 h-5 w-5 shrink-0 text-primary-600 dark:text-primary-400"
+                    class="mt-0.5 h-5 w-5 shrink-0 text-primary-700 dark:text-primary-400"
                     aria-hidden="true"
                   ></i>
-                  <p class="text-xs leading-relaxed text-slate-700 dark:text-primary-200/95">
+                  <p class="text-xs leading-relaxed text-slate-800 dark:text-primary-200/95">
                     New accounts default to
-                    <span class="font-semibold text-slate-900 dark:text-primary-50">Student</span>. Open
+                    <span class="font-semibold text-slate-950 dark:text-primary-50">Student</span>. Open
                     a card to change role.
                   </p>
                 </div>
 
                 <div class="md:hidden mb-3 flex items-center justify-between gap-2 min-h-[1.25rem]">
                   <span
-                    class="inline-flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"
+                    class="inline-flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-400"
                   >
-                    <i data-lucide="users" class="h-3.5 w-3.5 opacity-70" aria-hidden="true"></i>
+                    <i data-lucide="users" class="h-3.5 w-3.5 text-slate-500 dark:opacity-70" aria-hidden="true"></i>
                     Directory
                   </span>
                   <span
                     id="users-mobile-count"
-                    class="inline-flex min-w-[1.75rem] items-center justify-center rounded-full bg-slate-900/[0.06] px-2.5 py-1 text-[0.7rem] font-semibold tabular-nums text-slate-800 ring-1 ring-slate-900/10 dark:bg-white/10 dark:text-white dark:ring-white/15"
+                    class="inline-flex min-w-[1.75rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-[0.7rem] font-semibold tabular-nums text-slate-900 ring-1 ring-slate-300/80 dark:bg-white/10 dark:text-white dark:ring-white/15"
                     aria-live="polite"
                     >—</span
                   >
@@ -9658,7 +9847,7 @@
 
                 <div class="relative mb-4">
                   <span
-                    class="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-slate-400 dark:text-slate-500 md:hidden"
+                    class="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-slate-500 dark:text-slate-500 md:hidden"
                     aria-hidden="true"
                   >
                     <i data-lucide="search" class="h-5 w-5"></i>
@@ -9668,7 +9857,7 @@
                     enterkeyhint="search"
                     id="users-search"
                     placeholder="Search by name or email..."
-                    class="w-full border border-slate-200/90 bg-white/90 pl-11 pr-4 py-3.5 text-base text-slate-900 shadow-sm shadow-slate-900/5 placeholder:text-slate-400 transition-[border-color,box-shadow] focus:border-primary-400/80 focus:outline-none focus:ring-4 focus:ring-primary-500/15 dark:border-dark-600 dark:bg-dark-800 dark:text-white dark:placeholder-dark-400 dark:shadow-none md:rounded-lg md:pl-4 rounded-2xl md:py-3"
+                    class="w-full border border-slate-300/90 bg-white pl-11 pr-4 py-3.5 text-base text-slate-900 shadow-sm shadow-slate-900/[0.06] placeholder:text-slate-500 transition-[border-color,box-shadow] focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-white dark:placeholder-dark-400 dark:shadow-none md:rounded-lg md:pl-4 rounded-2xl md:py-3"
                     aria-label="Search users by name or email"
                     autocomplete="off"
                     autocorrect="off"
@@ -9676,16 +9865,16 @@
                   />
                 </div>
                 <!-- Desktop: full table -->
-                <div class="hidden md:block overflow-x-auto">
-                  <table class="w-full">
+                <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-600/80">
+                  <table class="w-full text-sm">
                     <thead>
-                      <tr class="border-b border-dark-600">
-                        <th class="text-left py-3 px-4 text-dark-200 font-semibold">Email</th>
-                        <th class="text-center py-3 px-4 text-dark-200 font-semibold">
+                      <tr class="border-b border-slate-200 bg-slate-50/90 dark:border-dark-600 dark:bg-transparent">
+                        <th class="text-left py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">Email</th>
+                        <th class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">
                           Current Role
                         </th>
-                        <th class="text-center py-3 px-4 text-dark-200 font-semibold">Account</th>
-                        <th class="text-center py-3 px-4 text-dark-200 font-semibold">Actions</th>
+                        <th class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">Account</th>
+                        <th class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody id="users-table-body">
@@ -9709,32 +9898,32 @@
                 >
                   <li class="list-none">
                     <div
-                      class="rounded-2xl border border-surface-default bg-surface-container-tonal p-4 motion-safe:animate-pulse"
+                      class="rounded-2xl border border-slate-200/90 bg-slate-50 p-4 motion-safe:animate-pulse dark:border-surface-default dark:bg-surface-container-tonal"
                       aria-hidden="true"
                     >
                       <div class="flex gap-3">
-                        <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/20 dark:bg-white/10"></div>
+                        <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/80 dark:bg-white/10"></div>
                         <div class="min-w-0 flex-1 space-y-2 pt-0.5">
-                          <div class="h-3 w-24 rounded bg-slate-300/25 dark:bg-white/15"></div>
-                          <div class="h-4 w-full max-w-[14rem] rounded bg-slate-300/20 dark:bg-white/10"></div>
-                          <div class="h-3 w-40 rounded bg-slate-300/15 dark:bg-white/10"></div>
-                          <div class="mt-3 h-10 w-full rounded-xl bg-slate-300/15 dark:bg-white/10"></div>
+                          <div class="h-3 w-24 rounded bg-slate-300/70 dark:bg-white/15"></div>
+                          <div class="h-4 w-full max-w-[14rem] rounded bg-slate-300/50 dark:bg-white/10"></div>
+                          <div class="h-3 w-40 rounded bg-slate-300/45 dark:bg-white/10"></div>
+                          <div class="mt-3 h-10 w-full rounded-xl bg-slate-300/40 dark:bg-white/10"></div>
                         </div>
                       </div>
                     </div>
                   </li>
                   <li class="list-none">
                     <div
-                      class="rounded-2xl border border-surface-default bg-surface-container-tonal p-4 motion-safe:animate-pulse"
+                      class="rounded-2xl border border-slate-200/90 bg-slate-50 p-4 motion-safe:animate-pulse dark:border-surface-default dark:bg-surface-container-tonal"
                       aria-hidden="true"
                     >
                       <div class="flex gap-3">
-                        <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/20 dark:bg-white/10"></div>
+                        <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/80 dark:bg-white/10"></div>
                         <div class="min-w-0 flex-1 space-y-2 pt-0.5">
-                          <div class="h-3 w-20 rounded bg-slate-300/25 dark:bg-white/15"></div>
-                          <div class="h-4 w-full max-w-[12rem] rounded bg-slate-300/20 dark:bg-white/10"></div>
-                          <div class="h-3 w-36 rounded bg-slate-300/15 dark:bg-white/10"></div>
-                          <div class="mt-3 h-10 w-full rounded-xl bg-slate-300/15 dark:bg-white/10"></div>
+                          <div class="h-3 w-20 rounded bg-slate-300/70 dark:bg-white/15"></div>
+                          <div class="h-4 w-full max-w-[12rem] rounded bg-slate-300/50 dark:bg-white/10"></div>
+                          <div class="h-3 w-36 rounded bg-slate-300/45 dark:bg-white/10"></div>
+                          <div class="mt-3 h-10 w-full rounded-xl bg-slate-300/40 dark:bg-white/10"></div>
                         </div>
                       </div>
                     </div>
@@ -10078,7 +10267,7 @@
           >
             <button
               type="button"
-              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-offset-dark-950"
+              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-primary-400/60 dark:focus-visible:ring-offset-dark-950"
               data-change-role-value="student"
               role="radio"
               aria-checked="false"
@@ -10087,7 +10276,7 @@
             </button>
             <button
               type="button"
-              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-offset-dark-950"
+              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-primary-400/60 dark:focus-visible:ring-offset-dark-950"
               data-change-role-value="teacher"
               role="radio"
               aria-checked="false"
@@ -10096,7 +10285,7 @@
             </button>
             <button
               type="button"
-              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-offset-dark-950"
+              class="change-role-segment flex-1 rounded-xl border border-transparent py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-white/65 dark:focus-visible:ring-primary-400/60 dark:focus-visible:ring-offset-dark-950"
               data-change-role-value="admin"
               role="radio"
               aria-checked="false"
@@ -10252,37 +10441,43 @@
        */
 
       const LMS_THEME_STORAGE_KEY = 'theme';
-      const LMS_ALLOWED_THEMES = new Set(['dark', 'light']);
+      /** User preference: explicit light/dark, or follow OS. */
+      const LMS_THEME_PREFS = new Set(['dark', 'light', 'system']);
 
+      /** Resolved appearance on the document (always `light` or `dark`). */
       let currentTheme = 'dark';
+      let themePreference = 'system';
+
+      function resolveEffectiveTheme() {
+        if (themePreference === 'light' || themePreference === 'dark') return themePreference;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
 
       /**
-       * Reads a validated theme from localStorage (invalid keys are removed).
+       * Reads validated preference from localStorage (invalid keys removed).
        */
       function initTheme() {
-        let stored = null;
         try {
           const raw = safeGetStorage(LMS_THEME_STORAGE_KEY);
-          if (raw && LMS_ALLOWED_THEMES.has(raw)) stored = raw;
-          else if (raw) safeRemoveStorage(LMS_THEME_STORAGE_KEY);
+          if (raw && LMS_THEME_PREFS.has(raw)) {
+            themePreference = raw;
+          } else if (raw) {
+            safeRemoveStorage(LMS_THEME_STORAGE_KEY);
+            themePreference = 'system';
+          } else {
+            themePreference = 'system';
+          }
         } catch (e) {
-          stored = null;
+          themePreference = 'system';
         }
 
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        currentTheme = stored || (systemPrefersDark ? 'dark' : 'light');
+        currentTheme = resolveEffectiveTheme();
+        applyEffectiveTheme(currentTheme);
+        setupThemeSwitches();
 
-        applyTheme(currentTheme, false, false);
-        setupThemeToggles();
-
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-          try {
-            if (safeGetStorage(LMS_THEME_STORAGE_KEY)) return;
-          } catch (err) {
-            return;
-          }
-          const newTheme = e.matches ? 'dark' : 'light';
-          applyTheme(newTheme, true, false);
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+          if (themePreference !== 'system') return;
+          applyEffectiveTheme(resolveEffectiveTheme());
         });
       }
 
@@ -10301,77 +10496,49 @@
       }
 
       /**
-       * @param persist - If true, save to localStorage (user explicitly chose via toggle). If false, in-memory only (system preference or initial hydrate).
+       * Applies resolved light/dark to the document and notifies listeners.
        */
-      function applyTheme(theme, animate = true, persist = false) {
+      function applyEffectiveTheme(theme) {
         currentTheme = theme;
-
         document.documentElement.setAttribute('data-theme', theme);
-
-        if (persist && LMS_ALLOWED_THEMES.has(theme)) {
-          safeSetStorage(LMS_THEME_STORAGE_KEY, theme);
-        }
-
-        updateThemeToggles(theme);
-
         syncThemeChrome(theme);
+        updateThemeSwitches();
         document.dispatchEvent(new CustomEvent('lms-theme-changed', { detail: { theme } }));
       }
 
-      /**
-       * Toggle between dark and light themes
-       */
-      function toggleTheme() {
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        applyTheme(newTheme, true, true);
+      function setupThemeSwitches() {
+        document.querySelectorAll('[data-lms-theme-switch]').forEach((root) => {
+          if (root.dataset.lmsThemeSwitchWired === '1') return;
+          root.dataset.lmsThemeSwitchWired = '1';
+          root.addEventListener('click', (ev) => {
+            const t = ev.target;
+            const btn =
+              t && t.closest ? t.closest('button[data-theme-pref]') : null;
+            if (!btn || !root.contains(btn)) return;
+            const pref = btn.getAttribute('data-theme-pref');
+            if (pref === 'light' || pref === 'dark') {
+              themePreference = pref;
+              safeSetStorage(LMS_THEME_STORAGE_KEY, pref);
+              applyEffectiveTheme(pref);
+            } else if (pref === 'system') {
+              themePreference = 'system';
+              safeSetStorage(LMS_THEME_STORAGE_KEY, 'system');
+              applyEffectiveTheme(resolveEffectiveTheme());
+            }
+          });
+        });
+        updateThemeSwitches();
       }
 
       /**
-       * Setup theme toggle button event listeners
+       * Sync pressed state on every segmented control (preference, not effective when system).
        */
-      function setupThemeToggles() {
-        // Auth page theme toggle
-        const authToggle = document.getElementById('auth-theme-toggle-btn');
-        if (authToggle) {
-          authToggle.addEventListener('click', toggleTheme);
-        }
-
-        // Dashboard theme toggle
-        const dashboardToggle = document.getElementById('theme-toggle-btn');
-        if (dashboardToggle) {
-          dashboardToggle.addEventListener('click', toggleTheme);
-        }
-
-        // Mobile app bar theme toggle (same persistence as desktop)
-        const mobileThemeToggle = document.getElementById('lms-mobile-theme-toggle-btn');
-        if (mobileThemeToggle) {
-          mobileThemeToggle.addEventListener('click', toggleTheme);
-        }
-      }
-
-      /**
-       * Update theme toggle buttons to reflect current theme
-       */
-      function updateThemeToggles(theme) {
-        const toggles = [
-          document.getElementById('auth-theme-toggle-btn'),
-          document.getElementById('theme-toggle-btn'),
-          document.getElementById('lms-mobile-theme-toggle-btn'),
-        ];
-
-        toggles.forEach((toggle) => {
-          if (!toggle) return;
-
-          const moonIcon = toggle.querySelector('.moon-icon');
-          const sunIcon = toggle.querySelector('.sun-icon');
-
-          if (theme === 'light') {
-            moonIcon?.classList.add('hide');
-            sunIcon?.classList.remove('hide');
-          } else {
-            moonIcon?.classList.remove('hide');
-            sunIcon?.classList.add('hide');
-          }
+      function updateThemeSwitches() {
+        document.querySelectorAll('[data-lms-theme-switch]').forEach((root) => {
+          root.querySelectorAll('button[data-theme-pref]').forEach((b) => {
+            const pref = b.getAttribute('data-theme-pref');
+            b.setAttribute('aria-pressed', pref === themePreference ? 'true' : 'false');
+          });
         });
       }
 

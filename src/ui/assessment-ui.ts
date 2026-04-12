@@ -26,6 +26,7 @@ import {
   submitAssessment as submitAssessmentData,
   fetchSubmission,
   fetchSubmissions,
+  fetchStudentsInCourse,
   gradeQuestion,
   finalizeGrading,
   releaseGrades,
@@ -81,6 +82,89 @@ let assessmentsTabLoadPromise: Promise<void> | null = null;
 let teacherListLimit = 30;
 let studentListLimit = 20;
 
+/** Value for `datetime-local` in the user's local timezone (avoids UTC `.toISOString().slice` skew). */
+function toDatetimeLocalValue(isoStr: string): string {
+  const d = new Date(isoStr);
+  if (!Number.isFinite(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function syncBuilderAssignedIdsFromCheckboxes(): void {
+  const hidden = document.getElementById('builder-assigned-ids-hidden') as HTMLInputElement | null;
+  if (!hidden) return;
+  const ids = Array.from(
+    document.querySelectorAll('#builder-student-assign-list input[data-assignee-cb]:checked')
+  ).map((el) => (el as HTMLInputElement).value);
+  hidden.value = ids.join(', ');
+}
+
+/**
+ * Loads the class roster into the builder assignee list (checkboxes). `selectedIds` are profile document IDs.
+ */
+async function refreshBuilderStudentRoster(
+  courseId: string,
+  selectedIds: string[]
+): Promise<void> {
+  const listEl = document.getElementById('builder-student-assign-list');
+  if (!listEl) return;
+
+  const selected = new Set(selectedIds.filter(Boolean));
+  if (!courseId.trim()) {
+    listEl.innerHTML =
+      '<p class="text-sm text-dark-400 px-1 py-2">Select a class to load the roster.</p>';
+    syncBuilderAssignedIdsFromCheckboxes();
+    return;
+  }
+
+  listEl.innerHTML = '<p class="text-sm text-dark-400 px-1 py-2">Loading roster…</p>';
+  try {
+    const students = await fetchStudentsInCourse(courseId);
+    if (students.length === 0) {
+      listEl.innerHTML =
+        '<p class="text-sm text-dark-400 px-1 py-2">No students enrolled in this class.</p>';
+      syncBuilderAssignedIdsFromCheckboxes();
+      return;
+    }
+    students.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+    listEl.innerHTML = students
+      .map((s) => {
+        const name = safeStudentDisplayName(s.name);
+        const mid = (s.memberId || '').trim();
+        const em = (s.contactEmail || '').trim();
+        const sub = [mid && `ID ${mid}`, em].filter(Boolean).join(' · ');
+        const hay = `${name} ${mid} ${em}`.toLowerCase();
+        const checked = selected.has(s.id);
+        return `
+        <label data-assignee-row class="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer" data-filter-text="${esc(hay)}">
+          <input type="checkbox" value="${esc(s.id)}" data-assignee-cb class="accent-primary-500 mt-0.5 shrink-0" ${checked ? 'checked' : ''} />
+          <span class="min-w-0 text-sm text-slate-100 leading-snug">
+            <span class="font-medium">${esc(name)}</span>
+            ${sub ? `<span class="block text-xs text-slate-400 mt-0.5">${esc(sub)}</span>` : ''}
+          </span>
+        </label>`;
+      })
+      .join('');
+    syncBuilderAssignedIdsFromCheckboxes();
+    filterBuilderAssigneeRows(
+      (document.getElementById('builder-student-assign-search') as HTMLInputElement | null)?.value ?? ''
+    );
+  } catch (err: unknown) {
+    listEl.innerHTML =
+      '<p class="text-sm text-red-400 px-1 py-2">Could not load roster. Check your connection and permissions.</p>';
+    showAppToast(formatErrorForUserToast(err, 'Could not load class roster.'), 'error');
+    syncBuilderAssignedIdsFromCheckboxes();
+  }
+}
+
+function filterBuilderAssigneeRows(raw: string): void {
+  const q = raw.toLowerCase().trim();
+  document.querySelectorAll('#builder-student-assign-list [data-assignee-row]').forEach((row) => {
+    const hay = (row as HTMLElement).dataset.filterText || '';
+    (row as HTMLElement).classList.toggle('hide', q.length > 0 && !hay.includes(q));
+  });
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 //  PUBLIC API
 // ────────────────────────────────────────────────────────────────────────────
@@ -94,6 +178,7 @@ export function initAssessments(): void {
   // Delegate all clicks inside the container
   container.addEventListener('click', handleClick);
   container.addEventListener('change', handleChange);
+  container.addEventListener('input', handleInput);
   container.addEventListener('submit', handleSubmit as unknown as EventListener);
 }
 
@@ -322,23 +407,23 @@ async function renderStudentList(_uid: string): Promise<void> {
       const status = getStudentStatus(a, sub, isPast);
 
       return `
-      <div class="bg-dark-800 rounded-xl border border-dark-700 p-5 hover:border-dark-500 transition-all">
-        <div class="flex items-start justify-between mb-3">
-          <div>
-            <h3 class="text-white font-semibold text-lg">${esc(a.title)}</h3>
-            <p class="text-dark-400 text-sm mt-0.5">${esc(safeCourseDisplayName(r.courseName))}</p>
+      <div class="rounded-xl border border-surface-default bg-surface-container dark:bg-dark-800 dark:border-dark-700 p-5 shadow-sm shadow-slate-900/5 dark:shadow-none hover:border-primary-500/30 dark:hover:border-dark-500 transition-all">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="min-w-0">
+            <h3 class="text-on-surface font-semibold text-lg">${esc(a.title)}</h3>
+            <p class="text-on-surface-muted text-sm mt-0.5">${esc(safeCourseDisplayName(r.courseName))}</p>
           </div>
-          ${statusBadgeHtml(status)}
+          <div class="shrink-0">${statusBadgeHtml(status)}</div>
         </div>
-        <p class="text-dark-300 text-sm mb-4 line-clamp-2">${esc(a.description)}</p>
-        <div class="flex items-center justify-between text-xs text-dark-400">
-          <div class="flex gap-4">
+        <p class="text-on-surface-muted text-sm mb-4 line-clamp-2">${esc(a.description)}</p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs text-on-surface-muted">
+          <div class="flex flex-wrap gap-x-4 gap-y-1">
             <span>Due: ${formatDate(a.dueDateTime)}</span>
             <span>${a.questionCount} questions</span>
             <span>${a.totalPoints} pts</span>
             ${a.timeLimit ? `<span>${a.timeLimit} min</span>` : ''}
           </div>
-          <div>
+          <div class="shrink-0">
             ${renderStudentAction(a, r, sub)}
           </div>
         </div>
@@ -353,11 +438,11 @@ async function renderStudentList(_uid: string): Promise<void> {
       const isPast = new Date(a.dueDateTime) < new Date();
       const status = getStudentStatus(a, sub, isPast);
       return `
-      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
-        <td class="py-3 px-4 text-white font-medium">${esc(a.title)}</td>
-        <td class="py-3 px-4 text-dark-300 text-sm">${esc(safeCourseDisplayName(r.courseName))}</td>
+      <tr class="border-b border-slate-200 hover:bg-slate-50/90 dark:border-dark-700 dark:hover:bg-white/5 transition-colors">
+        <td class="py-3 px-4 text-on-surface font-medium">${esc(a.title)}</td>
+        <td class="py-3 px-4 text-on-surface-muted text-sm">${esc(safeCourseDisplayName(r.courseName))}</td>
         <td class="py-3 px-4 text-center">${statusBadgeHtml(status)}</td>
-        <td class="py-3 px-4 text-dark-300 text-sm whitespace-nowrap">${formatDate(a.dueDateTime)}</td>
+        <td class="py-3 px-4 text-on-surface-muted text-sm whitespace-nowrap">${formatDate(a.dueDateTime)}</td>
         <td class="py-3 px-4 text-right">${renderStudentAction(a, r, sub)}</td>
       </tr>`;
     })
@@ -376,10 +461,10 @@ async function renderStudentList(_uid: string): Promise<void> {
               `<button type="button" data-action="goto-classes-tab" class="px-4 py-2 rounded-lg bg-primary-500/20 text-primary-400 text-sm font-semibold hover:bg-primary-500/30 border border-primary-500/30">View my classes</button>`
             )
           : `<div class="md:hidden grid gap-4">${cards}</div>
-          <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
+          <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
             <table class="w-full text-sm">
-              <thead class="bg-dark-800/80">
-                <tr class="text-dark-300 text-xs uppercase tracking-wider">
+              <thead class="bg-slate-50/95 dark:bg-dark-800/80">
+                <tr class="text-slate-700 dark:text-dark-300 text-xs uppercase tracking-wider">
                   <th class="py-3 px-4 text-left">Title</th>
                   <th class="py-3 px-4 text-left">Class</th>
                   <th class="py-3 px-4 text-center">Status</th>
@@ -494,9 +579,7 @@ async function renderBuilder(): Promise<void> {
   // Build questions HTML
   const questionsHtml = existingQuestions.map((q, i) => questionCardHtml(q, i)).join('');
 
-  const dueVal = existing?.dueDateTime
-    ? new Date(existing.dueDateTime).toISOString().slice(0, 16)
-    : '';
+  const dueVal = existing?.dueDateTime ? toDatetimeLocalValue(existing.dueDateTime) : '';
 
   renderTemplate(
     container,
@@ -510,7 +593,7 @@ async function renderBuilder(): Promise<void> {
 
         <!-- Settings Card -->
         <div class="bg-dark-800 rounded-xl border border-dark-700 p-6 space-y-4">
-          <h3 class="text-white font-semibold text-base mb-2">Assessment Details</h3>
+          <h3 class="text-slate-100 font-semibold text-base mb-2">Assessment Details</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="md:col-span-2">
               <label class="block text-dark-300 text-sm mb-1">Title *</label>
@@ -524,16 +607,11 @@ async function renderBuilder(): Promise<void> {
             </div>
             <div>
               <label class="block text-dark-300 text-sm mb-1">Class *</label>
-              <select name="classId" required ${isEdit ? 'disabled' : ''}
+              <select name="classId" id="builder-class-select" required ${isEdit ? 'disabled' : ''}
                       class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm focus:border-primary-500 focus:outline-none">
                 <option value="">Select class...</option>
                 ${courseOptions}
               </select>
-            </div>
-            <div>
-              <label class="block text-dark-300 text-sm mb-1">Due Date & Time *</label>
-              <input name="dueDateTime" type="datetime-local" required value="${esc(dueVal)}"
-                     class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm focus:border-primary-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-dark-300 text-sm mb-1">Allow Late Submissions</label>
@@ -542,6 +620,13 @@ async function renderBuilder(): Promise<void> {
                 <option value="false" ${existing && !existing.allowLate ? 'selected' : ''}>No</option>
                 <option value="true" ${existing?.allowLate ? 'selected' : ''}>Yes</option>
               </select>
+            </div>
+            <div class="min-w-0 w-full md:col-span-2">
+              <label class="block text-dark-300 text-sm mb-1" for="builder-due-datetime">Due Date & Time *</label>
+              <div class="lms-assessment-datetime-field focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-shadow">
+                <input id="builder-due-datetime" name="dueDateTime" type="datetime-local" required value="${esc(dueVal)}"
+                       class="w-full min-w-0 max-w-full px-3 py-2.5 sm:py-3 text-sm text-slate-900 bg-transparent border-0 focus:outline-none focus:ring-0 dark:text-white" />
+              </div>
             </div>
             <div>
               <label class="block text-dark-300 text-sm mb-1">Late Policy</label>
@@ -569,11 +654,13 @@ async function renderBuilder(): Promise<void> {
                 <option value="individual" ${existing?.assignedMode === 'individual' ? 'selected' : ''}>Specific Students</option>
               </select>
             </div>
-            <div id="individual-students-wrapper" class="${existing?.assignedMode !== 'individual' ? 'hide' : ''}">
-              <label class="block text-dark-300 text-sm mb-1">Student IDs (comma-separated)</label>
-              <input name="assignedStudentIds" type="text" placeholder="studentId1, studentId2"
-                     value="${esc((existing?.assignedStudentIds || []).join(', '))}"
-                     class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm focus:border-primary-500 focus:outline-none">
+            <div id="individual-students-wrapper" class="md:col-span-2 space-y-2 ${existing?.assignedMode !== 'individual' ? 'hide' : ''}">
+              <label class="block text-dark-300 text-sm mb-1">Assign to students</label>
+              <p class="text-xs text-dark-500 leading-relaxed">Search by name, membership ID, or email. Only selected learners receive this assessment.</p>
+              <input type="text" id="builder-student-assign-search" autocomplete="off" placeholder="Filter roster…"
+                     class="w-full px-3 py-2 rounded-lg bg-dark-900 border border-dark-600 text-white text-sm placeholder-dark-500 focus:border-primary-500 focus:outline-none" />
+              <input type="hidden" name="assignedStudentIds" id="builder-assigned-ids-hidden" value="${esc((existing?.assignedStudentIds || []).join(', '))}" />
+              <div id="builder-student-assign-list" class="max-h-52 min-h-[2.5rem] overflow-y-auto rounded-lg border border-dark-600 bg-dark-900/80 p-2 space-y-0.5" role="group" aria-label="Students in selected class"></div>
             </div>
           </div>
         </div>
@@ -581,7 +668,7 @@ async function renderBuilder(): Promise<void> {
         <!-- Questions Section -->
         <div class="bg-dark-800 rounded-xl border border-dark-700 p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-white font-semibold text-base">Questions</h3>
+            <h3 class="text-slate-100 font-semibold text-base">Questions</h3>
             <button type="button" data-action="add-question"
                     class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-500 text-white hover:bg-primary-600">
               + Add Question
@@ -606,6 +693,10 @@ async function renderBuilder(): Promise<void> {
       </form>
     </div>`
   );
+
+  if (existing?.assignedMode === 'individual' && existing.classId) {
+    await refreshBuilderStudentRoster(existing.classId, existing.assignedStudentIds ?? []);
+  }
 }
 
 function questionCardHtml(q: Partial<AssessmentQuestion> & { id?: string }, index: number): string {
@@ -1278,6 +1369,13 @@ async function handleClick(e: Event): Promise<void> {
   }
 }
 
+function handleInput(e: Event): void {
+  const target = e.target as HTMLElement;
+  if (target.id === 'builder-student-assign-search') {
+    filterBuilderAssigneeRows((target as HTMLInputElement).value);
+  }
+}
+
 function handleChange(e: Event): void {
   const target = e.target as HTMLElement;
 
@@ -1285,8 +1383,40 @@ function handleChange(e: Event): void {
   if (target.id === 'builder-assigned-mode') {
     const wrapper = document.getElementById('individual-students-wrapper');
     if (wrapper) {
-      wrapper.classList.toggle('hide', (target as HTMLSelectElement).value !== 'individual');
+      const isInd = (target as HTMLSelectElement).value === 'individual';
+      wrapper.classList.toggle('hide', !isInd);
+      if (isInd) {
+        const classSel = document.getElementById('builder-class-select') as HTMLSelectElement | null;
+        const existingClass = (
+          document.querySelector('#assessment-form input[name="existingClassId"]') as HTMLInputElement | null
+        )?.value?.trim();
+        const courseId =
+          classSel?.value?.trim() ||
+          existingClass ||
+          '';
+        const hidden = document.getElementById('builder-assigned-ids-hidden') as HTMLInputElement | null;
+        const prev = (hidden?.value || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        void refreshBuilderStudentRoster(courseId, prev);
+      }
     }
+  }
+
+  if (target.id === 'builder-class-select') {
+    const mode = (document.getElementById('builder-assigned-mode') as HTMLSelectElement | null)?.value;
+    if (mode === 'individual') {
+      void refreshBuilderStudentRoster((target as HTMLSelectElement).value, []);
+    }
+  }
+
+  if (
+    target instanceof HTMLInputElement &&
+    target.matches('input[data-assignee-cb]') &&
+    target.closest('#builder-student-assign-list')
+  ) {
+    syncBuilderAssignedIdsFromCheckboxes();
   }
 
   // Change question type → show/hide options and correct-text areas
@@ -1494,13 +1624,21 @@ async function handleSaveAssessment(form: HTMLFormElement, publish: boolean): Pr
   const dueDateTime = dueRaw ? new Date(dueRaw).toISOString() : new Date().toISOString();
 
   const assignedMode = fd.get('assignedMode') as 'class' | 'individual';
+  const hiddenAssign = (
+    document.getElementById('builder-assigned-ids-hidden') as HTMLInputElement | null
+  )?.value;
   const assignedStudentIds =
     assignedMode === 'individual'
-      ? ((fd.get('assignedStudentIds') as string) || '')
+      ? (hiddenAssign ?? (fd.get('assignedStudentIds') as string) ?? '')
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
+
+  if (assignedMode === 'individual' && assignedStudentIds.length === 0) {
+    showAppToast('Select at least one student, or choose Entire Class.', 'info');
+    return;
+  }
 
   const assessmentData = {
     title: fd.get('title') as string,
@@ -1702,9 +1840,9 @@ function formatDate(isoStr: string): string {
 
 function sectionHeader(title: string, rightHtml?: string): string {
   return `
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-bold text-white">${esc(title)}</h2>
-      <div class="flex items-center gap-2">${rightHtml || ''}</div>
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-xl font-bold text-on-surface">${esc(title)}</h2>
+      <div class="flex items-center gap-2 shrink-0">${rightHtml || ''}</div>
     </div>`;
 }
 
@@ -1715,8 +1853,8 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
   return `
     <div class="text-center py-16 px-4">
       <div class="text-4xl mb-3 opacity-30">📋</div>
-      <h3 class="text-white font-semibold text-lg">${esc(title)}</h3>
-      ${subtitle ? `<p class="text-dark-400 text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
+      <h3 class="text-on-surface font-semibold text-lg">${esc(title)}</h3>
+      ${subtitle ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
       ${cta}
     </div>`;
 }
@@ -1821,7 +1959,7 @@ function teacherListSkeletonHtml(): string {
 
 function studentListSkeletonHtml(): string {
   const card = `
-    <div class="bg-dark-800 rounded-xl border border-dark-700 p-5">
+    <div class="rounded-xl border border-slate-200/90 bg-white/95 dark:border-dark-700 dark:bg-dark-800 p-5">
       <div class="flex items-start justify-between mb-3">
         <div class="min-w-0 flex-1">
           <div class="skeleton skeleton-text !w-[65%]"></div>

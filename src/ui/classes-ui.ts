@@ -39,7 +39,7 @@ let cachedTeacherCourses: Course[] = [];
 function sectionHeader(title: string, rightHtml?: string): string {
   return `
     <div class="flex items-center justify-between gap-3">
-      <h2 class="text-xl font-bold text-white font-display">${esc(title)}</h2>
+      <h2 class="text-xl font-bold text-on-surface font-display">${esc(title)}</h2>
       <div class="flex items-center gap-2 shrink-0">${rightHtml || ''}</div>
     </div>`;
 }
@@ -52,8 +52,8 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
     <div class="text-center py-16 px-4">
       <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-dark-500 mb-2">DSKM LMS</p>
       <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📚</div>
-      <h3 class="text-white font-semibold text-lg">${esc(title)}</h3>
-      ${subtitle ? `<p class="text-dark-400 text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
+      <h3 class="text-on-surface font-semibold text-lg">${esc(title)}</h3>
+      ${subtitle ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
       ${cta}
     </div>`;
 }
@@ -615,25 +615,25 @@ async function renderStudentView(): Promise<void> {
         ? `${prog.done} / ${prog.total} assessments submitted`
         : 'No published assessments yet';
     return `
-    <div class="rounded-2xl border border-white/10 bg-dark-800/55 backdrop-blur-md p-5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.35)] hover:border-primary-500/25 transition-all space-y-3 md:p-6">
+    <div class="rounded-2xl border border-surface-default bg-surface-container dark:bg-dark-800/55 dark:border-white/10 dark:backdrop-blur-md p-5 shadow-sm shadow-slate-900/5 dark:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.35)] hover:border-primary-500/25 transition-all space-y-3 md:p-6">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <h3 class="text-white font-semibold text-base truncate">${esc(safeCourseDisplayName(c.courseName))}</h3>
-          <p class="text-dark-400 text-sm mt-0.5">${esc(teacherLine)}</p>
+          <h3 class="text-on-surface font-semibold text-base truncate">${esc(safeCourseDisplayName(c.courseName))}</h3>
+          <p class="text-on-surface-muted text-sm mt-0.5">${esc(teacherLine)}</p>
         </div>
-        ${prog && prog.total > 0 ? `<span class="shrink-0 text-xs font-bold text-primary-400 tabular-nums">${pct}%</span>` : ''}
+        ${prog && prog.total > 0 ? `<span class="shrink-0 text-xs font-bold text-primary-600 dark:text-primary-400 tabular-nums">${pct}%</span>` : ''}
       </div>
-      ${c.schedule ? `<p class="text-dark-300 text-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5 opacity-50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>${esc(c.schedule)}</p>` : ''}
-      ${c.description ? `<p class="text-dark-300 text-sm line-clamp-2">${esc(c.description)}</p>` : ''}
+      ${c.schedule ? `<p class="text-on-surface-muted text-sm flex items-center gap-1.5"><svg class="w-3.5 h-3.5 opacity-50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>${esc(c.schedule)}</p>` : ''}
+      ${c.description ? `<p class="text-on-surface-muted text-sm line-clamp-2">${esc(c.description)}</p>` : ''}
       <div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prog && prog.total > 0 ? pct : 0}" aria-label="Assessment completion for this class">
-        <div class="h-1.5 w-full rounded-full bg-dark-700/90 overflow-hidden">
+        <div class="h-1.5 w-full rounded-full bg-slate-200 dark:bg-dark-700/90 overflow-hidden">
           <div class="assessment-progress-fill h-full rounded-full bg-gradient-to-r from-primary-600 to-cyan-400 transition-[width] duration-500 ease-out" style="width: ${prog && prog.total > 0 ? pct : 0}%"></div>
         </div>
-        <p class="text-dark-500 text-xs mt-1.5">${esc(progLabel)}</p>
+        <p class="text-on-surface-subtle text-xs mt-1.5">${esc(progLabel)}</p>
       </div>
-      <div class="flex gap-2 pt-1">
-        <a href="#" data-tab="assessments" class="classes-quick-link min-h-[36px] inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-primary-500/15 text-primary-400 hover:bg-primary-500/25 active:scale-[0.97] transition-all touch-manipulation">Assessments</a>
-        <a href="#" data-tab="grades" class="classes-quick-link min-h-[36px] inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-600 text-dark-300 hover:bg-dark-500 active:scale-[0.97] transition-all touch-manipulation">Grades</a>
+      <div class="flex flex-wrap gap-2 pt-1">
+        <a href="#" data-tab="assessments" class="classes-quick-link min-h-[36px] inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-primary-600/20 bg-primary-600/10 text-primary-800 hover:bg-primary-600/15 dark:border-transparent dark:bg-primary-500/15 dark:text-primary-400 dark:hover:bg-primary-500/25 active:scale-[0.97] transition-all touch-manipulation">Assessments</a>
+        <a href="#" data-tab="grades" class="classes-quick-link min-h-[36px] inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-transparent dark:bg-dark-600 dark:text-dark-300 dark:hover:bg-dark-500 active:scale-[0.97] transition-all touch-manipulation">Grades</a>
       </div>
     </div>`;
   });
@@ -641,7 +641,7 @@ async function renderStudentView(): Promise<void> {
   const emptyHtml = emptyState(
     'Welcome to DSKM LMS!',
     "You haven't been assigned to a class yet. Contact your teacher, or open Assessments to see your work.",
-    `<a href="#" data-tab="assessments" class="classes-quick-link inline-flex px-4 py-2 rounded-lg text-sm font-semibold bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">View assessments</a>`
+    `<a href="#" data-tab="assessments" class="classes-quick-link inline-flex px-4 py-2 rounded-lg text-sm font-semibold border border-primary-600/20 bg-primary-600/10 text-primary-800 hover:bg-primary-600/15 dark:border-transparent dark:bg-primary-500/20 dark:text-primary-400 dark:hover:bg-primary-500/30">View assessments</a>`
   );
 
   renderTemplate(
