@@ -3,6 +3,7 @@ import { getCurrentUser } from '../core/auth';
 import { reportClientFault } from '../core/client-errors';
 import { safeCourseChromeTitle } from '../core/display-fallbacks';
 import type { Course } from '../types';
+import { UserRole } from '../types';
 
 const WEEKDAY_NAMES = [
   'sunday',
@@ -121,7 +122,7 @@ export async function markAllStudentsPresent(
 ): Promise<MarkAllPresentResult> {
   try {
     const user = getCurrentUser();
-    if (!user || (user.role !== 'teacher' && user.role !== 'admin')) {
+    if (!user || (user.role !== UserRole.Teacher && user.role !== UserRole.Admin)) {
       throw new Error('Only teachers and administrators can record bulk attendance.');
     }
 
@@ -129,7 +130,7 @@ export async function markAllStudentsPresent(
     if (!courseSnap.exists()) throw new Error('Class not found.');
 
     const course = { id: courseSnap.id, ...courseSnap.data() } as Course;
-    if (user.role === 'teacher' && course.teacherId !== user.uid) {
+    if (user.role === UserRole.Teacher && course.teacherId !== user.uid) {
       throw new Error('You can only record attendance for your own classes.');
     }
 

@@ -142,9 +142,28 @@ service cloud.firestore {
         teacherCreatesStudentUser()
       );
 
+      /**
+       * Teacher mirrors roster/student-record edits into the linked auth profile (`displayName`, etc.)
+       * only when `users/{uid}.studentProfileId` points at a `students` doc that authorizes this teacher.
+       */
+      function teacherMirrorsLinkedLearnerUserFields() {
+        return isTeacher() &&
+          request.auth.uid != uid &&
+          resource.data.role == 'student' &&
+          resource.data.keys().hasAll(['studentProfileId']) &&
+          studentProfileDocAuthorizesTeacher(resource.data.studentProfileId, uid) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'role', 'studentProfileId', 'email', 'createdAt', 'legalAcceptance'
+          ]) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'displayName', 'phoneNumber', 'birthYear', 'memberId', 'updatedAt'
+          ]);
+      }
+
       allow update: if isAuthenticated() && (
         isAdmin() ||
         teacherLinksStudentProfile() ||
+        teacherMirrorsLinkedLearnerUserFields() ||
         selfServiceUserUpdate()
       );
 
@@ -160,6 +179,19 @@ service cloud.firestore {
           request.auth.uid == resource.data.studentUid;
       }
 
+      /** Learner may sync self-service identity fields onto their linked roster row (name/phone/DOB). */
+      function studentSelfMirrorsToStudentDoc() {
+        return isStudentRole() &&
+          resource.data.keys().hasAll(['studentUid']) &&
+          request.auth.uid == resource.data.studentUid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'contactPhone', 'yearOfBirth']);
+      }
+
+      function teacherSoftDeletesStudent() {
+        return isTeacher() && teacherLinkedToStudent(studentId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'deletedBy']);
+      }
+
       allow read: if isAuthenticated() && (
         isAdmin() ||
         isOwner() ||
@@ -169,7 +201,15 @@ service cloud.firestore {
       // Profile edits and roster-driven teacherIds updates use app-layer checks; grade/attendance are rule-scoped below.
       allow create: if isAdmin() || isTeacher();
 
-      allow update, delete: if isAdmin() || isTeacher();
+      // Teachers retain broad update access for roster `teacherIds` reconciliation; soft-delete fields
+      // (`deletedAt` / `deletedBy`) require an existing teacher↔student link via `teacherIds`.
+      allow update: if isAdmin() ||
+        studentSelfMirrorsToStudentDoc() ||
+        (isTeacher() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['deletedAt', 'deletedBy'])) ||
+        teacherSoftDeletesStudent();
+
+      // Hard deletes reserved for administrators (teachers use soft-delete via `deletedAt`).
+      allow delete: if isAdmin();
 
       match /grades/{gradeId} {
         allow read: if isAuthenticated() && (

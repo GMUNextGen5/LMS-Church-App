@@ -81,6 +81,25 @@ GitHub Actions (`.github/workflows/ci.yml`) runs Prettier check, ESLint, tests, 
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for Cloudflare Pages settings, authorized domains, and post-deploy checks.
 
+### April 2026 deployment commands (Firebase)
+
+```bash
+# Frontend build (Cloudflare Pages output: dist/)
+npm install
+npm run build
+
+# Backend deploy (rules + indexes + functions)
+npm --prefix firebase-functions install
+npm --prefix firebase-functions run build
+firebase deploy
+```
+
+If you only want the backend pieces:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes,functions
+```
+
 ## License & credits
 
 Educational use. Credits: Adib, Erick, Saaeed, Lulya, Liya.

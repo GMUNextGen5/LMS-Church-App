@@ -14,6 +14,7 @@ import { safeCourseDisplayName, safeStudentDisplayName } from '../core/display-f
 import {
   fetchTeacherAssessments,
   fetchStudentAssessments,
+  isStudentAssessmentUpcoming,
   fetchAssessment,
   createAssessment,
   updateAssessment,
@@ -81,6 +82,7 @@ let studentAssessmentsInFlight: Promise<StudentAssessmentRow[]> | null = null;
 let assessmentsTabLoadPromise: Promise<void> | null = null;
 let teacherListLimit = 30;
 let studentListLimit = 20;
+let studentListMode: 'upcoming' | 'all' = 'upcoming';
 
 /** Value for `datetime-local` in the user's local timezone (avoids UTC `.toISOString().slice` skew). */
 function toDatetimeLocalValue(isoStr: string): string {
@@ -189,6 +191,7 @@ export async function loadAssessments(): Promise<void> {
     viewState = { view: 'list' };
     teacherListLimit = 30;
     studentListLimit = 20;
+    studentListMode = 'upcoming';
     await renderCurrentView();
   })().finally(() => {
     assessmentsTabLoadPromise = null;
@@ -396,8 +399,11 @@ async function renderStudentList(_uid: string): Promise<void> {
   cachedStudentProfiles = await fetchStudents();
   const profileIds = cachedStudentProfiles.map((s) => s.id);
   const allRows = await fetchStudentAssessmentsCached(profileIds);
-  const hasMore = allRows.length > studentListLimit;
-  const rows = allRows.slice(0, studentListLimit);
+  const nowMs = Date.now();
+  const upcomingRows = allRows.filter((r) => isStudentAssessmentUpcoming(r, nowMs));
+  const baseRows = studentListMode === 'upcoming' ? upcomingRows : allRows;
+  const hasMoreInMode = baseRows.length > studentListLimit;
+  const rows = baseRows.slice(0, studentListLimit);
 
   const cards = rows
     .map((r) => {
@@ -452,12 +458,30 @@ async function renderStudentList(_uid: string): Promise<void> {
     container!,
     `
     <div class="space-y-6">
-      ${sectionHeader('My Assessments')}
+      ${sectionHeader(
+        'My Assessments',
+        `<div class="inline-flex items-center gap-2 rounded-xl border border-slate-200/90 dark:border-dark-700 bg-white/70 dark:bg-dark-800/60 p-1">
+          <button type="button" data-action="student-mode-upcoming"
+            class="px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] ${
+              studentListMode === 'upcoming'
+                ? 'bg-primary-500/15 text-primary-800 dark:text-primary-200'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-white/5'
+            }">Upcoming (${upcomingRows.length})</button>
+          <button type="button" data-action="student-mode-all"
+            class="px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] ${
+              studentListMode === 'all'
+                ? 'bg-primary-500/15 text-primary-800 dark:text-primary-200'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-white/5'
+            }">All</button>
+        </div>`
+      )}
       ${
         rows.length === 0
           ? emptyState(
-              'No assessments assigned',
-              'Assessments will appear here when your teacher publishes them.',
+              studentListMode === 'upcoming' ? 'No upcoming assessments' : 'No assessments assigned',
+              studentListMode === 'upcoming'
+                ? 'Upcoming assessments match the dashboard list: published, due in the future, and still actionable.'
+                : 'Assessments will appear here when your teacher publishes them.',
               `<button type="button" data-action="goto-classes-tab" class="px-4 py-2 rounded-lg bg-primary-500/20 text-primary-400 text-sm font-semibold hover:bg-primary-500/30 border border-primary-500/30">View my classes</button>`
             )
           : `<div class="md:hidden grid gap-4">${cards}</div>
@@ -477,7 +501,7 @@ async function renderStudentList(_uid: string): Promise<void> {
           </div>`
       }
       ${
-        hasMore
+        hasMoreInMode
           ? `
         <div class="flex justify-center pt-2">
           <button data-action="load-more-student"
@@ -1264,6 +1288,14 @@ async function handleClick(e: Event): Promise<void> {
       // Navigation
       case 'back-to-list':
         navigate({ view: 'list' });
+        break;
+      case 'student-mode-upcoming':
+        studentListMode = 'upcoming';
+        await renderCurrentView();
+        break;
+      case 'student-mode-all':
+        studentListMode = 'all';
+        await renderCurrentView();
         break;
       case 'goto-classes-tab': {
         const w = window as unknown as { switchToTab?: (t: string) => void };

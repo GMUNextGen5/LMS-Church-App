@@ -1,7 +1,6 @@
 /**
  * Login background particle canvas. Cached colors, debounced resize, requestAnimationFrame loop. Call destroy() on teardown.
  */
-import { agentDebugLog } from '../core/debug-ingest';
 import { getAppTheme } from '../core/theme-events';
 
 interface ParticleConfig {
@@ -96,19 +95,6 @@ export class ParticleSystem {
     } else {
       this.animationFrameId = requestAnimationFrame(this.animate);
     }
-    // #region agent log
-    agentDebugLog({
-      sessionId: 'ecf1fb',
-      hypothesisId: 'D',
-      runId: 'pre',
-      location: 'particles.ts:constructor',
-      message: 'ParticleSystem started',
-      data: {
-        reducedMotion: prefersReducedMotion(),
-        particleCount: this.particles.length,
-      },
-    });
-    // #endregion
   }
 
   private initListeners(): void {

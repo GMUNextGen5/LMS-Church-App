@@ -463,22 +463,47 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
         let ok = 0;
         let fail = 0;
         const seen = new Set<string>();
+        const work: Array<{ sid: string; status: Attendance['status'] }> = [];
         for (const row of rows) {
           const sid = row.dataset.studentId;
           const status = row.dataset.status as Attendance['status'] | undefined;
           if (!sid || !status || seen.has(sid)) continue;
           seen.add(sid);
-          try {
-            await o.markOne(sid, { date, status, notes: '', markedBy: '' });
-            ok++;
-          } catch (err) {
-            fail++;
-            const msg = o.formatError(err, 'Could not save.');
-            if (fail === 1) o.showToast(msg, 'error');
+          /**
+           * Presence-by-exception: **Present** is the implicit default.
+           * We persist only exceptions (absent/late/excused) to avoid heavy writes on large rosters.
+           */
+          if (status === 'present') continue;
+          work.push({ sid, status });
+        }
+
+        const CONCURRENCY = 10;
+        for (let i = 0; i < work.length; i += CONCURRENCY) {
+          const batch = work.slice(i, i + CONCURRENCY);
+          const results = await Promise.allSettled(
+            batch.map(({ sid, status }) =>
+              o.markOne(sid, { date, status, notes: '', markedBy: '' })
+            )
+          );
+          for (const r of results) {
+            if (r.status === 'fulfilled') {
+              ok++;
+            } else {
+              fail++;
+              const msg = o.formatError(r.reason, 'Could not save.');
+              if (fail === 1) o.showToast(msg, 'error');
+            }
           }
         }
-        if (ok > 0)
-          o.showToast(`Saved attendance for ${ok} student${ok !== 1 ? 's' : ''}.`, 'success');
+
+        if (ok === 0 && fail === 0) {
+          o.showToast('No exceptions to save — everyone is marked Present.', 'success');
+        } else if (ok > 0) {
+          o.showToast(
+            `Saved ${ok} attendance exception${ok !== 1 ? 's' : ''}.`,
+            'success'
+          );
+        }
         await o.onBulkSaved?.();
       } catch (err) {
         reportClientFault(err);

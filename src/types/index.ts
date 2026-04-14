@@ -2,7 +2,11 @@
  * Type definitions for the LMS. Maps to Firestore: users, students, grades, attendance, courses, assessments.
  * Parity: backend role literals live in `firebase-functions/src/domain-types.ts` — keep both in sync when roles change.
  */
-export type UserRole = 'admin' | 'teacher' | 'student';
+export enum UserRole {
+  Admin = 'admin',
+  Teacher = 'teacher',
+  Student = 'student',
+}
 
 export interface User {
   uid: string;
@@ -11,6 +15,10 @@ export interface User {
   createdAt: string;
   /** Display name from Firestore profile and/or Firebase Auth; prefer for UI over raw email. */
   displayName?: string;
+  /** Optional staff-curated label on `users/{uid}` (profile mirroring). */
+  summaryName?: string;
+  /** Learner-preferred short name on `users/{uid}` when provided. */
+  preferredName?: string;
   /** Set for self-registered students; may be absent on admin-provisioned profiles. */
   legalAcceptance?: {
     termsVersion?: string;
@@ -53,6 +61,9 @@ export interface Student {
   notes?: string;
   createdAt: string;
   createdBy?: string;
+  /** ISO timestamp when staff archived this profile (soft delete). Omitted while active. */
+  deletedAt?: string;
+  deletedBy?: string;
 }
 
 export interface Grade {

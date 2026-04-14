@@ -309,7 +309,7 @@ export function hideAllRoleRegionsForAuthHandshake(): void {
 }
 
 export function configureUIForRole(user: User): void {
-  const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+  const validRoles = [UserRole.Admin, UserRole.Teacher, UserRole.Student] as const;
   const role = user?.role;
   const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
   if (!isValidRole) {
@@ -337,11 +337,11 @@ export function configureUIForRole(user: User): void {
   document.querySelectorAll('.admin-only, .teacher-only, .student-only').forEach((el) => {
     (el as HTMLElement).classList.add('hide');
   });
-  if (role === 'admin') {
+  if (role === UserRole.Admin) {
     document.querySelectorAll('.admin-only, .teacher-only').forEach((el) => {
       (el as HTMLElement).classList.remove('hide');
     });
-  } else if (role === 'teacher') {
+  } else if (role === UserRole.Teacher) {
     document.querySelectorAll('.teacher-only').forEach((el) => {
       (el as HTMLElement).classList.remove('hide');
     });

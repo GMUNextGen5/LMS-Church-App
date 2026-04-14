@@ -1,6 +1,6 @@
 /**
  * Canonical Firestore `users/{uid}.role` values.
- * Keep aligned with frontend `src/types/index.ts` (`UserRole`).
+ * Keep aligned with frontend `src/types/index.ts` (`UserRole` enum / string values).
  *
  * Security parity: student self-service updates to `users/{uid}` must not change
  * `legalAcceptance.acceptedAt` from the signup value. That invariant is enforced in

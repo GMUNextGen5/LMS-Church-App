@@ -2,8 +2,6 @@
  * Bridges the document `lms-theme-changed` CustomEvent (dispatched from `index.html` `applyTheme`)
  * to registered refresh callbacks (Chart.js, etc.) so non-CSS surfaces stay in sync without reload.
  */
-import { agentDebugLog } from './debug-ingest';
-
 export const LMS_THEME_CHANGE_EVENT = 'lms-theme-changed';
 
 export type AppTheme = 'light' | 'dark';
@@ -33,35 +31,10 @@ export function installThemeChangeBridge(): void {
   if (typeof document === 'undefined') return;
   bridgeInstalled = true;
   document.addEventListener(LMS_THEME_CHANGE_EVENT, () => {
-    // #region agent log
-    agentDebugLog({
-      sessionId: 'ecf1fb',
-      hypothesisId: 'A',
-      runId: 'pre',
-      location: 'theme-events.ts:installThemeChangeBridge',
-      message: 'lms-theme-changed received',
-      data: {
-        handlerCount: themeRefreshHandlers.size,
-        theme: document.documentElement?.getAttribute('data-theme') ?? 'unknown',
-      },
-    });
-    // #endregion
     themeRefreshHandlers.forEach((fn) => {
       try {
         fn();
       } catch (e) {
-        // #region agent log
-        agentDebugLog({
-          sessionId: 'ecf1fb',
-          hypothesisId: 'B',
-          runId: 'pre',
-          location: 'theme-events.ts:handler',
-          message: 'theme refresh handler threw',
-          data: {
-            err: e instanceof Error ? e.message : String(e),
-          },
-        });
-        // #endregion
         /* Do not let one handler block others */
       }
     });

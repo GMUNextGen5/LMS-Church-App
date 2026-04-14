@@ -17,7 +17,10 @@ import {
   arrayRemove,
 } from '../core/firebase';
 import { getCurrentUser } from '../core/auth';
+import { studentDocumentIsActive } from './student-queries';
 import type { Course, Student, User } from '../types';
+import { UserRole } from '../types';
+import { cleanProfilePlainText } from '../core/profile-text';
 
 const COURSES = 'courses';
 const STUDENTS = 'students';
@@ -76,7 +79,7 @@ export async function fetchStudentClasses(studentProfileIds: string[]): Promise<
 
 export async function fetchTeacherClasses(): Promise<Course[]> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'teacher') return [];
+  if (!user || user.role !== UserRole.Teacher) return [];
   const q = query(collection(db, COURSES), where('teacherId', '==', user.uid));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Course);
@@ -90,7 +93,10 @@ export async function fetchClassRoster(courseId: string): Promise<Student[]> {
   const students = await Promise.all(
     studentIds.map(async (id) => {
       const snap = await getDoc(doc(db, STUDENTS, id));
-      return snap.exists() ? ({ id: snap.id, ...snap.data() } as Student) : null;
+      if (!snap.exists()) return null;
+      const raw = snap.data() as Record<string, unknown>;
+      if (!studentDocumentIsActive(raw)) return null;
+      return { id: snap.id, ...raw } as Student;
     })
   );
   return students.filter((s): s is Student => s != null);
@@ -98,7 +104,7 @@ export async function fetchClassRoster(courseId: string): Promise<Student[]> {
 
 export async function fetchAllClasses(): Promise<Course[]> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'admin') return [];
+  if (!user || user.role !== UserRole.Admin) return [];
   const snapshot = await getDocs(collection(db, COURSES));
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Course);
 }
@@ -111,17 +117,17 @@ export async function getCourse(courseId: string): Promise<Course | null> {
   if (!snap.exists()) return null;
   const data = snap.data() as Course;
   const course = { ...data, id: snap.id } as Course;
-  if (user.role === 'admin') return course;
-  if (user.role === 'teacher' && data.teacherId === user.uid) return course;
+  if (user.role === UserRole.Admin) return course;
+  if (user.role === UserRole.Teacher && data.teacherId === user.uid) return course;
   return null;
 }
 
 export async function createClass(data: Omit<Course, 'id'>): Promise<string> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+  if (!user || (user.role !== UserRole.Admin && user.role !== UserRole.Teacher))
     throw new Error('Only administrators or teachers can create classes');
   const payload = { ...data, createdAt: data.createdAt || new Date().toISOString() } as Course;
-  if (user.role === 'teacher') payload.teacherId = user.uid;
+  if (user.role === UserRole.Teacher) payload.teacherId = user.uid;
   const docRef = await addDoc(collection(db, COURSES), payload);
   const tid = payload.teacherId || '';
   const sids = payload.studentIds ?? [];
@@ -137,11 +143,12 @@ export async function updateClass(
 ): Promise<void> {
   const user = getCurrentUser();
   if (!user) throw new Error('Not authenticated');
-  if (user.role !== 'admin' && user.role !== 'teacher') throw new Error('Insufficient permissions');
+  if (user.role !== UserRole.Admin && user.role !== UserRole.Teacher)
+    throw new Error('Insufficient permissions');
   const courseRef = doc(db, COURSES, courseId);
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) throw new Error('Course not found');
-  if (user.role === 'teacher') {
+  if (user.role === UserRole.Teacher) {
     if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only edit your assigned classes');
   }
@@ -157,12 +164,12 @@ export async function updateClass(
 
 export async function deleteClass(courseId: string): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+  if (!user || (user.role !== UserRole.Admin && user.role !== UserRole.Teacher))
     throw new Error('Only administrators or the assigned teacher can delete classes');
   const courseRef = doc(db, COURSES, courseId);
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) return;
-  if (user.role === 'teacher') {
+  if (user.role === UserRole.Teacher) {
     if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only delete your assigned classes');
   }
@@ -178,12 +185,12 @@ export async function deleteClass(courseId: string): Promise<void> {
 
 export async function addStudentsToClass(courseId: string, studentIds: string[]): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+  if (!user || (user.role !== UserRole.Admin && user.role !== UserRole.Teacher))
     throw new Error('Insufficient permissions');
   const courseRef = doc(db, COURSES, courseId);
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) throw new Error('Course not found');
-  if (user.role === 'teacher') {
+  if (user.role === UserRole.Teacher) {
     if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only modify roster for your assigned classes');
   }
@@ -201,12 +208,12 @@ export async function removeStudentsFromClass(
   studentIds: string[]
 ): Promise<void> {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'teacher'))
+  if (!user || (user.role !== UserRole.Admin && user.role !== UserRole.Teacher))
     throw new Error('Insufficient permissions');
   const courseRef = doc(db, COURSES, courseId);
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) throw new Error('Course not found');
-  if (user.role === 'teacher') {
+  if (user.role === UserRole.Teacher) {
     if ((courseSnap.data()?.teacherId as string) !== user.uid)
       throw new Error('You can only modify roster for your assigned classes');
   }
@@ -222,7 +229,8 @@ export async function removeStudentsFromClass(
 
 export async function assignTeacherToClass(courseId: string, teacherUid: string): Promise<void> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'admin') throw new Error('Only administrators can assign teachers');
+  if (!user || user.role !== UserRole.Admin)
+    throw new Error('Only administrators can assign teachers');
   const courseRef = doc(db, COURSES, courseId);
   const courseSnap = await getDoc(courseRef);
   if (!courseSnap.exists()) throw new Error('Course not found');
@@ -238,16 +246,31 @@ const userDisplayNameCache = new Map<string, string>();
 /** Coalesces concurrent lookups for the same uid (single in-flight Firestore read). */
 const userDisplayNameInFlight = new Map<string, Promise<string>>();
 
+/** Drop cached display labels after profile writes (self-service or staff edits). */
+export function invalidateUserDisplayNameCache(uid?: string): void {
+  const id = (uid ?? '').trim();
+  if (!id) {
+    userDisplayNameCache.clear();
+    userDisplayNameInFlight.clear();
+    return;
+  }
+  userDisplayNameCache.delete(id);
+  userDisplayNameInFlight.delete(id);
+}
+
 /** Single source of truth for human-readable account labels (never a raw Firebase UID). */
 export function userProfileDisplayLabel(profile: User | Record<string, unknown>): string {
   const d = profile as Record<string, unknown>;
   const label =
+    (typeof d.summaryName === 'string' && d.summaryName.trim()) ||
+    (typeof d.preferredName === 'string' && d.preferredName.trim()) ||
     (typeof d.displayName === 'string' && d.displayName.trim()) ||
     (typeof d.fullName === 'string' && d.fullName.trim()) ||
     (typeof d.name === 'string' && d.name.trim()) ||
     (typeof d.email === 'string' && d.email.trim()) ||
     '';
-  return label || '—';
+  if (!label) return '—';
+  return cleanProfilePlainText(label, 254) || '—';
 }
 
 /** Resolves a user id to a human-readable name for tables and class cards (cached). */

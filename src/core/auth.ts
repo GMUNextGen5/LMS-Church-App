@@ -14,15 +14,72 @@ import {
   where,
   setDoc,
   serverTimestamp,
+  onSnapshot,
   FirebaseUser,
 } from './firebase';
 import { User, UserRole, Student } from '../types';
+import { studentDocumentIsActive } from '../data/student-queries';
 import { LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from './legal-versions';
 import { showLoading, hideLoading, showBootstrapError, showAuthContainer } from '../ui/ui';
 import { reportClientFault } from './client-errors';
 import { runSessionTeardown } from './session-teardown';
 
 let currentUser: User | null = null;
+
+let userDocumentUnsubscribe: (() => void) | null = null;
+let userProfileSnapshotHandler: ((user: User) => void) | null = null;
+
+function stopUserDocumentListener(): void {
+  if (userDocumentUnsubscribe) {
+    userDocumentUnsubscribe();
+    userDocumentUnsubscribe = null;
+  }
+}
+
+/**
+ * Registers a lightweight UI refresh when `users/{uid}` changes (e.g. staff edited the signed-in profile,
+ * or another tab saved self-service fields). Full auth boot stays on `onAuthStateChanged` only.
+ */
+export function setUserProfileSnapshotHandler(handler: ((user: User) => void) | null): void {
+  userProfileSnapshotHandler = handler;
+}
+
+function startUserDocumentListener(firebaseUser: FirebaseUser): void {
+  stopUserDocumentListener();
+  const uid = firebaseUser.uid;
+  let skipInitialSnapshot = true;
+  userDocumentUnsubscribe = onSnapshot(
+    doc(db, 'users', uid),
+    async (snap) => {
+      if (!auth.currentUser || auth.currentUser.uid !== uid) return;
+      if (!snap.exists()) return;
+      const data = snap.data() as Record<string, unknown>;
+      const role = data?.role;
+      const validRoles = [UserRole.Admin, UserRole.Teacher, UserRole.Student] as const;
+      const isValidRole =
+        typeof role === 'string' && (validRoles as readonly string[]).includes(role);
+      if (!isValidRole) return;
+      const roleTyped = role as UserRole;
+      try {
+        currentUser = await mapFirestoreUserDocumentToUser(firebaseUser, data, roleTyped);
+      } catch {
+        currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, data);
+      }
+      if (skipInitialSnapshot) {
+        skipInitialSnapshot = false;
+        return;
+      }
+      try {
+        userProfileSnapshotHandler?.(currentUser);
+      } catch {
+        /* host may not have bound a handler yet */
+      }
+    },
+    () => {
+      /* Listener errors are non-fatal; auth state remains authoritative. */
+    }
+  );
+}
 
 /**
  * Defers auth-driven DOM updates until after the next paint (strict / InPrivate timing races).
@@ -109,6 +166,7 @@ function pickSelfServiceUserFields(
 
 function mapStudentFirestoreToStudent(id: string, raw: Record<string, unknown>): Student | null {
   try {
+    if (!studentDocumentIsActive(raw)) return null;
     const name = typeof raw.name === 'string' ? raw.name : '';
     const parentUid = typeof raw.parentUid === 'string' ? raw.parentUid : '';
     const studentUid = typeof raw.studentUid === 'string' ? raw.studentUid : '';
@@ -196,6 +254,16 @@ function buildFallbackUserFromFirebase(
     typeof memberIdRaw === 'string' && memberIdRaw.trim()
       ? memberIdRaw.trim().slice(0, 40)
       : undefined;
+  const summaryNameRaw = userData?.summaryName;
+  const summaryName =
+    typeof summaryNameRaw === 'string' && summaryNameRaw.trim()
+      ? summaryNameRaw.trim().slice(0, 120)
+      : undefined;
+  const preferredNameRaw = userData?.preferredName;
+  const preferredName =
+    typeof preferredNameRaw === 'string' && preferredNameRaw.trim()
+      ? preferredNameRaw.trim().slice(0, 120)
+      : undefined;
 
   return {
     uid: firebaseUser.uid,
@@ -203,8 +271,10 @@ function buildFallbackUserFromFirebase(
     role,
     createdAt: coerceFirestoreDateToIso(userData?.createdAt),
     displayName,
+    summaryName,
+    preferredName,
     legalAcceptance,
-    studentProfile: role === 'student' ? null : undefined,
+    studentProfile: role === UserRole.Student ? null : undefined,
     phoneNumber,
     birthYear,
     memberId,
@@ -249,7 +319,7 @@ async function mapFirestoreUserDocumentToUser(
   }
 
   let studentProfile: Student | null | undefined;
-  if (role === 'student') {
+  if (role === UserRole.Student) {
     studentProfile = await resolveStudentProfileForUid(firebaseUser.uid, userData);
   }
 
@@ -259,6 +329,16 @@ async function mapFirestoreUserDocumentToUser(
     typeof memberIdRaw === 'string' && memberIdRaw.trim()
       ? memberIdRaw.trim().slice(0, 40)
       : undefined;
+  const summaryNameRaw = userData?.summaryName;
+  const summaryName =
+    typeof summaryNameRaw === 'string' && summaryNameRaw.trim()
+      ? summaryNameRaw.trim().slice(0, 120)
+      : undefined;
+  const preferredNameRaw = userData?.preferredName;
+  const preferredName =
+    typeof preferredNameRaw === 'string' && preferredNameRaw.trim()
+      ? preferredNameRaw.trim().slice(0, 120)
+      : undefined;
 
   return {
     uid: firebaseUser.uid,
@@ -266,6 +346,8 @@ async function mapFirestoreUserDocumentToUser(
     role,
     createdAt: coerceFirestoreDateToIso(userData?.createdAt),
     displayName,
+    summaryName,
+    preferredName,
     legalAcceptance,
     studentProfile,
     phoneNumber,
@@ -306,7 +388,7 @@ export async function reloadCurrentUserFromFirestore(): Promise<User | null> {
     if (!userDoc.exists()) return currentUser;
     const userData = userDoc.data() as Record<string, unknown>;
     const role = userData?.role;
-    const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+    const validRoles = [UserRole.Admin, UserRole.Teacher, UserRole.Student] as const;
     const isValidRole =
       typeof role === 'string' && (validRoles as readonly string[]).includes(role);
     if (!isValidRole) return currentUser;
@@ -373,7 +455,7 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
                 if (userDoc.exists()) {
                   const userData = userDoc.data() as Record<string, unknown>;
                   const role = userData?.role;
-                  const validRoles: readonly UserRole[] = ['admin', 'teacher', 'student'] as const;
+                  const validRoles = [UserRole.Admin, UserRole.Teacher, UserRole.Student] as const;
                   const isValidRole =
                     typeof role === 'string' && (validRoles as readonly string[]).includes(role);
                   if (!isValidRole) {
@@ -393,6 +475,7 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
                     currentUser = buildFallbackUserFromFirebase(firebaseUser, roleTyped, userData);
                   }
                   onUserChanged(currentUser);
+                  startUserDocumentListener(firebaseUser);
                 } else {
                   throw new Error(
                     'Your account profile was not found. Please contact an administrator to finish account setup.'
@@ -445,6 +528,7 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
                 });
               }
               currentUser = null;
+              stopUserDocumentListener();
               onUserChanged(null);
               try {
                 await Promise.race([
@@ -471,6 +555,7 @@ export function initAuth(onUserChanged: (user: User | null) => void): void {
             } catch {
               /* storage may be blocked */
             }
+            stopUserDocumentListener();
             currentUser = null;
             onUserChanged(null);
           }
@@ -546,7 +631,7 @@ export async function signUp(
     const userDocRef = doc(db, 'users', uid);
     await setDoc(userDocRef, {
       email: String(email).trim(),
-      role: 'student',
+      role: UserRole.Student,
       createdAt: new Date().toISOString(),
       legalAcceptance: {
         termsVersion: LEGAL_TERMS_VERSION,

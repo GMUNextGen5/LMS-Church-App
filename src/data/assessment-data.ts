@@ -29,6 +29,7 @@ import type {
   Course,
   Student,
 } from '../types';
+import { UserRole } from '../types';
 
 function cleanText(value: unknown, maxLen: number): string {
   if (value == null) return '';
@@ -63,7 +64,7 @@ function studentProfileMatchesAssessmentVisibility(
 
 function requireTeacherOrAdmin() {
   const user = requireAuth();
-  if (user.role !== 'teacher' && user.role !== 'admin') {
+  if (user.role !== UserRole.Teacher && user.role !== UserRole.Admin) {
     throw new Error('Only teachers and admins can perform this action');
   }
   return user;
@@ -160,11 +161,11 @@ export async function fetchAssessment(
 /** Fetch all assessments the current teacher/admin can see. */
 export async function fetchTeacherAssessments(): Promise<(Assessment & { courseName: string })[]> {
   const user = requireAuth();
-  if (user.role !== 'teacher' && user.role !== 'admin') return [];
+  if (user.role !== UserRole.Teacher && user.role !== UserRole.Admin) return [];
 
   const coursesRef = collection(db, 'courses');
   const cq =
-    user.role === 'admin'
+    user.role === UserRole.Admin
       ? query(coursesRef)
       : query(coursesRef, where('teacherId', '==', user.uid));
   const coursesSnap = await getDocs(cq);
@@ -192,6 +193,21 @@ export interface StudentAssessmentRow {
   submission?: Submission;
   /** Roster profile id for this class (for submissions / take URL when a user has multiple profiles). */
   activeStudentProfileId: string;
+}
+
+function parseDueMs(isoDue: string): number {
+  const ms = Date.parse(isoDue);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+/**
+ * Single source of truth for the learner "Upcoming" definition (Dashboard + Assessments tab).
+ * Upcoming means: due date is in the future AND the submission is still actionable.
+ */
+export function isStudentAssessmentUpcoming(row: StudentAssessmentRow, nowMs: number): boolean {
+  const dueMs = parseDueMs(row.assessment?.dueDateTime || '');
+  if (!dueMs || dueMs <= nowMs) return false;
+  return submissionStillActionable(row.submission);
 }
 
 /** Fetch assessments visible to the current student. */
@@ -287,7 +303,7 @@ export async function fetchNextStudentDeadline(
   uid: string
 ): Promise<NextStudentDeadlineResult | null> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'student' || user.uid !== uid) {
+  if (!user || user.role !== UserRole.Student || user.uid !== uid) {
     throw new Error('Not authorized');
   }
   const profiles = await fetchStudents();
@@ -814,7 +830,7 @@ export async function fetchCoursesForStudent(studentProfileIds: string[]): Promi
 export async function countPendingSubmissionsForTeacher(): Promise<number> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
-  if (user.role !== 'teacher') {
+  if (user.role !== UserRole.Teacher) {
     throw new Error('Pending submission counts are only available to signed-in teacher accounts.');
   }
 
@@ -859,7 +875,7 @@ export async function fetchTeacherGradingQueueRows(
 ): Promise<TeacherGradingQueueRow[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
-  if (user.role !== 'teacher') {
+  if (user.role !== UserRole.Teacher) {
     throw new Error('Grading queue details are only available to signed-in teacher accounts.');
   }
 
@@ -930,7 +946,7 @@ export async function fetchStudentUpcomingAssessmentsMobile(
   limit: number
 ): Promise<StudentUpcomingAssessmentMobile[]> {
   const user = getCurrentUser();
-  if (!user || user.role !== 'student' || user.uid !== uid) {
+  if (!user || user.role !== UserRole.Student || user.uid !== uid) {
     throw new Error('Not authorized');
   }
   const profiles = await fetchStudents();
@@ -942,10 +958,7 @@ export async function fetchStudentUpcomingAssessmentsMobile(
   const open: StudentUpcomingAssessmentMobile[] = [];
 
   for (const row of rows) {
-    const dueMs = Date.parse(row.assessment.dueDateTime);
-    if (!Number.isFinite(dueMs) || dueMs <= nowMs) continue;
-
-    if (!submissionStillActionable(row.submission)) continue;
+    if (!isStudentAssessmentUpcoming(row, nowMs)) continue;
 
     open.push({
       courseId: row.courseId,
@@ -981,10 +994,10 @@ export async function fetchTeacherAssessmentDashboardRows(
 ): Promise<TeacherAssessmentDashboardRow[]> {
   const user = getCurrentUser();
   if (!user) throw new Error('User not authenticated');
-  if (user.role === 'student') {
+  if (user.role === UserRole.Student) {
     throw new Error('Teacher assessment dashboard rows are not available to learner accounts.');
   }
-  if (user.role !== 'teacher') {
+  if (user.role !== UserRole.Teacher) {
     throw new Error(
       'Teacher assessment dashboard rows are only available to signed-in teacher accounts.'
     );

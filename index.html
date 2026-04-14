@@ -6919,7 +6919,7 @@
           >
             <button
               type="button"
-              class="lms-sidebar-toggle p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/10"
+              class="lms-sidebar-toggle p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-surface-hover dark:text-slate-300 dark:hover:text-white"
               aria-label="Open menu"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -7275,7 +7275,7 @@
                 <button
                   type="button"
                   id="lms-notifications-close"
-                  class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+                  class="p-2 rounded-lg text-slate-500 hover:bg-surface-hover hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   aria-label="Close notifications"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -7438,64 +7438,81 @@
                 class="w-full min-w-0 min-h-0 hidden md:block"
               ></div>
 
-              <!-- Student dashboard: GPA bento only (metrics via replaceChildren in main.ts) -->
+              <!-- Student dashboard: GPA, upcoming work, wisdom (metrics via main.ts) -->
               <div
-                id="dashboard-student-mastery-row"
-                class="student-only hide mt-8 w-full max-w-full hidden md:block"
+                id="dashboard-student-layout"
+                class="student-only hide mt-8 w-full max-w-full flex flex-col gap-6 px-4 md:px-0 md:grid md:grid-cols-12 md:gap-6"
               >
-                <article
-                  class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover max-w-2xl"
-                >
-                  <div
-                    class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
-                    aria-hidden="true"
-                  ></div>
-                  <div class="relative flex items-start justify-between gap-3 mb-5">
-                    <div>
-                      <p
-                        class="text-xs font-semibold uppercase tracking-widest text-primary-400/90"
-                      >
-                        My Academic Standing
-                      </p>
-                      <h3 class="mt-1 text-lg font-bold text-white font-display">Overall GPA</h3>
-                    </div>
+                <div id="dashboard-student-mastery-row" class="hidden md:block md:col-span-6 min-w-0">
+                  <article
+                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover h-full"
+                  >
                     <div
-                      class="shrink-0 rounded-xl bg-primary-400/10 p-3 ring-1 ring-primary-400/25"
-                    >
-                      <svg
-                        class="h-6 w-6 text-primary-300"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
+                      class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
+                      aria-hidden="true"
+                    ></div>
+                    <div class="relative flex items-start justify-between gap-3 mb-5">
+                      <div>
+                        <p
+                          class="text-xs font-semibold uppercase tracking-widest text-primary-400/90"
+                        >
+                          My Academic Standing
+                        </p>
+                        <h3 class="mt-1 text-lg font-bold text-white font-display">Overall GPA</h3>
+                      </div>
+                      <div
+                        class="shrink-0 rounded-xl bg-primary-400/10 p-3 ring-1 ring-primary-400/25"
                       >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m0 0H9m3 0h3"
-                        />
-                      </svg>
+                        <svg
+                          class="h-6 w-6 text-primary-300"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m0 0H9m3 0h3"
+                          />
+                        </svg>
+                      </div>
                     </div>
-                  </div>
-                  <div id="student-gpa-metric-root" class="relative min-h-[5rem]"></div>
-                </article>
-              </div>
+                    <div id="student-gpa-metric-root" class="relative min-h-[5rem]"></div>
+                  </article>
+                </div>
 
-              <!-- Orthodox proverb (desktop learners; mobile copy lives in dashboard-mobile-shell) -->
-              <div class="student-only hide mt-8 max-w-2xl hidden md:block">
-                <div
-                  class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-white/90 dark:bg-dark-900/70 ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20"
-                  role="note"
-                  aria-label="Reflection from Ethiopian Orthodox tradition"
-                >
-                  <p
-                    data-lms-dashboard-proverb
-                    class="lms-mobile-proverb-body text-sm italic leading-relaxed"
-                  ></p>
-                  <p class="text-[0.65rem] text-on-surface-muted mt-3 uppercase tracking-widest">
-                    Ethiopian Orthodox tradition
-                  </p>
+                <div id="dashboard-student-upcoming-panel" class="hidden md:block md:col-span-6 min-w-0">
+                  <article
+                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover h-full border border-surface-default"
+                  >
+                    <div
+                      id="dashboard-student-upcoming-inner"
+                      class="relative min-h-[5rem]"
+                    ></div>
+                  </article>
+                </div>
+
+                <!-- Orthodox proverb (desktop learners; mobile copy lives in dashboard-mobile-shell) -->
+                <div class="hidden md:block md:col-span-12 min-w-0">
+                  <div
+                    class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20"
+                    role="note"
+                    aria-label="Reflection from Ethiopian Orthodox tradition"
+                  >
+                    <p
+                      data-lms-dashboard-proverb
+                      class="lms-mobile-proverb-body text-sm italic leading-relaxed text-slate-800 dark:text-slate-100 min-h-[3.25rem]"
+                    >
+                      Daily wisdom loading…
+                    </p>
+                    <p
+                      class="text-[0.65rem] text-slate-600 dark:text-slate-400 mt-3 uppercase tracking-widest"
+                    >
+                      Ethiopian Orthodox tradition
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -9893,7 +9910,7 @@
                   </span>
                   <span
                     id="users-mobile-count"
-                    class="inline-flex min-w-[1.75rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-[0.7rem] font-semibold tabular-nums text-slate-900 ring-1 ring-slate-300/80 dark:bg-white/10 dark:text-white dark:ring-white/15"
+                    class="inline-flex min-w-[1.75rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-[0.7rem] font-semibold tabular-nums text-slate-900 ring-1 ring-slate-300/80 dark:bg-surface-hover dark:text-white dark:ring-white/15"
                     aria-live="polite"
                     >—</span
                   >
@@ -10295,7 +10312,7 @@
             <button
               type="button"
               id="change-role-modal-close"
-              class="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-900/5 hover:text-slate-800 dark:text-dark-400 dark:hover:bg-white/10 dark:hover:text-white"
+              class="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-surface-hover hover:text-slate-800 dark:text-dark-400 dark:hover:text-white"
               aria-label="Close"
             >
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -10352,7 +10369,7 @@
             <button
               type="button"
               id="change-role-cancel-btn"
-              class="flex-1 rounded-xl border border-slate-200/90 bg-white/50 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-white/80 dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10"
+              class="flex-1 rounded-xl border border-slate-200/90 bg-white/50 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-surface-hover dark:border-white/15 dark:bg-surface-hover dark:text-white/90 dark:hover:bg-surface-hover"
             >
               Cancel
             </button>
@@ -10682,7 +10699,7 @@
         for (const n of state.items) {
           const li = document.createElement('li');
           li.className =
-            'px-3 py-3 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-white/5' +
+            'px-3 py-3 cursor-pointer transition-colors hover:bg-surface-hover dark:hover:bg-surface-hover' +
             (n.read ? '' : ' bg-primary-500/[0.06] dark:bg-primary-400/10');
           li.setAttribute('role', 'button');
           li.setAttribute('tabindex', '0');
