@@ -1,3 +1,8 @@
+/**
+ * Strips heavy inline regions from `index.html` for smaller deploys.
+ * Registration tab bodies and modals are injected from `src/ui/templates.part.ts` at runtime;
+ * do not delete or empty that file — run `node scripts/extract-index-slices.mjs` to validate exports.
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 

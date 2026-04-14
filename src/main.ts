@@ -800,6 +800,8 @@ async function init(): Promise<void> {
     else if (tab === 'student-profile') void loadUserProfile();
     else if (tab === 'teacher-registration') {
       await Promise.all([loadRegisteredTeachers(), populateTeacherAccountDropdown()]);
+    } else if (tab === 'registration') {
+      await Promise.all([loadRegisteredStudents(), populateStudentAccountDropdown()]);
     }
   });
 
@@ -972,6 +974,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     invalidateStudentGpaSessionCacheIfUserChanged(user.uid);
 
     await injectShellFragments();
+    wireRegistrationShellOnce();
     await initDashboard();
     void loadUserProfile();
 
@@ -1131,6 +1134,9 @@ interface CsvStudentRow {
 }
 
 let csvParsedRows: CsvStudentRow[] = [];
+
+/** Set after deferred registration tab HTML is injected (see `injectShellFragments`). */
+let registrationShellWired = false;
 
 function csvToast(message: string, type: 'warning' | 'success' | 'error'): void {
   showAppToast(message, type === 'warning' ? 'info' : type);
@@ -1425,9 +1431,21 @@ async function executeCsvBulkUpload(): Promise<void> {
   }
 }
 
-// --- App form setup (student/teacher reg, grades, attendance, dashboard) ---
-/** Attaches listeners for dashboard, grades, attendance, AI tools, and admin flows after login. */
-function setupAppForms(): void {
+/**
+ * Wires student/teacher registration forms, CSV import, and account dropdowns after deferred HTML
+ * is injected into `#registration-content` / `#teacher-registration-content` (not present at cold boot).
+ */
+function wireRegistrationShellOnce(): void {
+  if (registrationShellWired) return;
+  if (
+    !document.getElementById('student-registration-form') &&
+    !document.getElementById('teacher-registration-form') &&
+    !document.getElementById('csv-drop-zone')
+  ) {
+    return;
+  }
+  registrationShellWired = true;
+
   const studentRegForm = document.getElementById('student-registration-form') as HTMLFormElement;
   if (studentRegForm) {
     studentRegForm.addEventListener('submit', async (e) => {
@@ -1642,6 +1660,45 @@ function setupAppForms(): void {
     });
   }
 
+  const refreshAccountsBtn = document.getElementById('refresh-accounts-btn');
+  if (refreshAccountsBtn) {
+    refreshAccountsBtn.addEventListener('click', () => populateStudentAccountDropdown());
+  }
+
+  const useManualBtn = document.getElementById('use-manual-uid-btn');
+  const useDropdownBtn = document.getElementById('use-dropdown-btn');
+  const dropdownMethod = document.getElementById('dropdown-method');
+  const manualMethod = document.getElementById('manual-method');
+  if (useManualBtn && useDropdownBtn && dropdownMethod && manualMethod) {
+    useManualBtn.addEventListener('click', () => {
+      dropdownMethod.classList.add('hide');
+      manualMethod.classList.remove('hide');
+    });
+    useDropdownBtn.addEventListener('click', () => {
+      manualMethod.classList.add('hide');
+      dropdownMethod.classList.remove('hide');
+    });
+  }
+
+  setupAccountDropdown(
+    'student-account-dropdown',
+    'final-student-uid',
+    populateStudentAccountDropdown
+  );
+  const manualUidInput = document.getElementById('manual-student-uid') as HTMLInputElement;
+  const finalUidInput = document.getElementById('final-student-uid') as HTMLInputElement;
+  if (manualUidInput && finalUidInput) {
+    manualUidInput.addEventListener('input', () => {
+      finalUidInput.value = manualUidInput.value.trim();
+    });
+  }
+
+  setupCsvUpload();
+}
+
+// --- App form setup (student/teacher reg, grades, attendance, dashboard) ---
+/** Attaches listeners for dashboard, grades, attendance, AI tools, and admin flows after login. */
+function setupAppForms(): void {
   const editStudentModal = document.getElementById('edit-student-modal');
   const editStudentForm = document.getElementById('edit-student-form') as HTMLFormElement;
   const editStudentModalClose = document.getElementById('edit-student-modal-close');
@@ -1778,39 +1835,6 @@ function setupAppForms(): void {
   const refreshUsersBtn = document.getElementById('refresh-users-btn');
   if (refreshUsersBtn) {
     refreshUsersBtn.addEventListener('click', () => loadAllUsers());
-  }
-
-  const refreshAccountsBtn = document.getElementById('refresh-accounts-btn');
-  if (refreshAccountsBtn) {
-    refreshAccountsBtn.addEventListener('click', () => populateStudentAccountDropdown());
-  }
-
-  const useManualBtn = document.getElementById('use-manual-uid-btn');
-  const useDropdownBtn = document.getElementById('use-dropdown-btn');
-  const dropdownMethod = document.getElementById('dropdown-method');
-  const manualMethod = document.getElementById('manual-method');
-  if (useManualBtn && useDropdownBtn && dropdownMethod && manualMethod) {
-    useManualBtn.addEventListener('click', () => {
-      dropdownMethod.classList.add('hide');
-      manualMethod.classList.remove('hide');
-    });
-    useDropdownBtn.addEventListener('click', () => {
-      manualMethod.classList.add('hide');
-      dropdownMethod.classList.remove('hide');
-    });
-  }
-
-  setupAccountDropdown(
-    'student-account-dropdown',
-    'final-student-uid',
-    populateStudentAccountDropdown
-  );
-  const manualUidInput = document.getElementById('manual-student-uid') as HTMLInputElement;
-  const finalUidInput = document.getElementById('final-student-uid') as HTMLInputElement;
-  if (manualUidInput && finalUidInput) {
-    manualUidInput.addEventListener('input', () => {
-      finalUidInput.value = manualUidInput.value.trim();
-    });
   }
 
   const markAttendanceForm = document.getElementById('mark-attendance-form') as HTMLFormElement;
@@ -2169,7 +2193,6 @@ function setupAppForms(): void {
     });
   }
 
-  setupCsvUpload();
   wireProfilePasswordUpdate();
   setupGoLiveButton();
 }
@@ -5159,6 +5182,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
       });
       try {
         await injectShellFragments();
+        wireRegistrationShellOnce();
         await initDashboard();
       } catch {
         /* dashboard load error */
@@ -5211,6 +5235,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
 
     try {
       await injectShellFragments();
+      wireRegistrationShellOnce();
       await initDashboard();
     } catch {
       /* dashboard load error */

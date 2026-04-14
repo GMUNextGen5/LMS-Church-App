@@ -3134,6 +3134,11 @@ button {
   color: #145f59 !important;
 }
 
+/* Learner dashboard section kickers — mint primary-700 reads too pale on white cards */
+[data-theme='light'] #dashboard-student-layout .text-primary-700 {
+  color: #145f59 !important;
+}
+
 [data-theme='light'] #app-container .text-secondary-400 {
   color: #5a3a94 !important;
 }
