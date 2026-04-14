@@ -970,14 +970,16 @@
               <button
                 type="button"
                 id="lms-go-live-btn"
-                class="lms-go-live-btn admin-only teacher-only hide inline-flex items-center justify-center gap-2 min-w-[6.75rem]"
+                class="lms-go-live-btn admin-only teacher-only hide min-w-[6.75rem]"
                 aria-live="polite"
               >
-                <span class="lms-go-live-text">GO LIVE</span>
-                <span
-                  class="lms-go-live-spinner hide w-4 h-4 shrink-0 rounded-full border-2 animate-spin"
-                  aria-hidden="true"
-                ></span>
+                <span class="inline-flex items-center justify-center gap-2">
+                  <span class="lms-go-live-text">GO LIVE</span>
+                  <span
+                    class="lms-go-live-spinner hide w-4 h-4 shrink-0 rounded-full border-2 animate-spin"
+                    aria-hidden="true"
+                  ></span>
+                </span>
               </button>
               <button
                 type="button"
@@ -1109,7 +1111,7 @@
           ></div>
           <div
             id="lms-notifications-popover"
-            class="hidden fixed z-[45] flex flex-col left-3 right-3 top-[max(3.75rem,env(safe-area-inset-top,0px)+2.75rem)] md:left-auto md:right-4 md:top-16 md:w-[min(100%-2rem,22rem)] max-h-[min(70vh,26rem)] rounded-2xl border border-slate-200/90 bg-white shadow-xl dark:border-white/10 dark:bg-[#0c1528] dark:shadow-[0_16px_48px_rgba(0,0,0,0.45)]"
+            class="hidden fixed z-[45] left-3 right-3 top-[max(3.75rem,env(safe-area-inset-top,0px)+2.75rem)] md:left-auto md:right-4 md:top-16 md:w-[min(100%-2rem,22rem)] max-h-[min(70vh,26rem)] rounded-2xl border border-slate-200/90 bg-white shadow-xl dark:border-white/10 dark:bg-[#0c1528] dark:shadow-[0_16px_48px_rgba(0,0,0,0.45)]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="lms-notifications-title"
@@ -1294,14 +1296,17 @@
 
               <div
                 id="dashboard-student-layout"
-                class="student-only hide mt-8 w-full max-w-full min-w-0 flex flex-col gap-6 px-4 md:px-0 md:grid md:grid-cols-12 md:gap-6 md:items-stretch"
+                class="student-only hide mt-8 w-full max-w-full min-w-0"
               >
+                <div
+                  class="flex flex-col gap-6 px-4 md:px-0 md:grid md:grid-cols-12 md:gap-6 md:items-stretch"
+                >
                 <div
                   id="dashboard-student-mastery-row"
                   class="hidden md:block md:col-span-6 min-w-0"
                 >
                   <article
-                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl card-hover h-full"
+                    class="card-blur progress-bar-glow relative min-w-0 min-h-[160px] overflow-hidden rounded-2xl card-hover h-full"
                   >
                     <div
                       class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
@@ -1314,7 +1319,9 @@
                         >
                           My Academic Standing
                         </p>
-                        <h3 class="mt-1 text-lg font-bold text-on-surface font-display">Overall GPA</h3>
+                        <h3 class="mt-1 text-lg font-bold text-on-surface font-display">
+                          Overall GPA
+                        </h3>
                       </div>
                       <div
                         class="shrink-0 rounded-xl bg-primary-400/10 p-3 ring-1 ring-primary-400/25"
@@ -1335,7 +1342,7 @@
                         </svg>
                       </div>
                     </div>
-                    <div id="student-gpa-metric-root" class="relative min-h-[5rem]"></div>
+                    <div id="student-gpa-metric-root" class="relative min-h-[160px]"></div>
                   </article>
                 </div>
 
@@ -1344,15 +1351,15 @@
                   class="hidden md:block md:col-span-6 min-w-0"
                 >
                   <article
-                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl card-hover h-full border border-surface-default"
+                    class="card-blur progress-bar-glow relative min-w-0 min-h-[160px] overflow-hidden rounded-2xl card-hover h-full border border-surface-default"
                   >
-                    <div id="dashboard-student-upcoming-inner" class="relative min-h-[5rem]"></div>
+                    <div id="dashboard-student-upcoming-inner" class="relative min-h-[160px]"></div>
                   </article>
                 </div>
 
                 <div class="hidden md:block md:col-span-12 min-w-0">
                   <div
-                    class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20"
+                    class="min-h-[160px] rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20"
                     role="note"
                     aria-label="Reflection from Ethiopian Orthodox tradition"
                   >
@@ -1362,12 +1369,11 @@
                     >
                       Daily wisdom loading…
                     </p>
-                    <p
-                      class="text-[0.65rem] text-on-surface-subtle mt-3 uppercase tracking-widest"
-                    >
+                    <p class="text-[0.65rem] text-on-surface-subtle mt-3 uppercase tracking-widest">
                       Ethiopian Orthodox tradition
                     </p>
                   </div>
+                </div>
                 </div>
               </div>
 
@@ -1431,31 +1437,37 @@
                     <div class="mt-6 space-y-3">
                       <button
                         id="ai-summary-btn"
-                        class="student-only w-full px-4 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hide flex items-center justify-center gap-2"
+                        type="button"
+                        class="student-only w-full px-4 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hide"
                       >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                          ></path>
-                        </svg>
-                        AI Performance Summary
+                        <span class="flex items-center justify-center gap-2">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                            ></path>
+                          </svg>
+                          AI Performance Summary
+                        </span>
                       </button>
                       <button
                         id="study-tips-btn"
-                        class="student-only w-full px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-teal-500 text-white font-semibold hover:from-green-600 hover:to-teal-600 transition-all shadow-lg hide flex items-center justify-center gap-2"
+                        type="button"
+                        class="student-only w-full px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-teal-500 text-white font-semibold hover:from-green-600 hover:to-teal-600 transition-all shadow-lg hide"
                       >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M13 10V3L4 14h7v7l9-11h-7z"
-                          ></path>
-                        </svg>
-                        Get Study Tips
+                        <span class="flex items-center justify-center gap-2">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M13 10V3L4 14h7v7l9-11h-7z"
+                            ></path>
+                          </svg>
+                          Get Study Tips
+                        </span>
                       </button>
                       <button
                         id="export-csv-btn"
@@ -1689,18 +1701,28 @@
 
                   <div class="glass-effect rounded-2xl p-4 md:p-6 hidden md:block">
                     <h3 class="text-xl font-bold text-on-surface mb-4">Grade Records</h3>
-                    <div class="overflow-x-auto">
+                    <div
+                      class="min-h-[160px] max-h-[60vh] overflow-x-auto overflow-y-auto overscroll-contain"
+                    >
                       <table id="grades-table" class="w-full">
                         <caption class="sr-only">
                           Grade records for the selected student. Choose a student above to load
                           rows.
                         </caption>
-                        <thead class="bg-surface-glass border-b border-surface-default">
+                        <thead
+                          class="sticky top-0 z-10 bg-surface-container border-b border-surface-default dark:border-dark-700"
+                        >
                           <tr>
-                            <th scope="col" class="text-left py-3 px-4 text-on-surface font-semibold">
+                            <th
+                              scope="col"
+                              class="text-left py-3 px-4 text-on-surface font-semibold"
+                            >
                               Assignment
                             </th>
-                            <th scope="col" class="text-left py-3 px-4 text-on-surface font-semibold">
+                            <th
+                              scope="col"
+                              class="text-left py-3 px-4 text-on-surface font-semibold"
+                            >
                               Category
                             </th>
                             <th
@@ -1750,7 +1772,9 @@
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-on-surface-muted text-sm">Total Days</p>
-                        <p id="attendance-total" class="text-2xl font-bold text-on-surface mt-1">0</p>
+                        <p id="attendance-total" class="text-2xl font-bold text-on-surface mt-1">
+                          0
+                        </p>
                       </div>
                       <div class="lms-att-stat-icon p-3 rounded-lg bg-blue-500/20 text-blue-400">
                         <svg
@@ -1861,7 +1885,10 @@
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-on-surface-muted text-sm">Total Students</p>
-                        <p id="roll-call-stat-total" class="text-2xl font-bold text-on-surface mt-1">
+                        <p
+                          id="roll-call-stat-total"
+                          class="text-2xl font-bold text-on-surface mt-1"
+                        >
                           0
                         </p>
                       </div>
@@ -2228,11 +2255,11 @@
                           >
                             <span
                               id="attendance-meta-date"
-                              class="min-w-0 max-w-full break-words text-on-surface-muted [overflow-wrap:anywhere]"
+                              class="min-w-0 max-w-full text-on-surface-muted [overflow-wrap:anywhere]"
                             ></span>
                             <span
                               id="attendance-meta-extra"
-                              class="min-w-0 max-w-full break-words empty:hidden sm:before:mr-2 sm:before:inline-block sm:before:text-slate-500 sm:before:content-['·'] [overflow-wrap:anywhere]"
+                              class="min-w-0 max-w-full empty:hidden sm:before:mr-2 sm:before:inline-block sm:before:text-slate-500 sm:before:content-['·'] [overflow-wrap:anywhere]"
                             ></span>
                           </p>
                         </div>
@@ -3801,6 +3828,8 @@
         const headerBtn = document.getElementById('lms-header-notifications-btn');
 
         pop?.classList.toggle('hidden', !open);
+        pop?.classList.toggle('flex', open);
+        pop?.classList.toggle('flex-col', open);
         backdrop?.classList.toggle('hidden', !open);
         mobileBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
         headerBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');

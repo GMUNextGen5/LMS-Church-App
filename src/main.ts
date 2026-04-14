@@ -2063,6 +2063,16 @@ function setupAppForms(): void {
     });
   }
 
+  document.addEventListener('tab-switched', (ev) => {
+    const tab = (ev as CustomEvent<{ tab: string }>).detail?.tab;
+    if (tab === 'grades') return;
+    const gs = document.getElementById('grades-student-search') as HTMLInputElement | null;
+    const sel = document.getElementById('student-select') as HTMLSelectElement | null;
+    if (!gs || !sel) return;
+    gs.value = '';
+    filterStudentSelectOptions(sel, '', gradesFilterEmptyEl);
+  });
+
   const attendanceStudentSearch = document.getElementById(
     'attendance-student-search'
   ) as HTMLInputElement;
@@ -3465,7 +3475,7 @@ function stopDashboardProverbRotation(): void {
 
 /** Shimmer placeholder matching the mobile GPA bento wireframe (same outer dimensions as the hydrated card). */
 function studentMobileGpaBentoSkeletonHtml(): string {
-  return `<div class="rounded-2xl border border-surface-default bg-surface-container p-5 shadow-lg shadow-slate-200/50 dark:shadow-black/20" role="status" aria-live="polite" aria-label="Loading GPA">
+  return `<div class="min-h-[160px] rounded-2xl border border-surface-default bg-surface-container p-5 shadow-lg shadow-slate-200/50 dark:shadow-black/20" role="status" aria-live="polite" aria-label="Loading GPA">
 <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
 <div class="space-y-2 min-w-0 flex-1">
 <div class="skeleton h-3 w-24 rounded-md"></div>
@@ -3516,7 +3526,7 @@ function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grad
 
   const wrap = document.createElement('div');
   wrap.className =
-    'rounded-2xl border border-surface-default bg-surface-container p-5 shadow-lg shadow-slate-200/50 dark:shadow-black/20';
+    'min-h-[160px] rounded-2xl border border-surface-default bg-surface-container p-5 shadow-lg shadow-slate-200/50 dark:shadow-black/20';
 
   const top = document.createElement('div');
   top.className = 'flex flex-wrap items-start justify-between gap-3 mb-4';
@@ -3821,7 +3831,7 @@ async function paintMobileStudentDashboard(): Promise<void> {
 <p id="dashboard-mobile-student-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight" aria-live="polite"></p>
 <div id="dashboard-mobile-student-gpa-root" aria-busy="true">${studentMobileGpaBentoSkeletonHtml()}</div>
 <div id="dashboard-mobile-student-upcoming-root" aria-busy="true">${studentMobileUpcomingSkeletonHtml()}</div>
-<div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20" role="note" aria-label="Reflection from Ethiopian Orthodox tradition">
+<div class="min-h-[160px] rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20" role="note" aria-label="Reflection from Ethiopian Orthodox tradition">
 <p data-lms-dashboard-proverb class="lms-mobile-proverb-body text-sm italic leading-relaxed text-on-surface-muted min-h-[3.25rem]">Daily wisdom loading…</p>
 <p class="text-[0.65rem] text-slate-600 dark:text-slate-400 mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
 </div>
@@ -3977,8 +3987,7 @@ function renderStudentGpaMetricReplaceChildren(gpa: number | null, grades: Grade
   value.textContent = pres.numericDisplay;
   value.setAttribute('aria-label', pres.ariaLabel);
   const scale = document.createElement('p');
-  scale.className =
-    'text-[0.65rem] font-semibold uppercase tracking-widest text-on-surface-subtle';
+  scale.className = 'text-[0.65rem] font-semibold uppercase tracking-widest text-on-surface-subtle';
   scale.textContent = 'Cumulative · weighted · 4.0 scale';
   const hint = document.createElement('p');
   hint.className = 'text-sm text-on-surface-muted leading-relaxed';

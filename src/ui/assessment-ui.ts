@@ -362,7 +362,7 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
           : `<div class="md:hidden grid gap-4">${cards}</div>
           <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
             <table class="w-full text-sm">
-              <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+              <thead class="sticky top-0 z-10 bg-surface-container border-b border-surface-default dark:border-dark-700">
                 <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
                   <th class="py-3 px-4 text-left">Title</th>
                   <th class="py-3 px-4 text-left">Class</th>
@@ -489,8 +489,8 @@ async function renderStudentList(_uid: string): Promise<void> {
           : `<div class="md:hidden grid gap-4">${cards}</div>
           <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
             <table class="w-full text-sm">
-              <thead class="bg-slate-50/95 dark:bg-dark-800/80">
-                <tr class="text-slate-700 dark:text-dark-300 text-xs uppercase tracking-wider">
+              <thead class="sticky top-0 z-10 bg-surface-container border-b border-surface-default dark:border-dark-700">
+                <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
                   <th class="py-3 px-4 text-left">Title</th>
                   <th class="py-3 px-4 text-left">Class</th>
                   <th class="py-3 px-4 text-center">Status</th>
@@ -1022,7 +1022,7 @@ async function renderSubmissionsList(): Promise<void> {
             )
           : `<div class="overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
             <table class="w-full text-sm">
-              <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+              <thead class="sticky top-0 z-10 bg-surface-container border-b border-surface-default dark:border-dark-700">
                 <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
                   <th class="py-3 px-4 text-left">Student</th>
                   <th class="py-3 px-4 text-center">Status</th>
@@ -1979,7 +1979,7 @@ function teacherListSkeletonHtml(): string {
       <div class="md:hidden grid gap-4">${card.repeat(6)}</div>
       <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
         <table class="w-full text-sm">
-          <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+          <thead class="sticky top-0 z-10 bg-surface-container border-b border-surface-default dark:border-dark-700">
             <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
               <th class="py-3 px-4 text-left">Title</th>
               <th class="py-3 px-4 text-left">Class</th>

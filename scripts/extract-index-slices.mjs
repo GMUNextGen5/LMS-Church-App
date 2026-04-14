@@ -7,12 +7,26 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const indexPath = path.join(root, 'index.html');
-const lines = fs.readFileSync(indexPath, 'utf8').split(/\r?\n/);
+const indexRaw = fs.readFileSync(indexPath, 'utf8');
+const lines = indexRaw.split(/\r?\n/);
 
 const slice = (startLine, endLine) => lines.slice(startLine - 1, endLine).join('\n');
 
-const css = slice(94, 6261);
-fs.writeFileSync(path.join(root, 'src/assets/styles/login-shell.css'), css + '\n', 'utf8');
+const styleOpen = indexRaw.indexOf('<style>');
+const styleClose = indexRaw.indexOf('</style>', styleOpen);
+if (styleOpen === -1 || styleClose === -1) {
+  console.error(
+    'index.html has no <style> block — cannot extract login-shell.css.\n' +
+      'Restore from git history: node scripts/restore-login-shell-css.mjs'
+  );
+  process.exit(1);
+}
+const css = indexRaw.slice(styleOpen + '<style>'.length, styleClose).replace(/^\s*\n/, '');
+fs.writeFileSync(
+  path.join(root, 'src/assets/styles/login-shell.css'),
+  css.trimEnd() + '\n',
+  'utf8'
+);
 
 const registrationStudentInner = slice(8641, 9153);
 const registrationTeacherInner = slice(9161, 9444);

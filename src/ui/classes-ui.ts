@@ -729,7 +729,7 @@ async function renderTeacherView(): Promise<void> {
       <!-- Desktop: data table -->
       <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
         <table class="w-full text-sm">
-          <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+          <thead class="sticky top-0 z-10 bg-surface-container border-b border-surface-default dark:border-dark-700">
             <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
               <th class="py-3 px-4 text-left">Name</th>
               <th class="py-3 px-4 text-left">Code</th>
@@ -857,7 +857,7 @@ async function renderAdminView(): Promise<void> {
       <!-- Desktop: data table -->
       <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
         <table class="w-full text-sm">
-          <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+          <thead class="sticky top-0 z-10 bg-surface-container border-b border-surface-default dark:border-dark-700">
             <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
               <th class="py-3 px-4 text-left">Name</th>
               <th class="py-3 px-4 text-left">Code</th>
