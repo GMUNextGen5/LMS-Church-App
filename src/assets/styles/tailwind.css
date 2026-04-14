@@ -115,9 +115,26 @@
   .pb-safe {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
   }
+
+  /**
+   * Compositor hints for boot overlay fade and glass cards (pairs with rules in login-shell.css).
+   */
+  #loading-overlay {
+    will-change: opacity, transform;
+  }
+
+  .card-blur {
+    will-change: opacity, transform;
+  }
 }
 
 @layer components {
+  /** Panel padding baseline (pair with glass / surface utilities in markup). */
+  .lms-panel {
+    @apply p-4 md:p-6;
+    will-change: opacity, transform;
+  }
+
   /** Shared empty-state card (tables + tab bodies). */
   .lms-empty-state-panel {
     @apply transition-all duration-200 ease-out;

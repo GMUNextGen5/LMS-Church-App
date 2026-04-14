@@ -6,6 +6,7 @@ import { getAppTheme, registerThemeRefreshHandler } from '../core/theme-events';
 import { activateModalLayer } from '../core/modal-focus';
 import { sanitizeHTML } from './ui';
 import { renderTemplate } from './dom-render';
+import { ensureDeferredShellFragmentsSync } from './templates';
 
 /** Slug for a legal document shown in the in-app modal (footer and signup links). */
 export type LegalDocumentId = 'privacy' | 'terms';
@@ -116,6 +117,7 @@ function getLegalElements(): {
  * @param doc - `privacy` or `terms`, matching `data-legal-modal` / `data-open-legal` attributes.
  */
 export function openLegalModal(doc: LegalDocumentId): void {
+  ensureDeferredShellFragmentsSync();
   const els = getLegalElements();
   if (!els) return;
   legalModalLayerCleanup?.();
@@ -151,10 +153,10 @@ export function closeLegalModal(): void {
  */
 export function initLegalModals(): void {
   if (initialized) return;
-  initialized = true;
-
+  ensureDeferredShellFragmentsSync();
   const els = getLegalElements();
   if (!els) return;
+  initialized = true;
 
   applyLegalModalTheme();
   registerThemeRefreshHandler(applyLegalModalTheme);

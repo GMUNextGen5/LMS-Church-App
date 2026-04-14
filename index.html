@@ -919,7 +919,7 @@
                 <a
                   href="#"
                   onclick="
-                    switchToTab('dashboard');
+                    if (typeof window.switchToTab === 'function') window.switchToTab('dashboard');
                     return false;
                   "
                   >Home</a
@@ -1199,7 +1199,7 @@
                 </p>
                 <h1
                   id="dashboard-welcome-heading"
-                  class="text-3xl md:text-4xl font-bold text-white font-display tracking-tight"
+                  class="text-3xl md:text-4xl font-bold text-on-surface font-display tracking-tight"
                   aria-live="polite"
                 ></h1>
                 <p
@@ -1211,7 +1211,7 @@
               <div id="dashboard-educator-student-picker" class="admin-only teacher-only hide mb-6">
                 <div class="glass-effect rounded-2xl p-6">
                   <div class="mb-5">
-                    <h3 class="text-lg font-bold text-white font-display">
+                    <h3 class="text-lg font-bold text-on-surface font-display">
                       View Student Dashboard
                     </h3>
                     <p class="text-xs text-dark-400 mt-1">
@@ -1294,14 +1294,14 @@
 
               <div
                 id="dashboard-student-layout"
-                class="student-only hide mt-8 w-full max-w-full flex flex-col gap-6 px-4 md:px-0 md:grid md:grid-cols-12 md:gap-6"
+                class="student-only hide mt-8 w-full max-w-full min-w-0 flex flex-col gap-6 px-4 md:px-0 md:grid md:grid-cols-12 md:gap-6 md:items-stretch"
               >
                 <div
                   id="dashboard-student-mastery-row"
                   class="hidden md:block md:col-span-6 min-w-0"
                 >
                   <article
-                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover h-full"
+                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl card-hover h-full"
                   >
                     <div
                       class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
@@ -1314,7 +1314,7 @@
                         >
                           My Academic Standing
                         </p>
-                        <h3 class="mt-1 text-lg font-bold text-white font-display">Overall GPA</h3>
+                        <h3 class="mt-1 text-lg font-bold text-on-surface font-display">Overall GPA</h3>
                       </div>
                       <div
                         class="shrink-0 rounded-xl bg-primary-400/10 p-3 ring-1 ring-primary-400/25"
@@ -1344,7 +1344,7 @@
                   class="hidden md:block md:col-span-6 min-w-0"
                 >
                   <article
-                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover h-full border border-surface-default"
+                    class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl card-hover h-full border border-surface-default"
                   >
                     <div id="dashboard-student-upcoming-inner" class="relative min-h-[5rem]"></div>
                   </article>
@@ -1358,12 +1358,12 @@
                   >
                     <p
                       data-lms-dashboard-proverb
-                      class="lms-mobile-proverb-body text-sm italic leading-relaxed text-slate-800 dark:text-slate-100 min-h-[3.25rem]"
+                      class="lms-mobile-proverb-body text-sm italic leading-relaxed text-on-surface-muted min-h-[3.25rem]"
                     >
                       Daily wisdom loading…
                     </p>
                     <p
-                      class="text-[0.65rem] text-slate-600 dark:text-slate-400 mt-3 uppercase tracking-widest"
+                      class="text-[0.65rem] text-on-surface-subtle mt-3 uppercase tracking-widest"
                     >
                       Ethiopian Orthodox tradition
                     </p>
@@ -1373,12 +1373,12 @@
 
               <div class="admin-only teacher-only hide mt-10">
                 <h3
-                  class="text-xl md:text-2xl font-bold text-white mb-4 font-display tracking-tight"
+                  class="text-xl md:text-2xl font-bold text-on-surface mb-4 font-display tracking-tight"
                 >
                   Recent academic activity
                 </h3>
                 <div id="recent-activity" class="min-h-[4rem]">
-                  <div class="card-blur progress-bar-glow rounded-xl p-4 text-dark-400 text-sm">
+                  <div class="card-blur progress-bar-glow rounded-xl text-on-surface-muted text-sm">
                     No recent activity recorded.
                   </div>
                 </div>
@@ -1397,11 +1397,11 @@
             </div>
 
             <div id="grades-content" class="tab-content hide">
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-1">
-                  <div class="glass-effect rounded-2xl p-6 sticky top-24">
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-6 min-w-0">
+                <div class="md:col-span-4 min-w-0">
+                  <div class="glass-effect rounded-2xl p-4 md:p-6 sticky top-24">
                     <div id="student-select-container" class="admin-only teacher-only hide">
-                      <h3 class="text-xl font-bold text-white mb-4">Select Student</h3>
+                      <h3 class="text-xl font-bold text-on-surface mb-4">Select Student</h3>
                       <input
                         type="text"
                         id="grades-student-search"
@@ -1422,7 +1422,7 @@
                       </select>
                     </div>
                     <div class="student-only hide mb-6">
-                      <h3 class="text-xl font-bold text-white mb-2">Your grades</h3>
+                      <h3 class="text-xl font-bold text-on-surface mb-2">Your grades</h3>
                       <p class="text-sm text-dark-400 leading-relaxed">
                         Only your academic record is shown here.
                       </p>
@@ -1560,12 +1560,12 @@
                   </div>
                 </div>
 
-                <div class="lg:col-span-2 space-y-6">
+                <div class="md:col-span-8 space-y-6 min-w-0">
                   <div
                     id="grade-entry-section"
-                    class="teacher-only admin-only glass-effect rounded-2xl p-6 hide"
+                    class="teacher-only admin-only glass-effect rounded-2xl p-4 md:p-6 hide"
                   >
-                    <h3 class="text-xl font-bold text-white mb-4">Add New Grade</h3>
+                    <h3 class="text-xl font-bold text-on-surface mb-4">Add New Grade</h3>
                     <form id="grade-entry-form" class="space-y-4">
                       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -1663,13 +1663,15 @@
                   </div>
 
                   <div id="grades-mobile-panel" class="md:hidden space-y-4 pb-4">
-                    <div class="rounded-2xl border border-slate-600/60 bg-slate-900/50 p-4">
+                    <div
+                      class="rounded-2xl border border-surface-default bg-surface-container p-4 dark:border-slate-600/60"
+                    >
                       <label class="sr-only" for="grades-mobile-assignment-select"
                         >Assignment</label
                       >
                       <select
                         id="grades-mobile-assignment-select"
-                        class="w-full min-h-[48px] px-4 rounded-xl bg-slate-800 border border-slate-600 text-white text-sm font-medium mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+                        class="w-full min-h-[48px] px-4 rounded-xl bg-dark-800 border border-dark-600 text-on-surface text-sm font-medium mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                       >
                         <option value="">All assignments</option>
                       </select>
@@ -1685,45 +1687,45 @@
                     <div id="grades-mobile-cards" class="space-y-3"></div>
                   </div>
 
-                  <div class="glass-effect rounded-2xl p-6 hidden md:block">
-                    <h3 class="text-xl font-bold text-white mb-4">Grade Records</h3>
+                  <div class="glass-effect rounded-2xl p-4 md:p-6 hidden md:block">
+                    <h3 class="text-xl font-bold text-on-surface mb-4">Grade Records</h3>
                     <div class="overflow-x-auto">
                       <table id="grades-table" class="w-full">
                         <caption class="sr-only">
                           Grade records for the selected student. Choose a student above to load
                           rows.
                         </caption>
-                        <thead>
-                          <tr class="border-b border-dark-600">
-                            <th scope="col" class="text-left py-3 px-4 text-dark-200 font-semibold">
+                        <thead class="bg-surface-glass border-b border-surface-default">
+                          <tr>
+                            <th scope="col" class="text-left py-3 px-4 text-on-surface font-semibold">
                               Assignment
                             </th>
-                            <th scope="col" class="text-left py-3 px-4 text-dark-200 font-semibold">
+                            <th scope="col" class="text-left py-3 px-4 text-on-surface font-semibold">
                               Category
                             </th>
                             <th
                               scope="col"
-                              class="text-center py-3 px-4 text-dark-200 font-semibold"
+                              class="text-center py-3 px-4 text-on-surface font-semibold"
                             >
                               Score
                             </th>
                             <th
                               scope="col"
-                              class="text-center py-3 px-4 text-dark-200 font-semibold"
+                              class="text-center py-3 px-4 text-on-surface font-semibold"
                             >
                               Percentage
                             </th>
                             <th
                               scope="col"
-                              class="text-center py-3 px-4 text-dark-200 font-semibold teacher-only admin-only hide"
+                              class="text-center py-3 px-4 text-on-surface font-semibold teacher-only admin-only hide"
                             >
                               Actions
                             </th>
                           </tr>
                         </thead>
-                        <tbody id="grades-table-body">
+                        <tbody id="grades-table-body" class="bg-surface-container">
                           <tr>
-                            <td colspan="5" class="text-center py-8 text-dark-300">
+                            <td colspan="5" class="text-center py-8 text-on-surface-muted">
                               Select a student to view grades
                             </td>
                           </tr>
@@ -1747,8 +1749,8 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Total Days</p>
-                        <p id="attendance-total" class="text-2xl font-bold text-white mt-1">0</p>
+                        <p class="text-on-surface-muted text-sm">Total Days</p>
+                        <p id="attendance-total" class="text-2xl font-bold text-on-surface mt-1">0</p>
                       </div>
                       <div class="lms-att-stat-icon p-3 rounded-lg bg-blue-500/20 text-blue-400">
                         <svg
@@ -1771,7 +1773,7 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Present</p>
+                        <p class="text-on-surface-muted text-sm">Present</p>
                         <p id="attendance-present" class="text-2xl font-bold text-green-400 mt-1">
                           0
                         </p>
@@ -1797,7 +1799,7 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Absent</p>
+                        <p class="text-on-surface-muted text-sm">Absent</p>
                         <p id="attendance-absent" class="text-2xl font-bold text-red-400 mt-1">0</p>
                       </div>
                       <div class="lms-att-stat-icon p-3 rounded-lg bg-red-500/20 text-red-400">
@@ -1821,7 +1823,7 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Attendance Rate</p>
+                        <p class="text-on-surface-muted text-sm">Attendance Rate</p>
                         <p
                           id="attendance-rate"
                           class="text-2xl font-bold text-primary-400 mt-1 min-w-0 tabular-nums break-words"
@@ -1858,8 +1860,8 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Total Students</p>
-                        <p id="roll-call-stat-total" class="text-2xl font-bold text-white mt-1">
+                        <p class="text-on-surface-muted text-sm">Total Students</p>
+                        <p id="roll-call-stat-total" class="text-2xl font-bold text-on-surface mt-1">
                           0
                         </p>
                       </div>
@@ -1884,7 +1886,7 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Present</p>
+                        <p class="text-on-surface-muted text-sm">Present</p>
                         <p
                           id="roll-call-stat-present"
                           class="text-2xl font-bold text-cyan-400 mt-1"
@@ -1913,7 +1915,7 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Absent</p>
+                        <p class="text-on-surface-muted text-sm">Absent</p>
                         <p id="roll-call-stat-absent" class="text-2xl font-bold text-rose-400 mt-1">
                           0
                         </p>
@@ -1939,7 +1941,7 @@
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="text-dark-400 text-sm">Late</p>
+                        <p class="text-on-surface-muted text-sm">Late</p>
                         <p id="roll-call-stat-late" class="text-2xl font-bold text-amber-400 mt-1">
                           0
                         </p>
@@ -2002,20 +2004,6 @@
                         >
                           <option value="">-- Select a student --</option>
                         </select>
-                      </div>
-                      <div class="min-w-0 max-w-full">
-                        <label class="lms-form-label" for="attendance-date">Date</label>
-                        <div
-                          class="lms-mark-attendance-date-field w-full border border-surface-default bg-surface-glass focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-shadow"
-                        >
-                          <input
-                            type="date"
-                            id="attendance-date"
-                            name="date"
-                            required
-                            class="px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:text-white dark:placeholder-dark-400"
-                          />
-                        </div>
                       </div>
                       <div class="min-w-0">
                         <label class="lms-form-label">Status</label>
@@ -2174,12 +2162,45 @@
                     id="attendance-roll-call-root"
                     class="mt-0 sm:mt-0 space-y-4 sm:space-y-5 min-w-0 max-w-full"
                   >
+                    <div
+                      id="attendance-date-container"
+                      class="lms-sticky-scroll-safe sticky top-0 z-[25] bg-surface-glass border border-surface-default backdrop-blur-md rounded-2xl p-4 sm:p-6 mb-2 sm:mb-3 shadow-sm dark:shadow-none"
+                    >
+                      <label class="lms-form-label" for="attendance-date">Session date</label>
+                      <div
+                        class="lms-mark-attendance-date-field lms-attendance-date-inner mt-1 w-full rounded-xl focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500/60 transition-shadow"
+                      >
+                        <input
+                          type="date"
+                          id="attendance-date"
+                          name="date"
+                          form="mark-attendance-form"
+                          required
+                          autocomplete="off"
+                          class="lms-attendance-session-date-input w-full min-h-11 px-3 sm:px-4 py-2 rounded-2xl text-sm text-on-surface placeholder:text-on-surface-muted focus:outline-none appearance-none accent-primary-500 bg-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      id="attendance-future-date-notice"
+                      class="hidden lms-empty-state-panel text-center py-8 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none mb-2 sm:mb-3"
+                      role="status"
+                    >
+                      <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📅</div>
+                      <p class="text-on-surface font-semibold">No records for this date</p>
+                      <p class="text-on-surface-muted text-sm mt-2 max-w-md mx-auto">
+                        This day is in the future. Exception records will appear here after sessions
+                        are saved.
+                      </p>
+                    </div>
+
                     <div class="flex flex-col gap-3 sm:gap-4 min-w-0">
                       <div class="space-y-1.5 sm:space-y-2 min-w-0">
                         <p class="text-xs font-bold tracking-widest text-primary-400">
                           PRESENCE BY EXCEPTION
                         </p>
-                        <p class="text-sm text-slate-400">
+                        <p class="text-sm text-on-surface-muted">
                           Default is Present. Save only exceptions (A/L/E) for high performance on
                           large rosters.
                         </p>
@@ -2197,7 +2218,7 @@
                           </p>
                           <h4
                             id="attendance-active-class-title"
-                            class="text-lg sm:text-xl font-bold text-white break-words"
+                            class="text-lg sm:text-xl font-bold text-on-surface break-words"
                           >
                             All students
                           </h4>
@@ -2207,7 +2228,7 @@
                           >
                             <span
                               id="attendance-meta-date"
-                              class="min-w-0 max-w-full break-words text-slate-300 [overflow-wrap:anywhere]"
+                              class="min-w-0 max-w-full break-words text-on-surface-muted [overflow-wrap:anywhere]"
                             ></span>
                             <span
                               id="attendance-meta-extra"
@@ -2249,7 +2270,7 @@
                     >
                       <div class="max-h-[min(34rem,68dvh)] overflow-y-auto overscroll-contain">
                         <div
-                          class="lms-sticky-scroll-safe sticky top-0 z-20 bg-surface-container/95 backdrop-blur border-b border-surface-default p-3 sm:p-4 space-y-3"
+                          class="lms-sticky-scroll-safe sticky top-0 z-20 bg-surface-container/95 backdrop-blur border-b border-surface-default p-4 sm:p-6 space-y-3"
                         >
                           <div class="min-w-0">
                             <label class="sr-only" for="roll-call-student-search"
@@ -5472,8 +5493,8 @@
         document.querySelectorAll('.lms-nav-item[data-tab]').forEach((item) => {
           item.addEventListener('click', () => {
             const tabName = item.getAttribute('data-tab');
-            if (tabName) {
-              switchToTab(tabName);
+            if (tabName && typeof window.switchToTab === 'function') {
+              window.switchToTab(tabName);
             }
           });
         });

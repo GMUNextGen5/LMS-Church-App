@@ -29,7 +29,8 @@ let currentUser: User | null = null;
 let userDocumentUnsubscribe: (() => void) | null = null;
 let userProfileSnapshotHandler: ((user: User) => void) | null = null;
 
-function stopUserDocumentListener(): void {
+/** Detaches `users/{uid}` snapshot listener — call before full navigation or sign-out to avoid ghost work. */
+export function stopUserDocumentListener(): void {
   if (userDocumentUnsubscribe) {
     userDocumentUnsubscribe();
     userDocumentUnsubscribe = null;
@@ -683,6 +684,7 @@ export async function signIn(email: string, password: string): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
+  stopUserDocumentListener();
   runSessionTeardown();
   const shell = document.getElementById('app-mount');
   if (shell) shell.innerHTML = '';

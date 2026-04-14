@@ -14,6 +14,7 @@ import {
   escapeHtmlText as esc,
   renderTemplate,
 } from './dom-render';
+import { localDateKey } from '../data/attendance-data';
 import type { Attendance, Student } from '../types';
 
 const ROSTER_ROW = 'attendance-roster-row';
@@ -51,7 +52,8 @@ export function attendanceHistoryEmptyRowHtml(message: string, ctaHtml?: string)
 function historyRowClasses(status: Attendance['status']): string {
   const dim = status === 'present' || status === 'excused';
   const alert = status === 'absent' || status === 'late';
-  const base = 'border-b border-dark-700 transition-colors duration-150 hover:bg-white/5';
+  const base =
+    'border-b border-surface-default bg-surface-container transition-colors duration-150 hover:bg-surface-hover';
   if (dim) return `${base} opacity-70`;
   if (alert && status === 'late') return `${base} opacity-100 border-l-2 border-l-orange-500/45`;
   if (alert) return `${base} opacity-100 border-l-2 border-l-red-500/45`;
@@ -114,10 +116,10 @@ function rosterTableRowHtml(student: Student): string {
     <td class="py-3 px-3 align-middle">
       <div class="flex items-center gap-3 min-w-0">
         ${rosterAvatarCell(student)}
-        <span class="text-white font-semibold truncate">${name}</span>
+        <span class="text-on-surface font-semibold truncate">${name}</span>
       </div>
     </td>
-    <td class="py-3 px-3 align-middle text-slate-300 text-sm font-mono">${sid}</td>
+    <td class="py-3 px-3 align-middle text-on-surface-muted text-sm font-mono">${sid}</td>
     <td class="py-3 px-2 align-middle">
       <div class="flex flex-wrap items-center gap-2">
         <div class="flex flex-row flex-nowrap gap-1.5" role="group" aria-label="Attendance status">
@@ -130,7 +132,7 @@ function rosterTableRowHtml(student: Student): string {
       </div>
     </td>
     <td class="py-3 px-2 align-middle text-right">
-      <button type="button" data-roll-reset class="min-w-11 min-h-11 inline-flex items-center justify-center rounded-xl border border-surface-default text-slate-300 hover:bg-surface-glass hover:text-on-surface transition-colors touch-manipulation" aria-label="Reset row to present" title="Reset to present">
+      <button type="button" data-roll-reset class="min-w-11 min-h-11 inline-flex items-center justify-center rounded-xl border border-surface-default text-on-surface-muted hover:bg-surface-glass hover:text-on-surface transition-colors touch-manipulation" aria-label="Reset row to present" title="Reset to present">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
     </td>
@@ -146,8 +148,8 @@ function rosterCardHtml(student: Student): string {
     <div class="flex items-start gap-3">
       ${rosterAvatarCell(student)}
       <div class="min-w-0 flex-1">
-        <p class="text-white font-bold truncate">${name}</p>
-        <p class="text-slate-400 text-xs font-mono mt-0.5">${sid}</p>
+        <p class="text-on-surface font-bold truncate">${name}</p>
+        <p class="text-on-surface-muted text-xs font-mono mt-0.5">${sid}</p>
         <div class="mt-2"><span class="roll-pill-slot">${statusPill('present')}</span></div>
       </div>
     </div>
@@ -157,7 +159,7 @@ function rosterCardHtml(student: Student): string {
       ${pickButton('late', 'L')}
       ${pickButton('excused', 'E')}
     </div>
-    <button type="button" data-roll-reset class="w-full min-h-11 rounded-xl border border-surface-default text-slate-300 text-sm font-semibold hover:bg-surface-glass transition-colors touch-manipulation active:scale-[0.98]">Reset to present</button>
+    <button type="button" data-roll-reset class="w-full min-h-11 rounded-xl border border-surface-default text-on-surface-muted text-sm font-semibold hover:bg-surface-glass transition-colors touch-manipulation active:scale-[0.98]">Reset to present</button>
   </div>`;
 }
 
@@ -335,6 +337,46 @@ export interface InitAttendanceBulkOptions {
 let bulkOptions: InitAttendanceBulkOptions | null = null;
 let rollCallFilterMode: 'all' | Attendance['status'] = 'all';
 let attendanceBulkUiWired = false;
+
+let attendanceRosterRefresh: () => void | Promise<void> = () => {};
+let attendanceDateChrome: () => void = () => {};
+let attendanceDateUiWired = false;
+
+export interface InitAttendanceUiOptions {
+  /** Re-fetch roster + same-day exception statuses for the selected session date. */
+  refresh: () => void | Promise<void>;
+  /** Sync header chrome (e.g. meta date line, future-date notice). */
+  onChrome?: () => void;
+}
+
+/**
+ * Wires the session date input: default to today, re-hydrate exceptions when the date changes.
+ * Call once after the attendance shell is in the DOM (e.g. after {@link initAttendanceBulkUI}).
+ */
+export function initAttendanceUI(opts: InitAttendanceUiOptions): void {
+  attendanceRosterRefresh = opts.refresh;
+  attendanceDateChrome = opts.onChrome ?? (() => {});
+  const input = document.getElementById('attendance-date') as HTMLInputElement | null;
+  if (!input) return;
+
+  const today = localDateKey();
+  if (!input.value) input.value = today;
+
+  if (!attendanceDateUiWired) {
+    attendanceDateUiWired = true;
+    input.addEventListener('change', () => {
+      attendanceDateChrome();
+      void attendanceRosterRefresh();
+    });
+  }
+
+  attendanceDateChrome();
+}
+
+/** Re-runs roster render + backend hydration for the current session date (same as changing the date). */
+export function refreshAttendanceRoster(): void {
+  void attendanceRosterRefresh();
+}
 
 function syncTwinRosterRows(
   container: HTMLElement,

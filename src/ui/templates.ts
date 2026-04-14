@@ -7,11 +7,26 @@ import {
   TEMPLATE_REGISTRATION_TEACHER_INNER,
 } from './templates.part';
 
+let deferredShellInjected = false;
+let deferredShellScheduled = false;
+
 /**
- * Injects heavy, static shells that previously lived in index.html (runs once at init).
- * Order: registration tabs → global modals under `#lms-deferred-modals-root`.
+ * Verifies the critical app shell from `index.html` is present (`#app-mount`, `#dashboard-content`).
+ * Does not inject large HTML strings — those are deferred to {@link injectDeferredShellFragments}.
  */
-export function injectShellFragments(): void {
+export function injectImmediateShellFragments(): void {
+  if (!document.getElementById('app-mount') || !document.getElementById('dashboard-content')) {
+    /* Host must include #app-mount and #dashboard-content from index.html. */
+  }
+}
+
+/**
+ * Heavy shells (registration tab bodies, global modals). The main `#dashboard-content` shell
+ * stays in `index.html` — this work is deferred so the first paint can stay interactive.
+ */
+export function injectDeferredShellFragments(): void {
+  if (deferredShellInjected) return;
+
   const reg = document.getElementById('registration-content');
   if (reg && reg.childElementCount === 0) {
     reg.innerHTML = TEMPLATE_REGISTRATION_STUDENT_INNER.trim();
@@ -33,4 +48,55 @@ export function injectShellFragments(): void {
       .join('\n')
       .trim();
   }
+
+  deferredShellInjected = true;
+}
+
+/** Injects registration + modal HTML synchronously (e.g. first open of a modal or registration tab). */
+export function ensureDeferredShellFragmentsSync(): void {
+  injectDeferredShellFragments();
+}
+
+/**
+ * Schedules deferred injection via `requestIdleCallback` (timeout 500ms) or `setTimeout(500)`.
+ */
+export function scheduleDeferredShellFragments(onComplete?: () => void): void {
+  if (deferredShellInjected) {
+    queueMicrotask(() => {
+      try {
+        onComplete?.();
+      } catch {
+        /* host DOM */
+      }
+    });
+    return;
+  }
+  if (deferredShellScheduled) {
+    return;
+  }
+  deferredShellScheduled = true;
+
+  const run = (): void => {
+    injectDeferredShellFragments();
+    try {
+      onComplete?.();
+    } catch {
+      /* host DOM */
+    }
+  };
+
+  if (typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(run, { timeout: 500 });
+  } else {
+    window.setTimeout(run, 500);
+  }
+}
+
+/**
+ * Boots the shell in two phases: immediate verification only, then idle-scheduled heavy HTML.
+ * Prefer {@link scheduleDeferredShellFragments} from UI init so modals are not parsed synchronously.
+ */
+export function injectShellFragments(): void {
+  injectImmediateShellFragments();
+  scheduleDeferredShellFragments();
 }

@@ -277,17 +277,17 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
           : '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">Draft</span>';
       const dueBadge = isPast
         ? `<span class="text-red-400 text-xs">Past due</span>`
-        : `<span class="text-dark-300 text-xs">${formatDate(a.dueDateTime)}</span>`;
+        : `<span class="text-on-surface-muted dark:text-dark-300 text-xs">${formatDate(a.dueDateTime)}</span>`;
 
       return `
-      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors"
+      <tr class="border-b border-slate-200/90 dark:border-dark-700 hover:bg-slate-50/90 dark:hover:bg-white/5 transition-colors"
           style="content-visibility:auto; contain: content; contain-intrinsic-size: 56px;">
-        <td class="py-3 px-4 text-white font-medium">${esc(a.title)}</td>
-        <td class="py-3 px-4 text-dark-300 text-sm">${esc(safeCourseDisplayName(a.courseName))}</td>
+        <td class="py-3 px-4 text-on-surface font-medium">${esc(a.title)}</td>
+        <td class="py-3 px-4 text-on-surface-muted text-sm">${esc(safeCourseDisplayName(a.courseName))}</td>
         <td class="py-3 px-4 text-center">${statusBadge}</td>
         <td class="py-3 px-4 text-center">${dueBadge}</td>
-        <td class="py-3 px-4 text-center text-dark-300">${a.questionCount}</td>
-        <td class="py-3 px-4 text-center text-dark-300">${a.totalPoints}</td>
+        <td class="py-3 px-4 text-center text-on-surface-muted tabular-nums">${a.questionCount}</td>
+        <td class="py-3 px-4 text-center text-on-surface-muted tabular-nums">${a.totalPoints}</td>
         <td class="py-3 px-4 text-center">
           <div class="inline-flex items-center gap-1 flex-nowrap overflow-x-auto max-w-full align-middle" style="scrollbar-width: none;">
           <button data-action="edit-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
@@ -311,18 +311,18 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
           : '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400 whitespace-nowrap">Draft</span>';
       const dueBadge = isPast
         ? `<span class="text-red-400 text-xs whitespace-nowrap">Past due</span>`
-        : `<span class="text-dark-300 text-xs whitespace-nowrap">${formatDate(a.dueDateTime)}</span>`;
+        : `<span class="text-on-surface-muted dark:text-dark-300 text-xs whitespace-nowrap">${formatDate(a.dueDateTime)}</span>`;
       return `
-      <div class="bg-dark-800 rounded-xl border border-dark-700 p-5 hover:border-dark-500 transition-all"
+      <div class="rounded-xl border border-surface-default bg-surface-container dark:bg-dark-800 dark:border-dark-700 p-5 hover:border-primary-500/25 dark:hover:border-dark-500 transition-all shadow-sm dark:shadow-none"
            style="content-visibility:auto; contain: content; contain-intrinsic-size: 180px;">
         <div class="flex items-start justify-between gap-3 mb-2">
           <div class="min-w-0">
-            <h3 class="text-white font-semibold text-base truncate">${esc(a.title)}</h3>
-            <p class="text-dark-400 text-sm mt-0.5 truncate">${esc(safeCourseDisplayName(a.courseName))}</p>
+            <h3 class="text-on-surface font-semibold text-base truncate">${esc(a.title)}</h3>
+            <p class="text-on-surface-muted text-sm mt-0.5 truncate">${esc(safeCourseDisplayName(a.courseName))}</p>
           </div>
           ${statusBadge}
         </div>
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-dark-400 mb-4">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-muted mb-4">
           <span>${dueBadge}</span>
           <span>${a.questionCount} questions</span>
           <span>${a.totalPoints} pts</span>
@@ -360,10 +360,10 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
               `<button data-action="create-assessment" type="button" class="inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-all duration-200">+ Create assessment</button>`
             )
           : `<div class="md:hidden grid gap-4">${cards}</div>
-          <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
+          <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
             <table class="w-full text-sm">
-              <thead class="bg-dark-800/80">
-                <tr class="text-dark-300 text-xs uppercase tracking-wider">
+              <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+                <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
                   <th class="py-3 px-4 text-left">Title</th>
                   <th class="py-3 px-4 text-left">Class</th>
                   <th class="py-3 px-4 text-center">Status</th>
@@ -373,7 +373,7 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
                   <th class="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody class="bg-slate-900">${rows}</tbody>
+              <tbody class="bg-surface-container dark:bg-slate-900/80">${rows}</tbody>
             </table>
           </div>`
       }
@@ -972,13 +972,13 @@ async function renderSubmissionsList(): Promise<void> {
       };
       const cls = statusCls[sub.status] || 'bg-dark-600 text-dark-300';
       return `
-      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors"
+      <tr class="border-b border-slate-200/90 dark:border-dark-700 hover:bg-slate-50/90 dark:hover:bg-white/5 transition-colors"
           style="content-visibility:auto; contain: content; contain-intrinsic-size: 56px;">
-        <td class="py-3 px-4 text-white">${esc(submissionStudentDisplayName(sub))}</td>
+        <td class="py-3 px-4 text-on-surface font-medium">${esc(submissionStudentDisplayName(sub))}</td>
         <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${sub.status.replace('_', ' ')}</span></td>
-        <td class="py-3 px-4 text-center text-dark-300 text-xs">${sub.submittedAt ? formatDate(sub.submittedAt) : '—'}</td>
-        <td class="py-3 px-4 text-center text-dark-300">${sub.autoScore}/${sub.totalPoints}</td>
-        <td class="py-3 px-4 text-center text-white font-semibold">${sub.finalScore}/${sub.totalPoints}</td>
+        <td class="py-3 px-4 text-center text-on-surface-muted text-xs">${sub.submittedAt ? formatDate(sub.submittedAt) : '—'}</td>
+        <td class="py-3 px-4 text-center text-on-surface-muted tabular-nums">${sub.autoScore}/${sub.totalPoints}</td>
+        <td class="py-3 px-4 text-center text-on-surface font-semibold tabular-nums">${sub.finalScore}/${sub.totalPoints}</td>
         <td class="py-3 px-4 text-center">${sub.needsGrading ? '<span class="text-yellow-400 text-xs">Needs grading</span>' : '<span class="text-green-400 text-xs">Complete</span>'}</td>
         <td class="py-3 px-4 text-center">${sub.released ? '<span class="text-green-400 text-xs">Yes</span>' : '<span class="text-dark-400 text-xs">No</span>'}</td>
         <td class="py-3 px-4 text-center">
@@ -1020,10 +1020,10 @@ async function renderSubmissionsList(): Promise<void> {
               "Students haven't started this assessment.",
               `<button data-action="back-to-list" type="button" class="px-4 py-2 rounded-lg bg-dark-700 text-dark-200 text-sm font-semibold hover:bg-dark-600 transition-colors">&larr; Back to assessments</button>`
             )
-          : `<div class="overflow-x-auto rounded-xl border border-dark-700">
+          : `<div class="overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
             <table class="w-full text-sm">
-              <thead class="bg-dark-800/80">
-                <tr class="text-dark-300 text-xs uppercase tracking-wider">
+              <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+                <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
                   <th class="py-3 px-4 text-left">Student</th>
                   <th class="py-3 px-4 text-center">Status</th>
                   <th class="py-3 px-4 text-center">Submitted</th>
@@ -1034,7 +1034,7 @@ async function renderSubmissionsList(): Promise<void> {
                   <th class="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody class="bg-slate-900">${rows}</tbody>
+              <tbody class="bg-surface-container dark:bg-slate-900/80">${rows}</tbody>
             </table>
           </div>`
       }
@@ -1936,7 +1936,7 @@ async function fetchStudentAssessmentsCached(
 
 function teacherListSkeletonHtml(): string {
   const card = `
-      <div class="bg-dark-800 rounded-xl border border-dark-700 p-5">
+      <div class="rounded-xl border border-surface-default bg-surface-container dark:bg-dark-800 dark:border-dark-700 p-5 shadow-sm dark:shadow-none">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div class="min-w-0 flex-1">
             <div class="skeleton skeleton-text !w-[70%]"></div>
@@ -1956,7 +1956,7 @@ function teacherListSkeletonHtml(): string {
         </div>
       </div>`;
   const row = `
-    <tr class="border-b border-dark-700">
+    <tr class="border-b border-slate-200/90 dark:border-dark-700">
       <td class="py-3 px-4"><div class="skeleton skeleton-text !w-[65%]"></div></td>
       <td class="py-3 px-4"><div class="skeleton skeleton-text short !w-[55%]"></div></td>
       <td class="py-3 px-4 text-center"><div class="skeleton skeleton-pill mx-auto !w-20 !h-6"></div></td>
@@ -1977,10 +1977,10 @@ function teacherListSkeletonHtml(): string {
       `
       )}
       <div class="md:hidden grid gap-4">${card.repeat(6)}</div>
-      <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
+      <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
         <table class="w-full text-sm">
-          <thead class="bg-dark-800/80">
-            <tr class="text-dark-300 text-xs uppercase tracking-wider">
+          <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+            <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
               <th class="py-3 px-4 text-left">Title</th>
               <th class="py-3 px-4 text-left">Class</th>
               <th class="py-3 px-4 text-center">Status</th>
@@ -1990,7 +1990,7 @@ function teacherListSkeletonHtml(): string {
               <th class="py-3 px-4 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-slate-900">${row.repeat(8)}</tbody>
+          <tbody class="bg-surface-container dark:bg-slate-900/80">${row.repeat(8)}</tbody>
         </table>
       </div>
     </div>`;

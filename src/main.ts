@@ -37,6 +37,7 @@ import {
   userLegalAcceptanceIncomplete,
   getCurrentUser,
   reloadCurrentUserFromFirestore,
+  stopUserDocumentListener,
 } from './core/auth';
 import {
   initUI,
@@ -120,6 +121,7 @@ import {
 } from './bootstrap/lazy-tab-panels';
 import {
   initAttendanceBulkUI,
+  initAttendanceUI,
   applyRollCallAttendanceHydration,
   refreshAttendanceBulkRoster,
   renderAttendanceHistoryRows,
@@ -130,6 +132,7 @@ import {
   initGradesMobileUI,
   renderGradesMobile,
 } from './ui/grades-mobile-ui';
+import { ensureDeferredShellFragmentsSync } from './ui/templates';
 import { initLegalModals } from './ui/legal';
 import { setupSignupPasswordStrengthMeter } from './ui/signup-password-strength';
 import { setupProfilePasswordStrengthMeter } from './ui/profile-password-strength';
@@ -518,6 +521,7 @@ function installRoleGuardedSwitchToTab(): void {
     const role = getCurrentUser()?.role ?? null;
     if (!canAccessMainTab(tabName, role)) {
       showAppToast('You do not have access to that area.', 'error');
+      inner('dashboard');
       return;
     }
     inner(tabName);
@@ -533,17 +537,23 @@ async function init(): Promise<void> {
   }
 
   try {
-    initUI();
+    initUI(() => {
+      try {
+        wireChangeRoleModal();
+      } catch {
+        /* role modal */
+      }
+      try {
+        initLegalModals();
+      } catch {
+        /* legal modals */
+      }
+    });
     hideAllRoleRegionsForAuthHandshake();
     try {
       hydrateLucideIcons(document);
     } catch {
       /* lucide placeholders */
-    }
-    try {
-      wireChangeRoleModal();
-    } catch {
-      /* role modal */
     }
   } catch {
     // UI boot should not block Firebase init; fall through to banner-based error handling if needed.
@@ -764,11 +774,6 @@ async function init(): Promise<void> {
     /* theme bridge */
   }
   try {
-    initLegalModals();
-  } catch {
-    /* legal modals */
-  }
-  try {
     initAccountIdUi();
   } catch {
     /* account id UI */
@@ -925,6 +930,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
     const there = dashboardUrl.split('#')[0];
     if (here !== there) {
       markAuthShellReady();
+      stopUserDocumentListener();
       window.location.href = dashboardUrl;
       return;
     }
@@ -940,6 +946,12 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
         user.email || ''
       );
     });
+    try {
+      particleSystem?.destroy();
+      particleSystem = null;
+    } catch {
+      /* canvas teardown */
+    }
     markAuthShellReady();
 
     if (user.role === UserRole.Student) {
@@ -993,6 +1005,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       showAuthContainer();
       resetAppState();
     });
+    startParticleSystemWhenReady();
     markAuthShellReady();
   }
 }
@@ -1388,8 +1401,7 @@ async function executeCsvBulkUpload(): Promise<void> {
   if (uploadBtn) uploadBtn.disabled = false;
 
   try {
-    await initDashboard();
-    await loadRegisteredStudents();
+    await initDashboard({ awaitSecondary: true });
   } catch {
     /* optional */
   }
@@ -1446,7 +1458,7 @@ function setupAppForms(): void {
         );
         if (studentDropdownValue)
           studentDropdownValue.textContent = '-- Select Registered Account --';
-        await Promise.all([initDashboard(), loadRegisteredStudents()]);
+        await initDashboard({ awaitSecondary: true });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Registration failed';
         if (errorEl) {
@@ -1653,7 +1665,7 @@ function setupAppForms(): void {
         const edited = currentStudents.find((s) => s.id === studentId);
         if (edited?.studentUid) invalidateUserDisplayNameCache(edited.studentUid);
         closeEditStudentModal();
-        await Promise.all([initDashboard(), loadRegisteredStudents()]);
+        await initDashboard({ awaitSecondary: true });
         showAppToast('Student updated successfully.', 'success');
       } catch (err: unknown) {
         showAppToast(formatErrorForUserToast(err, 'Could not update this student.'), 'error');
@@ -1815,9 +1827,6 @@ function setupAppForms(): void {
       mql?.addEventListener?.('change', (e) => setCollapsed(e.matches));
     }
 
-    const dateInput = document.getElementById('attendance-date') as HTMLInputElement;
-    if (dateInput) dateInput.valueAsDate = new Date();
-    updateAttendanceClassChrome();
     markAttendanceForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const markSubmitBtn = markAttendanceForm.querySelector(
@@ -1854,7 +1863,9 @@ function setupAppForms(): void {
           successEl.classList.remove('hide');
         }
         markAttendanceForm.reset();
-        dateInput.valueAsDate = new Date();
+        const dateEl = document.getElementById('attendance-date') as HTMLInputElement | null;
+        if (dateEl) dateEl.value = localDateKey();
+        updateAttendanceClassChrome();
         void hydrateRollCallRosterFromBackend();
         if (selectedStudentId === attendanceStudentId)
           await loadStudentAttendance(attendanceStudentId);
@@ -1906,6 +1917,11 @@ function setupAppForms(): void {
     },
   });
 
+  initAttendanceUI({
+    refresh: () => syncAttendanceRollCallRoster(),
+    onChrome: updateAttendanceClassChrome,
+  });
+
   const attendanceClassSelect = document.getElementById(
     'attendance-class-select'
   ) as HTMLSelectElement | null;
@@ -1921,12 +1937,6 @@ function setupAppForms(): void {
     updateAttendanceClassChrome();
     syncAttendanceRollCallRoster();
   });
-  const attendanceDateInput = document.getElementById('attendance-date') as HTMLInputElement | null;
-  attendanceDateInput?.addEventListener('change', () => {
-    updateAttendanceClassChrome();
-    void hydrateRollCallRosterFromBackend();
-  });
-
   initGradesMobileUI({
     getStudentId: () => selectedStudentId,
     getGrades: () => currentGrades,
@@ -2126,7 +2136,7 @@ function setupAppForms(): void {
         await loadUserProfile();
         paintMobileDashboardForRole();
         if (u?.role === UserRole.Student) {
-          await initDashboard();
+          await initDashboard({ awaitSecondary: true });
         }
         showAppToast('Profile saved.', 'success');
       } catch (err: unknown) {
@@ -2320,6 +2330,11 @@ function updateAttendanceClassChrome(): void {
             year: 'numeric',
           });
   }
+  const futureNotice = document.getElementById('attendance-future-date-notice');
+  if (futureNotice && dateInput?.value) {
+    const key = dateInput.value.trim();
+    futureNotice.classList.toggle('hidden', key <= localDateKey());
+  }
   const courseId = sel?.value?.trim() ?? '';
   const metaExtra = document.getElementById('attendance-meta-extra');
   if (!titleEl) return;
@@ -2375,7 +2390,8 @@ async function populateAttendanceClassSelect(): Promise<void> {
 }
 
 // --- Dashboard data loading ---
-async function initDashboard(): Promise<void> {
+/** Roster + welcome only — keeps TTI low; bento / metrics hydrate in {@link runDashboardSecondaryHydration}. */
+async function initDashboard(options?: { awaitSecondary?: boolean }): Promise<void> {
   const profile = getCurrentUser();
   if (
     !profile ||
@@ -2392,9 +2408,24 @@ async function initDashboard(): Promise<void> {
     }
     updateStudentSelect();
     setDashboardWelcome(getCurrentUser());
-    await refreshInstitutionalDashboardMetrics();
     syncNavbarUidField();
-    await Promise.all([
+    const secondary = runDashboardSecondaryHydration();
+    if (options?.awaitSecondary) await secondary;
+    else void secondary;
+  } catch (e: unknown) {
+    reportClientFault(e);
+  }
+}
+
+/** Metrics, recent activity, registration tables, attendance — after primary shell is interactive. */
+async function runDashboardSecondaryHydration(): Promise<void> {
+  try {
+    await refreshInstitutionalDashboardMetrics();
+  } catch (e: unknown) {
+    reportClientFault(e);
+  }
+  try {
+    await Promise.allSettled([
       loadRecentActivity(),
       loadRegisteredStudents(),
       loadRegisteredTeachers(),
@@ -2404,8 +2435,8 @@ async function initDashboard(): Promise<void> {
     await populateAttendanceClassSelect();
     syncAttendanceRollCallRoster();
     updateAttendanceClassChrome();
-  } catch (e: unknown) {
-    reportClientFault(e);
+  } catch {
+    /* non-critical dashboard tail */
   }
 }
 
@@ -3031,7 +3062,7 @@ function showGradesSkeletonLoading(): void {
   const chartsSection = document.getElementById('grade-charts-section');
   if (gradesTableBody) {
     const row =
-      '<tr class="border-b border-dark-700"><td class="py-3 px-4"><div class="skeleton skeleton-text !w-[70%]"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td></tr>';
+      '<tr class="border-b border-surface-default bg-surface-container"><td class="py-3 px-4"><div class="skeleton skeleton-text !w-[70%]"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td><td class="py-3 px-4"><div class="skeleton skeleton-text short mx-auto"></div></td></tr>';
     renderTemplate(gradesTableBody, row.repeat(5));
   }
   chartsSection?.classList.add('hide');
@@ -3129,12 +3160,16 @@ function displayGrades(grades: Grade[]): void {
       const pct = gradePercent100(grade);
       const percentage = pct == null ? '—' : pct.toFixed(1);
       const percentageClass =
-        pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
+        pct == null
+          ? 'text-on-surface-muted'
+          : pct >= 70
+            ? 'text-green-600 dark:text-green-400'
+            : 'text-red-600 dark:text-red-400';
       return `
-      <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
-        <td class="py-3 px-4 text-white">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td>
-        <td class="py-3 px-4 text-dark-300">${escapeHtmlText(grade.category)}</td>
-        <td class="py-3 px-4 text-center text-white">${escapeHtmlText(String(grade.score))} / ${escapeHtmlText(String(grade.totalPoints))}</td>
+      <tr class="border-b border-surface-default bg-surface-container hover:bg-surface-hover transition-colors">
+        <td class="py-3 px-4 text-on-surface font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td>
+        <td class="py-3 px-4 text-on-surface-muted">${escapeHtmlText(grade.category)}</td>
+        <td class="py-3 px-4 text-center text-on-surface tabular-nums">${escapeHtmlText(String(grade.score))} / ${escapeHtmlText(String(grade.totalPoints))}</td>
         <td class="py-3 px-4 text-center font-semibold ${percentageClass}">${percentage}${pct == null ? '' : '%'}</td>
         ${showActions && selectedStudentId ? `<td class="py-3 px-4 text-center"><button type="button" data-lms-action="delete-grade" data-student-id="${escapeHtmlText(selectedStudentId)}" data-grade-id="${escapeHtmlText(grade.id)}" class="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all text-sm">Delete</button></td>` : ''}
       </tr>`;
@@ -3168,7 +3203,7 @@ lmsWin.handleDeleteStudent = async (studentId: string) => {
     return;
   try {
     await deleteStudent(studentId);
-    await initDashboard();
+    await initDashboard({ awaitSecondary: true });
     showAppToast('Learner record archived.', 'success');
   } catch (error: unknown) {
     showAppToast(formatErrorForUserToast(error, 'Could not archive this learner record.'), 'error');
@@ -3176,6 +3211,7 @@ lmsWin.handleDeleteStudent = async (studentId: string) => {
 };
 
 lmsWin.handleEditStudent = (studentId: string) => {
+  ensureDeferredShellFragmentsSync();
   const student = currentStudents.find((s) => s.id === studentId);
   if (!student) return;
   const modal = document.getElementById('edit-student-modal');
@@ -3236,6 +3272,7 @@ function syncChangeRoleSegments(): void {
 }
 
 function openChangeRoleModal(userId: string, currentRole: string): void {
+  ensureDeferredShellFragmentsSync();
   const modal = document.getElementById('change-role-modal');
   const userIdEl = document.getElementById('change-role-user-id') as HTMLInputElement | null;
   const currentLabel = document.getElementById('change-role-current-label');
@@ -3523,7 +3560,7 @@ function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grad
   barTrack.className = 'h-2 rounded-full bg-slate-200 dark:bg-dark-700 overflow-hidden';
   const barFill = document.createElement('div');
   barFill.className =
-    'h-full rounded-full bg-gradient-to-r from-primary-500 to-primary-300 transition-all duration-500';
+    'h-full rounded-full bg-primary-600 dark:bg-gradient-to-r dark:from-primary-500 dark:to-primary-300 transition-all duration-500';
   barFill.style.width = `${pres.barFillPct}%`;
   barTrack.appendChild(barFill);
 
@@ -3785,7 +3822,7 @@ async function paintMobileStudentDashboard(): Promise<void> {
 <div id="dashboard-mobile-student-gpa-root" aria-busy="true">${studentMobileGpaBentoSkeletonHtml()}</div>
 <div id="dashboard-mobile-student-upcoming-root" aria-busy="true">${studentMobileUpcomingSkeletonHtml()}</div>
 <div class="rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20" role="note" aria-label="Reflection from Ethiopian Orthodox tradition">
-<p data-lms-dashboard-proverb class="lms-mobile-proverb-body text-sm italic leading-relaxed text-slate-800 dark:text-slate-100 min-h-[3.25rem]">Daily wisdom loading…</p>
+<p data-lms-dashboard-proverb class="lms-mobile-proverb-body text-sm italic leading-relaxed text-on-surface-muted min-h-[3.25rem]">Daily wisdom loading…</p>
 <p class="text-[0.65rem] text-slate-600 dark:text-slate-400 mt-3 uppercase tracking-widest">Ethiopian Orthodox tradition</p>
 </div>
 </div>`;
@@ -3936,14 +3973,15 @@ function renderStudentGpaMetricReplaceChildren(gpa: number | null, grades: Grade
   }
   const value = document.createElement('p');
   value.className =
-    'text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-white via-white to-dark-300 bg-clip-text text-transparent';
+    'text-4xl sm:text-5xl font-bold tracking-tight text-on-surface font-display tabular-nums';
   value.textContent = pres.numericDisplay;
   value.setAttribute('aria-label', pres.ariaLabel);
   const scale = document.createElement('p');
-  scale.className = 'text-[0.65rem] font-semibold uppercase tracking-widest text-dark-500';
+  scale.className =
+    'text-[0.65rem] font-semibold uppercase tracking-widest text-on-surface-subtle';
   scale.textContent = 'Cumulative · weighted · 4.0 scale';
   const hint = document.createElement('p');
-  hint.className = 'text-sm text-dark-400 leading-relaxed';
+  hint.className = 'text-sm text-on-surface-muted leading-relaxed';
   hint.textContent = pres.hint;
   wrap.append(value, scale, hint);
   root.replaceChildren(wrap);
@@ -3980,8 +4018,8 @@ function buildStudentUpcomingDashboardHtml(
 </li>`
               : `<li class="rounded-xl border border-surface-default bg-surface-glass px-3 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between min-w-0">
 <div class="min-w-0 flex-1">
-<p class="text-sm font-semibold text-slate-800 dark:text-white truncate">${escapeHtmlText(row.title)}</p>
-<p class="text-xs text-slate-600 dark:text-slate-300 leading-snug">${escapeHtmlText(row.courseName)} · ${escapeHtmlText(formatAssessmentDueMobileLabel(row.dueDateTime))}</p>
+<p class="text-sm font-semibold text-on-surface truncate">${escapeHtmlText(row.title)}</p>
+<p class="text-xs text-on-surface-muted leading-snug">${escapeHtmlText(row.courseName)} · ${escapeHtmlText(formatAssessmentDueMobileLabel(row.dueDateTime))}</p>
 </div>
 <button type="button" data-lms-action="switch-tab" data-lms-tab="assessments" aria-label="${escapeHtmlAttr(`View assessments — ${row.title}`)}" class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center self-end rounded-lg bg-primary-500/25 px-4 text-sm font-semibold text-primary-900 dark:text-primary-100 hover:bg-primary-500/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-dark-900 focus-visible:ring-primary-400 sm:self-center">View</button>
 </li>`
@@ -3992,7 +4030,7 @@ function buildStudentUpcomingDashboardHtml(
     : `<p class="text-xs font-semibold uppercase tracking-widest text-primary-400/90">Assessments &amp; classes</p>`;
   const headingTitleClass = compact
     ? 'text-base font-bold text-slate-800 dark:text-slate-100 font-display'
-    : 'text-lg font-bold text-slate-800 dark:text-white font-display';
+    : 'text-lg font-bold text-on-surface font-display';
   const allAssessCtaClass = compact
     ? 'inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-primary-400/35 bg-primary-500/10 px-4 text-sm font-semibold text-primary-800 dark:text-primary-200 hover:bg-primary-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400'
     : 'inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-primary-400/35 bg-primary-500/10 px-4 text-sm font-semibold text-primary-900 dark:text-primary-100 hover:bg-primary-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400';
@@ -4076,7 +4114,9 @@ async function refreshInstitutionalDashboardMetrics(): Promise<void> {
     paintInstitutionalDashboard();
     await paintMobileStudentDashboard();
     await refreshStudentMasteryDashboard(false);
-    await refreshStudentDashboardAcademicExtras();
+    void refreshStudentDashboardAcademicExtras().catch(() => {
+      /* upcoming assessments / class count — hydrate after first paint */
+    });
     return;
   }
 
@@ -4259,7 +4299,7 @@ async function loadRecentActivity(): Promise<void> {
     reportClientFault(err);
     renderTemplate(
       recentActivityEl,
-      `<div class="card-blur progress-bar-glow rounded-xl p-6 text-secondary-200/90 text-sm text-center">Recent activity is unavailable right now.</div>`
+      `<div class="card-blur progress-bar-glow rounded-xl text-on-surface-muted text-sm text-center">Recent activity is unavailable right now.</div>`
     );
     showAppToast(formatErrorForUserToast(err, 'Could not load recent activity.'), 'error');
   }
@@ -4749,7 +4789,7 @@ function displayAttendance(attendance: Attendance[]): void {
       renderTemplate(attendanceTableBody, attendanceHistoryEmptyRowHtml(emptyMsg, cta));
       document.getElementById('attendance-empty-focus-mark')?.addEventListener('click', () => {
         document
-          .getElementById('mark-attendance-form')
+          .getElementById('attendance-date-container')
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     }

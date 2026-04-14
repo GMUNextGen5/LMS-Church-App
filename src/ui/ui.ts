@@ -6,7 +6,11 @@ import DOMPurify from 'dompurify';
 import { renderTemplate } from './dom-render';
 import { activateModalLayer } from '../core/modal-focus';
 import { canAccessMainTab } from '../core/tab-access';
-import { injectShellFragments } from './templates';
+import {
+  ensureDeferredShellFragmentsSync,
+  injectImmediateShellFragments,
+  scheduleDeferredShellFragments,
+} from './templates';
 
 let domPurifyHooksInstalled = false;
 
@@ -249,11 +253,15 @@ function installAiModalDelegatedClicks(): void {
 }
 
 /** Binds auth tab buttons, main tab buttons, and AI modal dismiss controls. */
-export function initUI(): void {
-  injectShellFragments();
-  aiModal = document.getElementById('ai-modal');
-  aiModalTitle = document.getElementById('ai-modal-title');
-  aiModalContent = document.getElementById('ai-modal-content');
+export function initUI(onDeferredShellReady?: () => void): void {
+  injectImmediateShellFragments();
+  scheduleDeferredShellFragments(() => {
+    aiModal = document.getElementById('ai-modal');
+    aiModalTitle = document.getElementById('ai-modal-title');
+    aiModalContent = document.getElementById('ai-modal-content');
+    installAiModalDelegatedClicks();
+    onDeferredShellReady?.();
+  });
 
   loginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
   signupTabBtn?.addEventListener('click', () => switchAuthTab('signup'));
@@ -264,7 +272,6 @@ export function initUI(): void {
       if (tabName) switchTab(tabName);
     });
   });
-  installAiModalDelegatedClicks();
 }
 
 function switchAuthTab(tab: 'login' | 'signup'): void {
@@ -391,15 +398,19 @@ function roleFromDomAttr(): UserRole | null {
  */
 function switchTab(tabName: string): void {
   if (!VALID_MAIN_TABS.has(tabName)) return;
-  if (!canAccessMainTab(tabName, roleFromDomAttr())) {
+  let target = tabName;
+  if (!canAccessMainTab(target, roleFromDomAttr())) {
     showAppToast('You do not have access to that area.', 'error');
-    return;
+    target = 'dashboard';
+  }
+  if (target === 'registration' || target === 'teacher-registration') {
+    ensureDeferredShellFragmentsSync();
   }
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.classList.remove('tab-active');
     btn.classList.add('text-dark-300');
   });
-  const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  const activeBtn = document.querySelector(`.tab-btn[data-tab="${target}"]`);
   if (activeBtn) {
     activeBtn.classList.add('tab-active');
     activeBtn.classList.remove('text-dark-300');
@@ -407,9 +418,9 @@ function switchTab(tabName: string): void {
   document.querySelectorAll('.tab-content').forEach((content) => {
     content.classList.add('hide');
   });
-  const activeContent = document.getElementById(`${tabName}-content`);
+  const activeContent = document.getElementById(`${target}-content`);
   if (activeContent) activeContent.classList.remove('hide');
-  document.dispatchEvent(new CustomEvent('tab-switched', { detail: { tab: tabName } }));
+  document.dispatchEvent(new CustomEvent('tab-switched', { detail: { tab: target } }));
 }
 
 function resetLoadingOverlayImportantStyles(el: HTMLElement): void {
@@ -586,6 +597,13 @@ function clearForms(): void {
 
 /** Opens the AI results modal with a sanitized HTML body. */
 export function showModal(title: string, content: string, options?: ShowModalOptions): void {
+  ensureDeferredShellFragmentsSync();
+  if (!aiModal || !aiModalTitle || !aiModalContent) {
+    aiModal = document.getElementById('ai-modal');
+    aiModalTitle = document.getElementById('ai-modal-title');
+    aiModalContent = document.getElementById('ai-modal-content');
+    installAiModalDelegatedClicks();
+  }
   modalOnDismiss = options?.onDismiss ?? null;
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {

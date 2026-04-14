@@ -669,24 +669,24 @@ async function renderTeacherView(): Promise<void> {
 
   const mobileCards = courses.map(
     (c) => `
-    <div class="rounded-2xl border border-dark-700 bg-dark-800/60 p-4 space-y-3">
+    <div class="rounded-2xl border border-surface-default bg-surface-container dark:bg-dark-800/60 dark:border-dark-700 p-4 space-y-3 shadow-sm dark:shadow-none">
       <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
-          <h3 class="text-white font-semibold text-base truncate">${esc(safeCourseDisplayName(c.courseName))}</h3>
-          ${c.courseCode ? `<p class="text-dark-400 text-xs mt-0.5">${esc(c.courseCode)}</p>` : ''}
+          <h3 class="text-on-surface font-semibold text-base truncate">${esc(safeCourseDisplayName(c.courseName))}</h3>
+          ${c.courseCode ? `<p class="text-on-surface-muted text-xs mt-0.5">${esc(c.courseCode)}</p>` : ''}
         </div>
-        <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-dark-300 bg-dark-700 rounded-lg px-2 py-1">
+        <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-on-surface-muted bg-slate-100 dark:bg-dark-700 dark:text-dark-300 rounded-lg px-2 py-1">
           <svg class="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
           ${studentCount(c)}
         </span>
       </div>
-      <p class="text-dark-400 text-sm"><span class="text-on-surface-muted" data-teacher-cell="${esc(c.id)}" aria-hidden="true">—</span></p>
+      <p class="text-on-surface-muted text-sm"><span data-teacher-cell="${esc(c.id)}" aria-hidden="true">—</span></p>
       <div class="flex flex-wrap gap-2 pt-1">
-        <button data-action="teacher-edit-class" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-primary-500/15 text-primary-400 hover:bg-primary-500/25 active:scale-[0.97] transition-all touch-manipulation">Edit</button>
-        <button data-action="teacher-toggle-roster" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-600 text-dark-300 hover:bg-dark-500 active:scale-[0.97] transition-all touch-manipulation">Roster</button>
-        <button data-action="teacher-delete-class" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-[0.97] transition-all touch-manipulation ml-auto">Delete</button>
+        <button data-action="teacher-edit-class" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-primary-500/15 text-primary-700 dark:text-primary-400 hover:bg-primary-500/25 active:scale-[0.97] transition-all touch-manipulation">Edit</button>
+        <button data-action="teacher-toggle-roster" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 text-slate-800 dark:bg-dark-600 dark:text-dark-300 dark:hover:bg-dark-500 active:scale-[0.97] transition-all touch-manipulation">Roster</button>
+        <button data-action="teacher-delete-class" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 active:scale-[0.97] transition-all touch-manipulation ml-auto">Delete</button>
       </div>
-      <div data-roster-panel="teacher-${c.id}" class="hidden border-t border-dark-700 pt-3 mt-1">
+      <div data-roster-panel="teacher-${c.id}" class="hidden border-t border-slate-200/90 dark:border-dark-700 pt-3 mt-1">
         <div data-roster-content="teacher-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </div>
     </div>`
@@ -694,18 +694,18 @@ async function renderTeacherView(): Promise<void> {
 
   const tableRows = courses.map(
     (c) => `
-    <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
-      <td class="py-3 px-4 text-white font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm"><span class="text-on-surface-muted tabular-nums" data-teacher-cell="${esc(c.id)}" aria-hidden="true">—</span></td>
-      <td class="py-3 px-4 text-dark-300 text-sm">${studentCount(c)}</td>
+    <tr class="border-b border-slate-200/90 dark:border-dark-700 hover:bg-slate-50/90 dark:hover:bg-white/5 transition-colors">
+      <td class="py-3 px-4 text-on-surface font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
+      <td class="py-3 px-4 text-on-surface-muted text-sm">${esc(c.courseCode || '—')}</td>
+      <td class="py-3 px-4 text-on-surface-muted text-sm"><span class="tabular-nums" data-teacher-cell="${esc(c.id)}" aria-hidden="true">—</span></td>
+      <td class="py-3 px-4 text-on-surface-muted text-sm tabular-nums">${studentCount(c)}</td>
       <td class="py-3 px-4 flex gap-1">
         <button data-action="teacher-edit-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
         <button data-action="teacher-delete-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
         <button data-action="teacher-toggle-roster" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-dark-600 text-dark-300 hover:bg-dark-500">Roster</button>
       </td>
     </tr>
-    <tr data-roster-panel="teacher-${c.id}" class="hidden border-b border-dark-700 bg-dark-900/30">
+    <tr data-roster-panel="teacher-${c.id}" class="hidden border-b border-slate-200/90 dark:border-dark-700 bg-slate-50/80 dark:bg-dark-900/30">
       <td colspan="5" class="py-4 px-4">
         <div data-roster-content="teacher-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </td>
@@ -727,10 +727,10 @@ async function renderTeacherView(): Promise<void> {
       <!-- Mobile: card stack -->
       <div class="md:hidden space-y-3">${mobileCards.join('')}</div>
       <!-- Desktop: data table -->
-      <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
+      <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
         <table class="w-full text-sm">
-          <thead class="bg-dark-800/80">
-            <tr class="text-dark-300 text-xs uppercase tracking-wider">
+          <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+            <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
               <th class="py-3 px-4 text-left">Name</th>
               <th class="py-3 px-4 text-left">Code</th>
               <th class="py-3 px-4 text-left">Teacher</th>
@@ -738,7 +738,7 @@ async function renderTeacherView(): Promise<void> {
               <th class="py-3 px-4 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-slate-900">${tableRows.join('')}</tbody>
+          <tbody class="bg-surface-container dark:bg-slate-900/80">${tableRows.join('')}</tbody>
         </table>
       </div>`;
 
@@ -797,24 +797,24 @@ async function renderAdminView(): Promise<void> {
 
   const mobileCards = courses.map(
     (c) => `
-    <div class="rounded-2xl border border-dark-700 bg-dark-800/60 p-4 space-y-3">
+    <div class="rounded-2xl border border-surface-default bg-surface-container dark:bg-dark-800/60 dark:border-dark-700 p-4 space-y-3 shadow-sm dark:shadow-none">
       <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
-          <h3 class="text-white font-semibold text-base truncate">${esc(safeCourseDisplayName(c.courseName))}</h3>
-          ${c.courseCode ? `<p class="text-dark-400 text-xs mt-0.5">${esc(c.courseCode)}</p>` : ''}
+          <h3 class="text-on-surface font-semibold text-base truncate">${esc(safeCourseDisplayName(c.courseName))}</h3>
+          ${c.courseCode ? `<p class="text-on-surface-muted text-xs mt-0.5">${esc(c.courseCode)}</p>` : ''}
         </div>
-        <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-dark-300 bg-dark-700 rounded-lg px-2 py-1">
+        <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-on-surface-muted bg-slate-100 dark:bg-dark-700 dark:text-dark-300 rounded-lg px-2 py-1">
           <svg class="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
           ${studentCount(c)}
         </span>
       </div>
-      <p class="text-dark-300 text-sm">${esc(teacherNames[c.teacherId] ?? '—')}</p>
+      <p class="text-on-surface-muted text-sm">${esc(teacherNames[c.teacherId] ?? '—')}</p>
       <div class="flex flex-wrap gap-2 pt-1">
         <button data-action="admin-edit-class" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-primary-500/15 text-primary-400 hover:bg-primary-500/25 active:scale-[0.97] transition-all touch-manipulation">Edit</button>
         <button data-action="admin-toggle-roster" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-dark-600 text-dark-300 hover:bg-dark-500 active:scale-[0.97] transition-all touch-manipulation">Roster</button>
         <button data-action="admin-delete-class" data-course-id="${esc(c.id)}" class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-[0.97] transition-all touch-manipulation ml-auto">Delete</button>
       </div>
-      <div data-roster-panel="admin-${c.id}" class="hidden border-t border-dark-700 pt-3 mt-1">
+      <div data-roster-panel="admin-${c.id}" class="hidden border-t border-slate-200/90 dark:border-dark-700 pt-3 mt-1">
         <div data-roster-content="admin-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </div>
     </div>`
@@ -822,18 +822,18 @@ async function renderAdminView(): Promise<void> {
 
   const tableRows = courses.map(
     (c) => `
-    <tr class="border-b border-dark-700 hover:bg-white/5 transition-colors">
-      <td class="py-3 px-4 text-white font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm">${esc(c.courseCode || '—')}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm">${esc(teacherNames[c.teacherId] ?? '—')}</td>
-      <td class="py-3 px-4 text-dark-300 text-sm">${studentCount(c)}</td>
+    <tr class="border-b border-slate-200/90 dark:border-dark-700 hover:bg-slate-50/90 dark:hover:bg-white/5 transition-colors">
+      <td class="py-3 px-4 text-on-surface font-medium">${esc(safeCourseDisplayName(c.courseName))}</td>
+      <td class="py-3 px-4 text-on-surface-muted text-sm">${esc(c.courseCode || '—')}</td>
+      <td class="py-3 px-4 text-on-surface-muted text-sm">${esc(teacherNames[c.teacherId] ?? '—')}</td>
+      <td class="py-3 px-4 text-on-surface-muted text-sm tabular-nums">${studentCount(c)}</td>
       <td class="py-3 px-4 flex gap-1">
-        <button data-action="admin-edit-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">Edit</button>
-        <button data-action="admin-delete-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
-        <button data-action="admin-toggle-roster" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-dark-600 text-dark-300 hover:bg-dark-500">Roster</button>
+        <button data-action="admin-edit-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-700 dark:text-primary-400 hover:bg-primary-500/30">Edit</button>
+        <button data-action="admin-delete-class" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/30">Delete</button>
+        <button data-action="admin-toggle-roster" data-course-id="${esc(c.id)}" class="px-2 py-1 rounded text-xs bg-slate-200 text-slate-800 dark:bg-dark-600 dark:text-dark-300 dark:hover:bg-dark-500">Roster</button>
       </td>
     </tr>
-    <tr data-roster-panel="admin-${c.id}" class="hidden border-b border-dark-700 bg-dark-900/30">
+    <tr data-roster-panel="admin-${c.id}" class="hidden border-b border-slate-200/90 dark:border-dark-700 bg-slate-50/80 dark:bg-dark-900/30">
       <td colspan="5" class="py-4 px-4">
         <div data-roster-content="admin-${c.id}" class="text-on-surface-muted text-sm"><span aria-hidden="true">—</span></div>
       </td>
@@ -855,10 +855,10 @@ async function renderAdminView(): Promise<void> {
       <!-- Mobile: card stack -->
       <div class="md:hidden space-y-3">${mobileCards.join('')}</div>
       <!-- Desktop: data table -->
-      <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
+      <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-700">
         <table class="w-full text-sm">
-          <thead class="bg-dark-800/80">
-            <tr class="text-dark-300 text-xs uppercase tracking-wider">
+          <thead class="bg-surface-glass border-b border-surface-default dark:bg-dark-800/80 dark:border-dark-700">
+            <tr class="text-on-surface-muted text-xs uppercase tracking-wider">
               <th class="py-3 px-4 text-left">Name</th>
               <th class="py-3 px-4 text-left">Code</th>
               <th class="py-3 px-4 text-left">Teacher</th>
@@ -866,7 +866,7 @@ async function renderAdminView(): Promise<void> {
               <th class="py-3 px-4 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-slate-900">${tableRows.join('')}</tbody>
+          <tbody class="bg-surface-container dark:bg-slate-900/80">${tableRows.join('')}</tbody>
         </table>
       </div>`;
 

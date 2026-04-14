@@ -100,9 +100,10 @@ export class ParticleSystem {
   }
 
   private initListeners(): void {
-    window.addEventListener('resize', this.handleResize);
-    window.addEventListener('mousemove', this.handleMouseMove);
+    window.addEventListener('resize', this.handleResize, { passive: true });
+    window.addEventListener('mousemove', this.handleMouseMove, { passive: true });
     window.addEventListener('mouseleave', this.handleMouseLeave);
+    window.addEventListener('touchstart', this.handleTouchStart, { passive: true });
     window.addEventListener('touchmove', this.handleTouchMove, { passive: true });
     window.addEventListener('touchend', this.handleMouseLeave);
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -127,6 +128,13 @@ export class ParticleSystem {
   private handleMouseMove = (e: MouseEvent): void => {
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
+  };
+
+  private handleTouchStart = (e: TouchEvent): void => {
+    if (e.touches.length > 0) {
+      this.mouseX = e.touches[0].clientX;
+      this.mouseY = e.touches[0].clientY;
+    }
   };
 
   private handleTouchMove = (e: TouchEvent): void => {
@@ -252,6 +260,7 @@ export class ParticleSystem {
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('mouseleave', this.handleMouseLeave);
+    window.removeEventListener('touchstart', this.handleTouchStart);
     window.removeEventListener('touchmove', this.handleTouchMove);
     window.removeEventListener('touchend', this.handleMouseLeave);
   }
