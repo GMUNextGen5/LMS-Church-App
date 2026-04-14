@@ -117,10 +117,21 @@
   }
 
   /**
-   * Compositor hints for boot overlay fade and glass cards (pairs with rules in login-shell.css).
+   * Boot overlay: GPU-friendly opacity fade (pairs with `hideLoading()` in ui.ts — no instant display:none).
    */
   #loading-overlay {
-    will-change: opacity, transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition:
+      opacity 300ms ease-in-out,
+      visibility 300ms ease-in-out;
+    will-change: opacity;
+  }
+
+  #loading-overlay.lms-loading-overlay-hidden {
+    @apply opacity-0 pointer-events-none;
+    visibility: hidden;
   }
 
   .card-blur {

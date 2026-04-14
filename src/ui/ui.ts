@@ -9,6 +9,7 @@ import { canAccessMainTab } from '../core/tab-access';
 import {
   ensureDeferredShellFragmentsSync,
   injectImmediateShellFragments,
+  injectRegistrationFragmentsSync,
   scheduleDeferredShellFragments,
 } from './templates';
 
@@ -107,6 +108,9 @@ const loginError = document.getElementById('login-error');
 const signupError = document.getElementById('signup-error');
 const logoutBtn = document.getElementById('logout-btn');
 const loadingOverlay = document.getElementById('loading-overlay');
+const LOADING_OVERLAY_HIDDEN_CLASS = 'lms-loading-overlay-hidden';
+const LOADING_OVERLAY_FADE_MS = 300;
+let loadingOverlayHideFinalizeTimer = 0;
 let aiModal: HTMLElement | null = null;
 let aiModalTitle: HTMLElement | null = null;
 let aiModalContent: HTMLElement | null = null;
@@ -255,6 +259,7 @@ function installAiModalDelegatedClicks(): void {
 /** Binds auth tab buttons, main tab buttons, and AI modal dismiss controls. */
 export function initUI(onDeferredShellReady?: () => void): void {
   injectImmediateShellFragments();
+  injectRegistrationFragmentsSync();
   scheduleDeferredShellFragments(() => {
     aiModal = document.getElementById('ai-modal');
     aiModalTitle = document.getElementById('ai-modal-title');
@@ -430,9 +435,19 @@ function resetLoadingOverlayImportantStyles(el: HTMLElement): void {
   el.style.removeProperty('z-index');
 }
 
+function finalizeLoadingOverlayHidden(el: HTMLElement): void {
+  el.classList.add('hide', 'hidden');
+  el.style.setProperty('display', 'none', 'important');
+  el.style.setProperty('z-index', '-1', 'important');
+  el.classList.remove(LOADING_OVERLAY_HIDDEN_CLASS);
+}
+
 export function showLoading(): void {
   const el = loadingOverlay;
   if (el instanceof HTMLElement) {
+    window.clearTimeout(loadingOverlayHideFinalizeTimer);
+    loadingOverlayHideFinalizeTimer = 0;
+    el.classList.remove(LOADING_OVERLAY_HIDDEN_CLASS);
     resetLoadingOverlayImportantStyles(el);
     el.classList.remove('hide', 'hidden');
     el.setAttribute('role', 'status');
@@ -443,19 +458,44 @@ export function showLoading(): void {
   document.getElementById('app-container')?.setAttribute('aria-busy', 'true');
 }
 
-/** Forces the overlay off the interactive plane even if CSS transitions or classes fail. */
+/**
+ * Fades the boot overlay out (opacity) then removes it from layout after {@link LOADING_OVERLAY_FADE_MS}.
+ * Idempotent: safe to call multiple times.
+ */
 export function hideLoading(): void {
   const el = loadingOverlay;
-  if (el instanceof HTMLElement) {
-    el.classList.add('hide', 'hidden');
-    el.style.setProperty('display', 'none', 'important');
-    el.style.setProperty('visibility', 'hidden', 'important');
-    el.style.setProperty('pointer-events', 'none', 'important');
-    el.style.setProperty('z-index', '-1', 'important');
-    el.removeAttribute('aria-busy');
-    el.setAttribute('aria-hidden', 'true');
+  if (!(el instanceof HTMLElement)) {
+    document.getElementById('app-container')?.removeAttribute('aria-busy');
+    return;
   }
+  if (el.classList.contains('hide')) {
+    document.getElementById('app-container')?.removeAttribute('aria-busy');
+    return;
+  }
+  if (el.classList.contains(LOADING_OVERLAY_HIDDEN_CLASS)) {
+    document.getElementById('app-container')?.removeAttribute('aria-busy');
+    return;
+  }
+  el.removeAttribute('aria-busy');
+  el.setAttribute('aria-hidden', 'true');
   document.getElementById('app-container')?.removeAttribute('aria-busy');
+
+  window.clearTimeout(loadingOverlayHideFinalizeTimer);
+  el.classList.add(LOADING_OVERLAY_HIDDEN_CLASS);
+  el.style.setProperty('pointer-events', 'none', 'important');
+
+  const prefersReduced =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReduced) {
+    finalizeLoadingOverlayHidden(el);
+    return;
+  }
+
+  loadingOverlayHideFinalizeTimer = window.setTimeout(() => {
+    loadingOverlayHideFinalizeTimer = 0;
+    finalizeLoadingOverlayHidden(el);
+  }, LOADING_OVERLAY_FADE_MS);
 }
 
 export function showError(element: HTMLElement | null, message: string): void {

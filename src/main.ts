@@ -132,7 +132,11 @@ import {
   initGradesMobileUI,
   renderGradesMobile,
 } from './ui/grades-mobile-ui';
-import { ensureDeferredShellFragmentsSync } from './ui/templates';
+import {
+  ensureDeferredShellFragmentsSync,
+  injectImmediateShellFragments,
+  injectRegistrationFragmentsSync,
+} from './ui/templates';
 import { initLegalModals } from './ui/legal';
 import { setupSignupPasswordStrengthMeter } from './ui/signup-password-strength';
 import { setupProfilePasswordStrengthMeter } from './ui/profile-password-strength';
@@ -714,13 +718,11 @@ async function init(): Promise<void> {
         );
       });
     } finally {
-      scheduleDomPaint(() => {
-        try {
-          hideLoading();
-        } catch {
-          /* ignore */
-        }
-      });
+      try {
+        hideLoading();
+      } catch {
+        /* ignore */
+      }
       markAuthShellReady();
     }
   }
@@ -882,6 +884,11 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 
   // Safety Gate: never attempt to boot role-specific UI unless profile is confirmed valid.
   if (isValidProfile) {
+    try {
+      particleSystem?.stop();
+    } catch {
+      /* canvas stop */
+    }
     if (sessionDataBoundUid !== user.uid) {
       sessionDataBoundUid = user.uid;
       if (gradesUnsubscribe) {
@@ -934,18 +941,25 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       window.location.href = dashboardUrl;
       return;
     }
-    scheduleDomPaint(() => {
-      showAppContainer();
-      configureUIForRole(user);
-      const userRole = getCurrentUserRole();
-      const gw = window as LmsGlobalWindow;
-      const sidebarLabel = userProfileDisplayLabel(user);
-      gw.updateSidebarUserInfo?.(
-        sidebarLabel === '—' ? user.email || '' : sidebarLabel,
-        userRole ?? 'student',
-        user.email || ''
-      );
-    });
+    showAppContainer();
+    try {
+      hideLoading();
+    } catch {
+      /* ignore */
+    }
+    configureUIForRole(user);
+    const userRoleEarly = getCurrentUserRole();
+    const gwEarly = window as LmsGlobalWindow;
+    const sidebarLabelEarly = userProfileDisplayLabel(user);
+    gwEarly.updateSidebarUserInfo?.(
+      sidebarLabelEarly === '—' ? user.email || '' : sidebarLabelEarly,
+      userRoleEarly ?? 'student',
+      user.email || ''
+    );
+
+    injectImmediateShellFragments();
+    injectRegistrationFragmentsSync();
+
     try {
       particleSystem?.destroy();
       particleSystem = null;
@@ -2419,6 +2433,7 @@ async function initDashboard(options?: { awaitSecondary?: boolean }): Promise<vo
     updateStudentSelect();
     setDashboardWelcome(getCurrentUser());
     syncNavbarUidField();
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     const secondary = runDashboardSecondaryHydration();
     if (options?.awaitSecondary) await secondary;
     else void secondary;
@@ -2429,11 +2444,13 @@ async function initDashboard(options?: { awaitSecondary?: boolean }): Promise<vo
 
 /** Metrics, recent activity, registration tables, attendance — after primary shell is interactive. */
 async function runDashboardSecondaryHydration(): Promise<void> {
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
   try {
     await refreshInstitutionalDashboardMetrics();
   } catch (e: unknown) {
     reportClientFault(e);
   }
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
   try {
     await Promise.allSettled([
       loadRecentActivity(),
@@ -4116,7 +4133,7 @@ async function refreshStudentMasteryDashboard(forceGpaRefresh: boolean): Promise
 }
 
 async function refreshInstitutionalDashboardMetrics(): Promise<void> {
-  const role = getCurrentUserRole();
+  const role = getCurrentUserRole() ?? getCurrentUser()?.role ?? null;
 
   if (role === 'student') {
     institutionalSnapshot = { role: 'student' };

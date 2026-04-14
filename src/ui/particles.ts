@@ -246,8 +246,14 @@ export class ParticleSystem {
     if (prefersReducedMotion()) this.drawStillFrame();
   }
 
-  public destroy(): void {
+  /** Stops the animation loop immediately (cheap); call before full {@link destroy} on sign-in. */
+  public stop(): void {
     cancelAnimationFrame(this.animationFrameId);
+    this.animationFrameId = 0;
+  }
+
+  public destroy(): void {
+    this.stop();
     clearTimeout(this.resizeTimer);
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (typeof mq.removeEventListener === 'function') {
