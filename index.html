@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" id="meta-apple-status-bar" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      id="meta-apple-status-bar"
+      content="black-translucent"
+    />
     <meta name="theme-color" id="meta-theme-color" content="#060e20" />
     <title>DSKM LMS</title>
     <link rel="icon" href="data:," />
@@ -79,7 +83,8 @@
           const meta = document.getElementById('meta-theme-color');
           if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#060e20');
           const statusBar = document.getElementById('meta-apple-status-bar');
-          if (statusBar) statusBar.setAttribute('content', theme === 'light' ? 'default' : 'black-translucent');
+          if (statusBar)
+            statusBar.setAttribute('content', theme === 'light' ? 'default' : 'black-translucent');
         } catch (e) {
           /* ignore */
         }
@@ -1726,7 +1731,8 @@
         min-height: 44px;
         line-height: 1.5;
       }
-      #assessment-form input#builder-due-datetime[type='datetime-local']::-webkit-calendar-picker-indicator {
+      #assessment-form
+        input#builder-due-datetime[type='datetime-local']::-webkit-calendar-picker-indicator {
         opacity: 0.85;
         cursor: pointer;
         margin-inline-end: 2px;
@@ -1760,14 +1766,30 @@
       [data-theme='light'] .lms-att-stat-card .text-white {
         color: #0f172a !important;
       }
-      [data-theme='light'] #roll-call-stat-total  { color: #0f172a !important; }
-      [data-theme='light'] #roll-call-stat-present { color: #047857 !important; }
-      [data-theme='light'] #roll-call-stat-absent  { color: #be123c !important; }
-      [data-theme='light'] #roll-call-stat-late    { color: #b45309 !important; }
-      [data-theme='light'] #attendance-total   { color: #0f172a !important; }
-      [data-theme='light'] #attendance-present { color: #047857 !important; }
-      [data-theme='light'] #attendance-absent  { color: #be123c !important; }
-      [data-theme='light'] #attendance-rate    { color: #0369a1 !important; }
+      [data-theme='light'] #roll-call-stat-total {
+        color: #0f172a !important;
+      }
+      [data-theme='light'] #roll-call-stat-present {
+        color: #047857 !important;
+      }
+      [data-theme='light'] #roll-call-stat-absent {
+        color: #be123c !important;
+      }
+      [data-theme='light'] #roll-call-stat-late {
+        color: #b45309 !important;
+      }
+      [data-theme='light'] #attendance-total {
+        color: #0f172a !important;
+      }
+      [data-theme='light'] #attendance-present {
+        color: #047857 !important;
+      }
+      [data-theme='light'] #attendance-absent {
+        color: #be123c !important;
+      }
+      [data-theme='light'] #attendance-rate {
+        color: #0369a1 !important;
+      }
 
       /* --- Stat card icon containers (WCAG-safe on white) --- */
       [data-theme='light'] .lms-att-stat-icon.text-blue-400,
@@ -1872,7 +1894,10 @@
         background: #f1f5f9 !important;
       }
       [data-theme='light'] #attendance-roll-call-root .attendance-roster-row td .text-white,
-      [data-theme='light'] #attendance-roll-call-root .attendance-roster-row .font-semibold.truncate {
+      [data-theme='light']
+        #attendance-roll-call-root
+        .attendance-roster-row
+        .font-semibold.truncate {
         color: #0f172a !important;
       }
       [data-theme='light'] #attendance-roll-call-root .attendance-roster-row .text-slate-300,
@@ -1883,7 +1908,10 @@
         border-color: #cbd5e1 !important;
         color: #64748b !important;
       }
-      [data-theme='light'] #attendance-roll-call-root .attendance-roster-row [data-roll-reset]:hover {
+      [data-theme='light']
+        #attendance-roll-call-root
+        .attendance-roster-row
+        [data-roll-reset]:hover {
         background: #f1f5f9 !important;
         color: #0f172a !important;
       }
@@ -1897,13 +1925,13 @@
       }
 
       /* --- Scrollable container + search/select --- */
-      [data-theme='light'] #attendance-roll-call-root .rounded-xl[class*="bg-slate-900"],
+      [data-theme='light'] #attendance-roll-call-root .rounded-xl[class*='bg-slate-900'],
       [data-theme='light'] #attendance-roll-call-root .bg-slate-900\/30 {
         background: #f8fafc !important;
         border-color: #e2e8f0 !important;
       }
-      [data-theme='light'] #attendance-roll-call-root input[type="search"],
-      [data-theme='light'] #attendance-roll-call-root input[type="text"],
+      [data-theme='light'] #attendance-roll-call-root input[type='search'],
+      [data-theme='light'] #attendance-roll-call-root input[type='text'],
       [data-theme='light'] #attendance-roll-call-root select {
         background: #ffffff !important;
         border-color: #cbd5e1 !important;
@@ -6319,7 +6347,12 @@
       <div class="ng5-logo-container">
         <div class="ng5-logo-glow"></div>
         <div class="ng5-logo-ring"></div>
-        <img src="/ng5-logo.png" alt="DSKM Learning Management System" class="ng5-logo" draggable="false" />
+        <img
+          src="/ng5-logo.png"
+          alt="DSKM Learning Management System"
+          class="ng5-logo"
+          draggable="false"
+        />
       </div>
 
       <h1 class="hero-title">DSKM LMS</h1>
@@ -6871,10 +6904,7 @@
             </div>
 
             <!-- Separator — thin and theme-aware -->
-            <div
-              class="h-px mx-2 mb-3 bg-slate-700/50 dark:bg-white/[0.06]"
-              role="separator"
-            ></div>
+            <div class="h-px mx-2 mb-3 bg-slate-700/50 dark:bg-white/[0.06]" role="separator"></div>
 
             <!-- Sign out — WCAG 44px target, Apple-like styling -->
             <button
@@ -7360,8 +7390,12 @@
               <div id="dashboard-educator-student-picker" class="admin-only teacher-only hide mb-6">
                 <div class="glass-effect rounded-2xl p-6">
                   <div class="mb-5">
-                    <h3 class="text-lg font-bold text-white font-display">View Student Dashboard</h3>
-                    <p class="text-xs text-dark-400 mt-1">Search or pick a learner to view their grades, attendance, and profile.</p>
+                    <h3 class="text-lg font-bold text-white font-display">
+                      View Student Dashboard
+                    </h3>
+                    <p class="text-xs text-dark-400 mt-1">
+                      Search or pick a learner to view their grades, attendance, and profile.
+                    </p>
                   </div>
                   <div
                     class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-4"
@@ -7406,11 +7440,11 @@
                       </select>
                     </div>
                   </div>
-                    <p
-                      id="dashboard-student-filter-empty"
-                      class="hidden text-amber-300/90 text-xs mb-2"
-                      role="status"
-                    ></p>
+                  <p
+                    id="dashboard-student-filter-empty"
+                    class="hidden text-amber-300/90 text-xs mb-2"
+                    role="status"
+                  ></p>
                   <div
                     id="selected-student-info"
                     class="mt-4 p-4 rounded-lg bg-primary-500/10 border border-primary-500/30 hide"
@@ -7443,7 +7477,10 @@
                 id="dashboard-student-layout"
                 class="student-only hide mt-8 w-full max-w-full flex flex-col gap-6 px-4 md:px-0 md:grid md:grid-cols-12 md:gap-6"
               >
-                <div id="dashboard-student-mastery-row" class="hidden md:block md:col-span-6 min-w-0">
+                <div
+                  id="dashboard-student-mastery-row"
+                  class="hidden md:block md:col-span-6 min-w-0"
+                >
                   <article
                     class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover h-full"
                   >
@@ -7483,14 +7520,14 @@
                   </article>
                 </div>
 
-                <div id="dashboard-student-upcoming-panel" class="hidden md:block md:col-span-6 min-w-0">
+                <div
+                  id="dashboard-student-upcoming-panel"
+                  class="hidden md:block md:col-span-6 min-w-0"
+                >
                   <article
                     class="card-blur progress-bar-glow relative min-w-0 overflow-hidden rounded-2xl p-6 sm:p-7 card-hover h-full border border-surface-default"
                   >
-                    <div
-                      id="dashboard-student-upcoming-inner"
-                      class="relative min-h-[5rem]"
-                    ></div>
+                    <div id="dashboard-student-upcoming-inner" class="relative min-h-[5rem]"></div>
                   </article>
                 </div>
 
@@ -7846,7 +7883,8 @@
                     <div class="overflow-x-auto">
                       <table id="grades-table" class="w-full">
                         <caption class="sr-only">
-                          Grade records for the selected student. Choose a student above to load rows.
+                          Grade records for the selected student. Choose a student above to load
+                          rows.
                         </caption>
                         <thead>
                           <tr class="border-b border-dark-600">
@@ -7856,10 +7894,16 @@
                             <th scope="col" class="text-left py-3 px-4 text-dark-200 font-semibold">
                               Category
                             </th>
-                            <th scope="col" class="text-center py-3 px-4 text-dark-200 font-semibold">
+                            <th
+                              scope="col"
+                              class="text-center py-3 px-4 text-dark-200 font-semibold"
+                            >
                               Score
                             </th>
-                            <th scope="col" class="text-center py-3 px-4 text-dark-200 font-semibold">
+                            <th
+                              scope="col"
+                              class="text-center py-3 px-4 text-dark-200 font-semibold"
+                            >
                               Percentage
                             </th>
                             <th
@@ -7885,7 +7929,10 @@
             </div>
 
             <!-- Attendance Tab -->
-            <div id="attendance-content" class="tab-content hide min-w-0 max-w-full overflow-x-hidden">
+            <div
+              id="attendance-content"
+              class="tab-content hide min-w-0 max-w-full overflow-x-hidden"
+            >
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
                 <!-- Learner personal attendance overview (students only; staff use class roll metrics below) -->
                 <div
@@ -7898,16 +7945,48 @@
                         <p class="text-dark-400 text-sm">Total Days</p>
                         <p id="attendance-total" class="text-2xl font-bold text-white mt-1">0</p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-blue-500/20 text-blue-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-blue-500/20 text-blue-400">
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          ></path>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-dark-400 text-sm">Present</p>
-                        <p id="attendance-present" class="text-2xl font-bold text-green-400 mt-1">0</p>
+                        <p id="attendance-present" class="text-2xl font-bold text-green-400 mt-1">
+                          0
+                        </p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-green-500/20 text-green-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-green-500/20 text-green-400">
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          ></path>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
@@ -7916,16 +7995,53 @@
                         <p class="text-dark-400 text-sm">Absent</p>
                         <p id="attendance-absent" class="text-2xl font-bold text-red-400 mt-1">0</p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-red-500/20 text-red-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-red-500/20 text-red-400">
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          ></path>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-dark-400 text-sm">Attendance Rate</p>
-                        <p id="attendance-rate" class="text-2xl font-bold text-primary-400 mt-1 min-w-0 tabular-nums break-words">0%</p>
+                        <p
+                          id="attendance-rate"
+                          class="text-2xl font-bold text-primary-400 mt-1 min-w-0 tabular-nums break-words"
+                        >
+                          0%
+                        </p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-primary-500/20 text-primary-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg></div>
+                      <div
+                        class="lms-att-stat-icon p-3 rounded-lg bg-primary-500/20 text-primary-400"
+                      >
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                          ></path>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -7939,36 +8055,107 @@
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-dark-400 text-sm">Total Students</p>
-                        <p id="roll-call-stat-total" class="text-2xl font-bold text-white mt-1">0</p>
+                        <p id="roll-call-stat-total" class="text-2xl font-bold text-white mt-1">
+                          0
+                        </p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/15 text-cyan-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/15 text-cyan-300">
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-dark-400 text-sm">Present</p>
-                        <p id="roll-call-stat-present" class="text-2xl font-bold text-cyan-400 mt-1">0</p>
+                        <p
+                          id="roll-call-stat-present"
+                          class="text-2xl font-bold text-cyan-400 mt-1"
+                        >
+                          0
+                        </p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/20 text-cyan-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/20 text-cyan-300">
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-dark-400 text-sm">Absent</p>
-                        <p id="roll-call-stat-absent" class="text-2xl font-bold text-rose-400 mt-1">0</p>
+                        <p id="roll-call-stat-absent" class="text-2xl font-bold text-rose-400 mt-1">
+                          0
+                        </p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-rose-500/20 text-rose-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-rose-500/20 text-rose-300">
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-dark-400 text-sm">Late</p>
-                        <p id="roll-call-stat-late" class="text-2xl font-bold text-amber-400 mt-1">0</p>
+                        <p id="roll-call-stat-late" class="text-2xl font-bold text-amber-400 mt-1">
+                          0
+                        </p>
                       </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-amber-500/20 text-amber-300"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                      <div class="lms-att-stat-icon p-3 rounded-lg bg-amber-500/20 text-amber-300">
+                        <svg
+                          class="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -7980,9 +8167,7 @@
                   <h3 class="lms-reg-section-title">Mark Attendance</h3>
                   <form id="mark-attendance-form" class="space-y-3 sm:space-y-4 min-w-0">
                     <div class="min-w-0">
-                      <label class="lms-form-label"
-                        >Student</label
-                      >
+                      <label class="lms-form-label">Student</label>
                       <input
                         type="text"
                         id="attendance-student-search"
@@ -8004,12 +8189,10 @@
                       </select>
                     </div>
                     <div class="min-w-0 max-w-full">
-                      <label
-                        class="lms-form-label"
-                        for="attendance-date"
-                        >Date</label
+                      <label class="lms-form-label" for="attendance-date">Date</label>
+                      <div
+                        class="lms-mark-attendance-date-field focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-shadow"
                       >
-                      <div class="lms-mark-attendance-date-field focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-shadow">
                         <input
                           type="date"
                           id="attendance-date"
@@ -8020,9 +8203,7 @@
                       </div>
                     </div>
                     <div class="min-w-0">
-                      <label class="lms-form-label"
-                        >Status</label
-                      >
+                      <label class="lms-form-label">Status</label>
                       <div class="grid grid-cols-2 gap-2 min-w-0">
                         <label class="attendance-status-option min-w-0">
                           <input
@@ -8048,7 +8229,8 @@
                                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span
+                              class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Present</span
                             >
                           </div>
@@ -8077,7 +8259,8 @@
                                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span
+                              class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Absent</span
                             >
                           </div>
@@ -8106,7 +8289,8 @@
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span
+                              class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Late</span
                             >
                           </div>
@@ -8135,7 +8319,8 @@
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                               ></path>
                             </svg>
-                            <span class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
+                            <span
+                              class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
                               >Excused</span
                             >
                           </div>
@@ -8143,9 +8328,7 @@
                       </div>
                     </div>
                     <div class="min-w-0">
-                      <label class="lms-form-label"
-                        >Notes (Optional)</label
-                      >
+                      <label class="lms-form-label">Notes (Optional)</label>
                       <textarea
                         name="notes"
                         rows="2"
@@ -8153,8 +8336,14 @@
                         class="lms-form-input"
                       ></textarea>
                     </div>
-                    <div id="mark-attendance-error" class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"></div>
-                    <div id="mark-attendance-success" class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"></div>
+                    <div
+                      id="mark-attendance-error"
+                      class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"
+                    ></div>
+                    <div
+                      id="mark-attendance-success"
+                      class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"
+                    ></div>
                     <button
                       type="submit"
                       class="w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-sm sm:text-base font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
@@ -8170,7 +8359,9 @@
                       class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between min-w-0"
                     >
                       <div class="space-y-1.5 sm:space-y-2 min-w-0 flex-1">
-                        <p class="text-[0.65rem] sm:text-xs font-bold tracking-widest text-cyan-400/90">
+                        <p
+                          class="text-[0.65rem] sm:text-xs font-bold tracking-widest text-cyan-400/90"
+                        >
                           ACTIVE CLASS
                         </p>
                         <h4
@@ -8233,7 +8424,8 @@
                       role="group"
                       aria-label="Filter attendance by status"
                     >
-                      <span class="text-xs font-semibold text-slate-500 shrink-0 snap-start pr-1 sm:pr-0 sm:w-auto"
+                      <span
+                        class="text-xs font-semibold text-slate-500 shrink-0 snap-start pr-1 sm:pr-0 sm:w-auto"
                         >FILTER STATUS</span
                       >
                       <button
@@ -8288,16 +8480,26 @@
                             class="sticky top-0 z-10 bg-slate-900/95 border-b border-slate-600"
                           >
                             <tr>
-                              <th scope="col" class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider">
+                              <th
+                                scope="col"
+                                class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
+                              >
                                 Student
                               </th>
-                              <th scope="col" class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider">
+                              <th
+                                scope="col"
+                                class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
+                              >
                                 Student ID
                               </th>
-                              <th scope="col" class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider">
+                              <th
+                                scope="col"
+                                class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
+                              >
                                 Status
                               </th>
-                              <th scope="col"
+                              <th
+                                scope="col"
                                 class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider text-right"
                               >
                                 Actions
@@ -8319,8 +8521,12 @@
                 <div
                   class="lg:col-span-3 glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 min-w-0 max-w-full overflow-hidden"
                 >
-                  <div class="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 min-w-0">
-                    <h3 class="text-lg sm:text-xl font-bold text-white min-w-0">Attendance History</h3>
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 min-w-0"
+                  >
+                    <h3 class="text-lg sm:text-xl font-bold text-white min-w-0">
+                      Attendance History
+                    </h3>
                     <button
                       id="refresh-attendance-btn"
                       class="shrink-0 px-3 sm:px-4 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-400 text-sm transition-all flex items-center gap-2"
@@ -8344,14 +8550,25 @@
                       </caption>
                       <thead>
                         <tr class="text-left border-b border-dark-700">
-                          <th scope="col" class="pb-2 sm:pb-3 pr-2 text-dark-300 font-semibold whitespace-nowrap">
+                          <th
+                            scope="col"
+                            class="pb-2 sm:pb-3 pr-2 text-dark-300 font-semibold whitespace-nowrap"
+                          >
                             Date
                           </th>
-                          <th scope="col" class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold">Student</th>
-                          <th scope="col" class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold text-center">
+                          <th scope="col" class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold">
+                            Student
+                          </th>
+                          <th
+                            scope="col"
+                            class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold text-center"
+                          >
                             Status
                           </th>
-                          <th scope="col" class="pb-2 sm:pb-3 pl-2 text-dark-300 font-semibold min-w-[4rem]">
+                          <th
+                            scope="col"
+                            class="pb-2 sm:pb-3 pl-2 text-dark-300 font-semibold min-w-[4rem]"
+                          >
                             Notes
                           </th>
                         </tr>
@@ -8392,7 +8609,12 @@
                 <!-- Instructions -->
                 <div class="lms-info-callout">
                   <h4 class="lms-info-callout-title">
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      class="w-4 h-4 sm:w-5 sm:h-5 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -8428,9 +8650,7 @@
 
                     <!-- Membership ID (optional) -->
                     <div class="min-w-0">
-                      <label class="lms-form-label">
-                        Membership ID
-                      </label>
+                      <label class="lms-form-label"> Membership ID </label>
                       <input
                         type="text"
                         name="memberId"
@@ -8486,7 +8706,8 @@
                     <!-- Link to Student Account -->
                     <div class="min-w-0 md:col-span-2">
                       <label class="lms-form-label">
-                        Link to Student Account <span class="text-red-600 dark:text-red-400">*</span>
+                        Link to Student Account
+                        <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
 
                       <!-- Dropdown Method (requires Cloud Functions) -->
@@ -8601,9 +8822,7 @@
 
                   <!-- Additional Notes -->
                   <div class="min-w-0">
-                    <label class="lms-form-label">
-                      Additional Notes (Optional)
-                    </label>
+                    <label class="lms-form-label"> Additional Notes (Optional) </label>
                     <textarea
                       name="notes"
                       rows="2"
@@ -8613,10 +8832,16 @@
                   </div>
 
                   <!-- Error Message -->
-                  <div id="registration-error" class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"></div>
+                  <div
+                    id="registration-error"
+                    class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"
+                  ></div>
 
                   <!-- Success Message -->
-                  <div id="registration-success" class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"></div>
+                  <div
+                    id="registration-success"
+                    class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"
+                  ></div>
 
                   <!-- Submit Button -->
                   <button
@@ -8649,13 +8874,20 @@
                 </h3>
                 <p class="text-xs sm:text-sm text-on-surface-muted mb-4 leading-relaxed">
                   Upload a CSV to register multiple students. Rows are matched to existing
-                  <span class="font-medium text-slate-800 dark:text-dark-200">student</span> accounts by display name or email
-                  username when possible. Admins may import rows with no match as roster-only records;
-                  teachers must have a matching account per row.
+                  <span class="font-medium text-slate-800 dark:text-dark-200">student</span>
+                  accounts by display name or email username when possible. Admins may import rows
+                  with no match as roster-only records; teachers must have a matching account per
+                  row.
                 </p>
                 <div class="mb-4 flex flex-wrap gap-3">
                   <button type="button" id="csv-download-template-btn" class="lms-csv-template-btn">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg
+                      class="w-4 h-4 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -8692,14 +8924,26 @@
                         d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    <p class="text-slate-800 dark:text-dark-200 font-medium text-sm sm:text-base">Drag &amp; drop your CSV file here</p>
-                    <p class="text-slate-500 dark:text-dark-500 text-xs sm:text-sm mt-1">or click to browse</p>
+                    <p class="text-slate-800 dark:text-dark-200 font-medium text-sm sm:text-base">
+                      Drag &amp; drop your CSV file here
+                    </p>
+                    <p class="text-slate-500 dark:text-dark-500 text-xs sm:text-sm mt-1">
+                      or click to browse
+                    </p>
                   </div>
                 </div>
                 <div id="csv-preview-container" class="hide mt-4">
                   <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <h4 class="text-slate-900 dark:text-dark-100 font-semibold text-sm sm:text-base flex items-center gap-2">
-                      <svg class="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <h4
+                      class="text-slate-900 dark:text-dark-100 font-semibold text-sm sm:text-base flex items-center gap-2"
+                    >
+                      <svg
+                        class="w-5 h-5 text-green-600 dark:text-green-400 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
                         <path
                           stroke-linecap="round"
                           stroke-linejoin="round"
@@ -8725,13 +8969,41 @@
                         class="sticky top-0 z-[1] border-b border-slate-200 bg-slate-50/95 backdrop-blur-sm dark:border-dark-600 dark:bg-dark-900/95"
                       >
                         <tr>
-                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">#</th>
-                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Name</th>
-                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Member ID</th>
-                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Year of Birth</th>
-                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Phone</th>
-                          <th class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold">Email</th>
-                          <th class="py-2 px-3 text-center text-slate-700 dark:text-dark-300 font-semibold">Status</th>
+                          <th
+                            class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold"
+                          >
+                            #
+                          </th>
+                          <th
+                            class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold"
+                          >
+                            Name
+                          </th>
+                          <th
+                            class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold"
+                          >
+                            Member ID
+                          </th>
+                          <th
+                            class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold"
+                          >
+                            Year of Birth
+                          </th>
+                          <th
+                            class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold"
+                          >
+                            Phone
+                          </th>
+                          <th
+                            class="py-2 px-3 text-left text-slate-700 dark:text-dark-300 font-semibold"
+                          >
+                            Email
+                          </th>
+                          <th
+                            class="py-2 px-3 text-center text-slate-700 dark:text-dark-300 font-semibold"
+                          >
+                            Status
+                          </th>
                         </tr>
                       </thead>
                       <tbody id="csv-preview-body"></tbody>
@@ -8748,7 +9020,13 @@
                     class="w-full mt-4 min-h-[48px] py-3.5 px-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
                   >
                     <span class="flex items-center justify-center gap-2">
-                      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <svg
+                        class="w-5 h-5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
                         <path
                           stroke-linecap="round"
                           stroke-linejoin="round"
@@ -8761,8 +9039,14 @@
                   </button>
                   <div id="csv-progress-container" class="hide mt-3">
                     <div class="flex items-center justify-between text-xs sm:text-sm mb-1">
-                      <span class="text-slate-600 dark:text-dark-300" id="csv-progress-label">Registering...</span>
-                      <span class="text-primary-700 dark:text-primary-400 font-semibold" id="csv-progress-pct">0%</span>
+                      <span class="text-slate-600 dark:text-dark-300" id="csv-progress-label"
+                        >Registering...</span
+                      >
+                      <span
+                        class="text-primary-700 dark:text-primary-400 font-semibold"
+                        id="csv-progress-pct"
+                        >0%</span
+                      >
                     </div>
                     <div class="h-2 bg-slate-200 dark:bg-dark-700 rounded-full overflow-hidden">
                       <div
@@ -8798,7 +9082,9 @@
                         >
                           Member ID
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                        <th
+                          class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
                           Name
                         </th>
                         <th
@@ -8806,7 +9092,9 @@
                         >
                           Year
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                        <th
+                          class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
                           Contact
                         </th>
                         <th
@@ -8841,7 +9129,12 @@
                 <!-- Instructions (same style as Student Registration) -->
                 <div class="lms-info-callout">
                   <h4 class="lms-info-callout-title">
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      class="w-4 h-4 sm:w-5 sm:h-5 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -8853,7 +9146,8 @@
                   </h4>
                   <p class="lms-info-callout-body">
                     Fill in the teacher information below to register a new teacher in the system.
-                    All fields marked with <span class="text-red-600 dark:text-red-400">*</span> are required.
+                    All fields marked with <span class="text-red-600 dark:text-red-400">*</span> are
+                    required.
                   </p>
                 </div>
 
@@ -8876,9 +9170,7 @@
 
                     <!-- Membership ID (optional) -->
                     <div class="min-w-0">
-                      <label class="lms-form-label">
-                        Membership ID
-                      </label>
+                      <label class="lms-form-label"> Membership ID </label>
                       <input
                         type="text"
                         name="teacherMemberId"
@@ -8889,9 +9181,7 @@
 
                     <!-- Year of Birth / Year Joined (optional, same column position as student) -->
                     <div class="min-w-0">
-                      <label class="lms-form-label">
-                        Year of Birth
-                      </label>
+                      <label class="lms-form-label"> Year of Birth </label>
                       <input
                         type="number"
                         name="teacherYearOfBirth"
@@ -8933,7 +9223,8 @@
                     <!-- Link to Teacher Account -->
                     <div class="min-w-0 md:col-span-2">
                       <label class="lms-form-label">
-                        Link to Teacher Account <span class="text-red-600 dark:text-red-400">*</span>
+                        Link to Teacher Account
+                        <span class="text-red-600 dark:text-red-400">*</span>
                       </label>
                       <div id="teacher-dropdown-method" class="space-y-2 min-w-0">
                         <div class="flex flex-col sm:flex-row gap-2 items-stretch min-w-0">
@@ -9003,7 +9294,11 @@
                             </svg>
                           </button>
                         </div>
-                        <button type="button" id="use-manual-teacher-uid-btn" class="lms-inline-link">
+                        <button
+                          type="button"
+                          id="use-manual-teacher-uid-btn"
+                          class="lms-inline-link"
+                        >
                           Or enter UID manually
                         </button>
                       </div>
@@ -9028,9 +9323,7 @@
 
                   <!-- Additional Notes (Optional) -->
                   <div class="min-w-0">
-                    <label class="lms-form-label">
-                      Additional Notes (Optional)
-                    </label>
+                    <label class="lms-form-label"> Additional Notes (Optional) </label>
                     <textarea
                       name="teacherNotes"
                       rows="2"
@@ -9039,8 +9332,14 @@
                     ></textarea>
                   </div>
 
-                  <div id="teacher-registration-error" class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"></div>
-                  <div id="teacher-registration-success" class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"></div>
+                  <div
+                    id="teacher-registration-error"
+                    class="text-red-600 dark:text-red-400 text-xs sm:text-sm hide"
+                  ></div>
+                  <div
+                    id="teacher-registration-success"
+                    class="text-green-700 dark:text-green-400 text-xs sm:text-sm hide"
+                  ></div>
 
                   <button
                     type="submit"
@@ -9074,7 +9373,9 @@
                         >
                           Member ID
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                        <th
+                          class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
                           Name
                         </th>
                         <th
@@ -9082,7 +9383,9 @@
                         >
                           Year
                         </th>
-                        <th class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                        <th
+                          class="text-left py-2 sm:py-3 px-2 sm:px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
                           Contact
                         </th>
                         <th
@@ -9854,10 +10157,14 @@
                     >
                       User Management
                     </h3>
-                    <p class="text-sm text-slate-700 dark:text-dark-400 md:hidden max-w-xl leading-relaxed">
+                    <p
+                      class="text-sm text-slate-700 dark:text-dark-400 md:hidden max-w-xl leading-relaxed"
+                    >
                       Search the directory, then open a card to change someone's role.
                     </p>
-                    <p class="hidden text-sm text-slate-600 dark:text-dark-400 md:block max-w-xl leading-relaxed">
+                    <p
+                      class="hidden text-sm text-slate-600 dark:text-dark-400 md:block max-w-xl leading-relaxed"
+                    >
                       View accounts, search by name or email, and update roles when needed.
                     </p>
                   </div>
@@ -9896,8 +10203,8 @@
                   ></i>
                   <p class="text-xs leading-relaxed text-slate-800 dark:text-primary-200/95">
                     New accounts default to
-                    <span class="font-semibold text-slate-950 dark:text-primary-50">Student</span>. Open
-                    a card to change role.
+                    <span class="font-semibold text-slate-950 dark:text-primary-50">Student</span>.
+                    Open a card to change role.
                   </p>
                 </div>
 
@@ -9905,7 +10212,11 @@
                   <span
                     class="inline-flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-400"
                   >
-                    <i data-lucide="users" class="h-3.5 w-3.5 text-slate-500 dark:opacity-70" aria-hidden="true"></i>
+                    <i
+                      data-lucide="users"
+                      class="h-3.5 w-3.5 text-slate-500 dark:opacity-70"
+                      aria-hidden="true"
+                    ></i>
                     Directory
                   </span>
                   <span
@@ -9936,16 +10247,34 @@
                   />
                 </div>
                 <!-- Desktop: full table -->
-                <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-600/80">
+                <div
+                  class="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 dark:border-dark-600/80"
+                >
                   <table class="w-full text-sm">
                     <thead>
-                      <tr class="border-b border-slate-200 bg-slate-50/90 dark:border-dark-600 dark:bg-transparent">
-                        <th class="text-left py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">Email</th>
-                        <th class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">
+                      <tr
+                        class="border-b border-slate-200 bg-slate-50/90 dark:border-dark-600 dark:bg-transparent"
+                      >
+                        <th
+                          class="text-left py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
+                          Email
+                        </th>
+                        <th
+                          class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
                           Current Role
                         </th>
-                        <th class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">Account</th>
-                        <th class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold">Actions</th>
+                        <th
+                          class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
+                          Account
+                        </th>
+                        <th
+                          class="text-center py-3 px-4 text-slate-700 dark:text-dark-200 font-semibold"
+                        >
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody id="users-table-body">
@@ -9973,12 +10302,18 @@
                       aria-hidden="true"
                     >
                       <div class="flex gap-3">
-                        <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/80 dark:bg-white/10"></div>
+                        <div
+                          class="h-12 w-12 shrink-0 rounded-full bg-slate-200/80 dark:bg-white/10"
+                        ></div>
                         <div class="min-w-0 flex-1 space-y-2 pt-0.5">
                           <div class="h-3 w-24 rounded bg-slate-300/70 dark:bg-white/15"></div>
-                          <div class="h-4 w-full max-w-[14rem] rounded bg-slate-300/50 dark:bg-white/10"></div>
+                          <div
+                            class="h-4 w-full max-w-[14rem] rounded bg-slate-300/50 dark:bg-white/10"
+                          ></div>
                           <div class="h-3 w-40 rounded bg-slate-300/45 dark:bg-white/10"></div>
-                          <div class="mt-3 h-10 w-full rounded-xl bg-slate-300/40 dark:bg-white/10"></div>
+                          <div
+                            class="mt-3 h-10 w-full rounded-xl bg-slate-300/40 dark:bg-white/10"
+                          ></div>
                         </div>
                       </div>
                     </div>
@@ -9989,12 +10324,18 @@
                       aria-hidden="true"
                     >
                       <div class="flex gap-3">
-                        <div class="h-12 w-12 shrink-0 rounded-full bg-slate-200/80 dark:bg-white/10"></div>
+                        <div
+                          class="h-12 w-12 shrink-0 rounded-full bg-slate-200/80 dark:bg-white/10"
+                        ></div>
                         <div class="min-w-0 flex-1 space-y-2 pt-0.5">
                           <div class="h-3 w-20 rounded bg-slate-300/70 dark:bg-white/15"></div>
-                          <div class="h-4 w-full max-w-[12rem] rounded bg-slate-300/50 dark:bg-white/10"></div>
+                          <div
+                            class="h-4 w-full max-w-[12rem] rounded bg-slate-300/50 dark:bg-white/10"
+                          ></div>
                           <div class="h-3 w-36 rounded bg-slate-300/45 dark:bg-white/10"></div>
-                          <div class="mt-3 h-10 w-full rounded-xl bg-slate-300/40 dark:bg-white/10"></div>
+                          <div
+                            class="mt-3 h-10 w-full rounded-xl bg-slate-300/40 dark:bg-white/10"
+                          ></div>
                         </div>
                       </div>
                     </div>
@@ -10006,8 +10347,12 @@
           <!-- /lms-content -->
 
           <!-- Desktop-only minimal footer -->
-          <footer class="hidden md:block mt-auto py-6 px-8 border-t border-slate-200/60 dark:border-white/5 text-center">
-            <p class="text-xs text-slate-400 dark:text-dark-500">&copy; 2026 DSKM LMS &middot; Learning Management Platform</p>
+          <footer
+            class="hidden md:block mt-auto py-6 px-8 border-t border-slate-200/60 dark:border-white/5 text-center"
+          >
+            <p class="text-xs text-slate-400 dark:text-dark-500">
+              &copy; 2026 DSKM LMS &middot; Learning Management Platform
+            </p>
           </footer>
         </main>
         <!-- /lms-main -->
@@ -10286,7 +10631,9 @@
         id="change-role-modal-panel"
         class="lms-modal-surface relative z-10 w-full max-w-[22rem] overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white/85 shadow-[0_20px_60px_-12px_rgba(15,23,42,0.2),inset_0_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/15 dark:bg-gradient-to-b dark:from-white/[0.12] dark:to-white/[0.03] dark:shadow-[0_12px_48px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
       >
-        <div class="rounded-[1.5rem] px-5 pt-5 pb-4 dark:bg-gradient-to-b dark:from-white/[0.04] dark:to-transparent">
+        <div
+          class="rounded-[1.5rem] px-5 pt-5 pb-4 dark:bg-gradient-to-b dark:from-white/[0.04] dark:to-transparent"
+        >
           <div class="mb-4 flex items-start justify-between gap-2">
             <div class="min-w-0">
               <p
@@ -10315,7 +10662,13 @@
               class="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-surface-hover hover:text-slate-800 dark:text-dark-400 dark:hover:text-white"
               aria-label="Close"
             >
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <svg
+                class="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -10328,7 +10681,9 @@
 
           <input type="hidden" id="change-role-user-id" value="" />
 
-          <p class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-dark-500">
+          <p
+            class="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-dark-500"
+          >
             New role
           </p>
           <div
@@ -10583,8 +10938,7 @@
           root.dataset.lmsThemeSwitchWired = '1';
           root.addEventListener('click', (ev) => {
             const t = ev.target;
-            const btn =
-              t && t.closest ? t.closest('button[data-theme-pref]') : null;
+            const btn = t && t.closest ? t.closest('button[data-theme-pref]') : null;
             if (!btn || !root.contains(btn)) return;
             const pref = btn.getAttribute('data-theme-pref');
             if (pref === 'light' || pref === 'dark') {
@@ -10658,8 +11012,7 @@
             {
               id: 'welcome',
               title: 'Welcome to DSKM LMS',
-              body:
-                'Your dashboard shows a snapshot of enrollment and progress. Use the menu for more options.',
+              body: 'Your dashboard shows a snapshot of enrollment and progress. Use the menu for more options.',
               createdAt: new Date().toISOString(),
               read: false,
             },
@@ -10684,8 +11037,14 @@
         const label = unread > 99 ? '99+' : String(unread);
         const mobileDot = document.getElementById('lms-mobile-notifications-dot');
         const headerDot = document.getElementById('lms-header-notifications-dot');
-        if (mobileDot) { mobileDot.classList.toggle('hidden', !show); mobileDot.textContent = label; }
-        if (headerDot) { headerDot.classList.toggle('hidden', !show); headerDot.textContent = label; }
+        if (mobileDot) {
+          mobileDot.classList.toggle('hidden', !show);
+          mobileDot.textContent = label;
+        }
+        if (headerDot) {
+          headerDot.classList.toggle('hidden', !show);
+          headerDot.textContent = label;
+        }
       }
 
       function renderNotificationsList() {
@@ -10826,7 +11185,7 @@
             if (headerBtn?.contains(t)) return;
             setLmsNotificationsPanelOpen(false);
           },
-          true,
+          true
         );
 
         document.addEventListener('keydown', (ev) => {

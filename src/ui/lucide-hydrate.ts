@@ -2,14 +2,7 @@
  * Replaces `[data-lucide="…"]` placeholders with SVG (subset import for smaller bundles).
  */
 import { createIcons } from 'lucide';
-import {
-  AlertTriangle,
-  ChevronRight,
-  Info,
-  RefreshCw,
-  Search,
-  Users,
-} from 'lucide';
+import { AlertTriangle, ChevronRight, Info, RefreshCw, Search, Users } from 'lucide';
 
 const LMS_LUCIDE_ICONS = {
   AlertTriangle,

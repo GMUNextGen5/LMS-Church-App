@@ -56,9 +56,7 @@ function studentRecordFromFirestore(id: string, raw: Record<string, unknown>): S
     ? raw.teacherIds.filter((t): t is string => typeof t === 'string')
     : undefined;
   const deletedAt =
-    typeof raw.deletedAt === 'string' && raw.deletedAt.trim()
-      ? raw.deletedAt.trim()
-      : undefined;
+    typeof raw.deletedAt === 'string' && raw.deletedAt.trim() ? raw.deletedAt.trim() : undefined;
   const deletedBy = typeof raw.deletedBy === 'string' ? raw.deletedBy : undefined;
   return {
     id,
@@ -843,7 +841,8 @@ export async function updateUserRoleDirect(
   newRole: User['role']
 ): Promise<void> {
   const user = getCurrentUser();
-  if (!user || user.role !== UserRole.Admin) throw new Error('Only administrators can change roles');
+  if (!user || user.role !== UserRole.Admin)
+    throw new Error('Only administrators can change roles');
   await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
 }
 

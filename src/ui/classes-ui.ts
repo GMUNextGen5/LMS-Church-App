@@ -85,8 +85,12 @@ function populateStudentDropdown(
       ${students
         .map((s) => {
           const checked = preselected?.has(s.id) ? 'checked' : '';
-          const hay = `${safeStudentDisplayName(s.name)} ${s.memberId || ''} ${s.id}`.trim().toLowerCase();
-          const mid = s.memberId ? ` <span class="text-dark-500 text-xs">(${esc(s.memberId)})</span>` : '';
+          const hay = `${safeStudentDisplayName(s.name)} ${s.memberId || ''} ${s.id}`
+            .trim()
+            .toLowerCase();
+          const mid = s.memberId
+            ? ` <span class="text-dark-500 text-xs">(${esc(s.memberId)})</span>`
+            : '';
           return `<label class="student-dropdown-item flex items-center gap-2 px-3 py-1.5 hover:bg-dark-600/60 cursor-pointer text-sm text-white" data-student-filter="${escapeHtmlAttr(hay)}">
           <input type="checkbox" value="${esc(s.id)}" ${checked} class="accent-primary-500 shrink-0" /> <span class="min-w-0">${esc(safeStudentDisplayName(s.name))}${mid}</span>
         </label>`;
@@ -904,7 +908,9 @@ function buildRosterHtml(
 }
 
 async function loadTeacherRoster(courseId: string): Promise<void> {
-  const targets = document.querySelectorAll<HTMLElement>(`[data-roster-content="teacher-${courseId}"]`);
+  const targets = document.querySelectorAll<HTMLElement>(
+    `[data-roster-content="teacher-${courseId}"]`
+  );
   if (targets.length === 0) return;
   const course = cachedTeacherCourses.find((c) => c.id === courseId);
   if (!course) return;
@@ -931,7 +937,9 @@ async function loadAdminRoster(courseId: string): Promise<void> {
   const enrolledIds = new Set(course.studentIds ?? []);
   const available = cachedAllStudents.filter((s) => !enrolledIds.has(s.id));
 
-  const targets = document.querySelectorAll<HTMLElement>(`[data-roster-content="admin-${courseId}"]`);
+  const targets = document.querySelectorAll<HTMLElement>(
+    `[data-roster-content="admin-${courseId}"]`
+  );
   if (targets.length === 0) return;
   const html = buildRosterHtml(courseId, roster, available, 'admin');
   targets.forEach((el) => renderTemplate(el, html));

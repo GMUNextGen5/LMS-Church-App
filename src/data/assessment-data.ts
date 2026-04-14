@@ -318,7 +318,10 @@ export async function fetchNextStudentDeadline(
   for (const course of courses) {
     try {
       const aSnap = await getDocs(
-        query(collection(db, 'courses', course.id, 'assessments'), where('status', '==', 'published'))
+        query(
+          collection(db, 'courses', course.id, 'assessments'),
+          where('status', '==', 'published')
+        )
       );
       for (const aDoc of aSnap.docs) {
         const assessment = { id: aDoc.id, ...aDoc.data() } as Assessment;

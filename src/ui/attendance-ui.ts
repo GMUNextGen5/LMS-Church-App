@@ -167,8 +167,15 @@ function setRosterRowStatus(row: HTMLElement, status: Attendance['status']): voi
     const on = v === status;
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.classList.remove(
-      'ring-2', 'ring-cyan-400', 'ring-rose-400', 'ring-amber-400', 'ring-slate-300',
-      'bg-cyan-500/20', 'bg-rose-500/20', 'bg-amber-500/20', 'bg-slate-600/40'
+      'ring-2',
+      'ring-cyan-400',
+      'ring-rose-400',
+      'ring-amber-400',
+      'ring-slate-300',
+      'bg-cyan-500/20',
+      'bg-rose-500/20',
+      'bg-amber-500/20',
+      'bg-slate-600/40'
     );
     if (on) {
       btn.classList.add('ring-2');
@@ -499,10 +506,7 @@ export function initAttendanceBulkUI(opts: InitAttendanceBulkOptions): void {
         if (ok === 0 && fail === 0) {
           o.showToast('No exceptions to save — everyone is marked Present.', 'success');
         } else if (ok > 0) {
-          o.showToast(
-            `Saved ${ok} attendance exception${ok !== 1 ? 's' : ''}.`,
-            'success'
-          );
+          o.showToast(`Saved ${ok} attendance exception${ok !== 1 ? 's' : ''}.`, 'success');
         }
         await o.onBulkSaved?.();
       } catch (err) {

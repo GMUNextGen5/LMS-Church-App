@@ -1201,7 +1201,9 @@ function handleCsvFile(file: File): void {
     const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
     const nameIdx = headers.findIndex((h) => h.includes('name') || h.includes('student'));
     const memberIdx = headers.findIndex((h) => h.includes('member') || h.includes('id'));
-    const yearIdx = headers.findIndex((h) => h.includes('year') || h.includes('birth') || h.includes('dob'));
+    const yearIdx = headers.findIndex(
+      (h) => h.includes('year') || h.includes('birth') || h.includes('dob')
+    );
     const phoneIdx = headers.findIndex(
       (h) => h.includes('phone') || (h.includes('contact') && !h.includes('email'))
     );
@@ -1349,8 +1351,7 @@ async function executeCsvBulkUpload(): Promise<void> {
         contactEmail: row.contactEmail || '',
         studentUid: linkedUid,
         parentUid: linkedUid,
-        notes:
-          row.notes + (linkedUid ? '' : ' [CSV import — not linked to an account yet]'),
+        notes: row.notes + (linkedUid ? '' : ' [CSV import — not linked to an account yet]'),
       });
       row._status = 'success';
       successCount++;
@@ -1373,7 +1374,10 @@ async function executeCsvBulkUpload(): Promise<void> {
   }
 
   if (errorCount === 0) {
-    showAppToast(`Registered ${successCount} student${successCount !== 1 ? 's' : ''} from CSV.`, 'success');
+    showAppToast(
+      `Registered ${successCount} student${successCount !== 1 ? 's' : ''} from CSV.`,
+      'success'
+    );
   } else {
     showAppToast(
       `CSV import finished: ${successCount} succeeded, ${errorCount} failed. See preview for details.`,
@@ -2265,8 +2269,7 @@ function updateAttendanceClassChrome(): void {
   if (metaDate && dateInput?.value) {
     const d = new Date(`${dateInput.value}T12:00:00`);
     const narrow =
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(max-width: 639px)')?.matches === true;
+      typeof window !== 'undefined' && window.matchMedia?.('(max-width: 639px)')?.matches === true;
     metaDate.textContent = Number.isNaN(d.getTime())
       ? dateInput.value
       : narrow
@@ -3352,12 +3355,14 @@ let changeRoleContext: { userId: string; currentRoleNorm: string } | null = null
 let changeRoleSelected: UserRole = UserRole.Student;
 
 function syncChangeRoleSegments(): void {
-  document.querySelectorAll<HTMLButtonElement>('.change-role-segment[data-change-role-value]').forEach((btn) => {
-    const v = btn.dataset.changeRoleValue;
-    const on = v === changeRoleSelected;
-    btn.setAttribute('aria-checked', on ? 'true' : 'false');
-    btn.classList.toggle('change-role-segment--active', on);
-  });
+  document
+    .querySelectorAll<HTMLButtonElement>('.change-role-segment[data-change-role-value]')
+    .forEach((btn) => {
+      const v = btn.dataset.changeRoleValue;
+      const on = v === changeRoleSelected;
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      btn.classList.toggle('change-role-segment--active', on);
+    });
 }
 
 function openChangeRoleModal(userId: string, currentRole: string): void {
@@ -3404,15 +3409,17 @@ function wireChangeRoleModal(): void {
   if (!modal || (modal as HTMLElement & { __lmsWired?: boolean }).__lmsWired) return;
   (modal as HTMLElement & { __lmsWired?: boolean }).__lmsWired = true;
 
-  document.querySelectorAll<HTMLButtonElement>('.change-role-segment[data-change-role-value]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const v = btn.dataset.changeRoleValue;
-      if (v === 'admin' || v === 'teacher' || v === 'student') {
-        changeRoleSelected = v as UserRole;
-        syncChangeRoleSegments();
-      }
+  document
+    .querySelectorAll<HTMLButtonElement>('.change-role-segment[data-change-role-value]')
+    .forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const v = btn.dataset.changeRoleValue;
+        if (v === 'admin' || v === 'teacher' || v === 'student') {
+          changeRoleSelected = v as UserRole;
+          syncChangeRoleSegments();
+        }
+      });
     });
-  });
 
   const onClose = (): void => {
     closeChangeRoleModal();
@@ -3981,8 +3988,7 @@ function setDashboardWelcome(user: User | null): void {
     return;
   }
   const label = userProfileDisplayLabel(user);
-  const name =
-    label !== '—' ? label : cleanProfilePlainText(user.email || 'there', 254) || 'there';
+  const name = label !== '—' ? label : cleanProfilePlainText(user.email || 'there', 254) || 'there';
   heading.textContent = `${timeOfDayGreeting()}, ${name}`;
   const mobileStudentGreet = document.getElementById('dashboard-mobile-student-greeting');
   if (mobileStudentGreet && user.role === UserRole.Student) {
@@ -4092,8 +4098,7 @@ function buildStudentUpcomingDashboardHtml(
   classCount: number,
   compact: boolean
 ): string {
-  const emptyDesktop =
-    'rounded-xl border border-surface-default bg-surface-glass p-4 text-center';
+  const emptyDesktop = 'rounded-xl border border-surface-default bg-surface-glass p-4 text-center';
   const emptyMobile =
     'rounded-xl border border-surface-default bg-surface-container-tonal p-4 text-center';
   const list =
@@ -4120,8 +4125,9 @@ function buildStudentUpcomingDashboardHtml(
 </li>`
           )
           .join('')}</ul>`;
-  const heading =
-    compact ? '' : `<p class="text-xs font-semibold uppercase tracking-widest text-primary-400/90">Assessments &amp; classes</p>`;
+  const heading = compact
+    ? ''
+    : `<p class="text-xs font-semibold uppercase tracking-widest text-primary-400/90">Assessments &amp; classes</p>`;
   const headingTitleClass = compact
     ? 'text-base font-bold text-slate-800 dark:text-slate-100 font-display'
     : 'text-lg font-bold text-slate-800 dark:text-white font-display';
@@ -4196,10 +4202,7 @@ async function refreshStudentMasteryDashboard(forceGpaRefresh: boolean): Promise
     updateStudentMobileGpaBentoFromMetrics(gpa, grades);
   } catch {
     renderStudentGpaMetricReplaceChildren(null, currentGrades.length > 0 ? currentGrades : []);
-    updateStudentMobileGpaBentoFromMetrics(
-      null,
-      currentGrades.length > 0 ? currentGrades : []
-    );
+    updateStudentMobileGpaBentoFromMetrics(null, currentGrades.length > 0 ? currentGrades : []);
   }
 }
 
@@ -4353,7 +4356,8 @@ async function loadRecentActivity(): Promise<void> {
           hour: '2-digit',
           minute: '2-digit',
         });
-        const rowStripe = 'border-b border-white/5 hover:bg-white/[0.03] even:bg-white/[0.015] transition-colors';
+        const rowStripe =
+          'border-b border-white/5 hover:bg-white/[0.03] even:bg-white/[0.015] transition-colors';
         if (activity.type === 'grade') {
           const grade = activity.data as Grade;
           const pct = gradePercent100(grade);
@@ -4368,7 +4372,11 @@ async function loadRecentActivity(): Promise<void> {
           late: ['Late', 'text-yellow-300', 'bg-yellow-500/15'],
           excused: ['Excused', 'text-blue-300', 'bg-blue-500/15'],
         };
-        const [badge, color, badgeBg] = statusBadgeMap[att.status] || ['Recorded', 'text-dark-300', 'bg-dark-700'];
+        const [badge, color, badgeBg] = statusBadgeMap[att.status] || [
+          'Recorded',
+          'text-dark-300',
+          'bg-dark-700',
+        ];
         return `<tr class="${rowStripe}"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(att.notes || badge)}</td><td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md ${badgeBg} ${color}">${badge}</span></td><td class="py-3 px-4 text-sm ${color} font-medium">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
       })
       .join('');
@@ -4970,11 +4978,7 @@ async function loadUserProfile(): Promise<void> {
     rosterName ||
     docName ||
     emailLocal ||
-    (role === UserRole.Admin
-      ? 'Administrator'
-      : role === UserRole.Teacher
-        ? 'Teacher'
-        : 'Student');
+    (role === UserRole.Admin ? 'Administrator' : role === UserRole.Teacher ? 'Teacher' : 'Student');
 
   const userDocMemberId =
     typeof userDocData.memberId === 'string' ? userDocData.memberId.trim() : '';
@@ -4990,8 +4994,7 @@ async function loadUserProfile(): Promise<void> {
     '--';
 
   const fromStudentPhone = student?.contactPhone?.trim() || '';
-  const summaryPhone =
-    (selfPhone && selfPhone.trim()) || fromStudentPhone || 'Not provided';
+  const summaryPhone = (selfPhone && selfPhone.trim()) || fromStudentPhone || 'Not provided';
 
   const summaryContactEmail = student?.contactEmail?.trim() || firebaseUser.email || 'Not provided';
 

@@ -104,10 +104,7 @@ function syncBuilderAssignedIdsFromCheckboxes(): void {
 /**
  * Loads the class roster into the builder assignee list (checkboxes). `selectedIds` are profile document IDs.
  */
-async function refreshBuilderStudentRoster(
-  courseId: string,
-  selectedIds: string[]
-): Promise<void> {
+async function refreshBuilderStudentRoster(courseId: string, selectedIds: string[]): Promise<void> {
   const listEl = document.getElementById('builder-student-assign-list');
   if (!listEl) return;
 
@@ -128,7 +125,9 @@ async function refreshBuilderStudentRoster(
       syncBuilderAssignedIdsFromCheckboxes();
       return;
     }
-    students.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+    students.sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    );
     listEl.innerHTML = students
       .map((s) => {
         const name = safeStudentDisplayName(s.name);
@@ -149,7 +148,8 @@ async function refreshBuilderStudentRoster(
       .join('');
     syncBuilderAssignedIdsFromCheckboxes();
     filterBuilderAssigneeRows(
-      (document.getElementById('builder-student-assign-search') as HTMLInputElement | null)?.value ?? ''
+      (document.getElementById('builder-student-assign-search') as HTMLInputElement | null)
+        ?.value ?? ''
     );
   } catch (err: unknown) {
     listEl.innerHTML =
@@ -478,7 +478,9 @@ async function renderStudentList(_uid: string): Promise<void> {
       ${
         rows.length === 0
           ? emptyState(
-              studentListMode === 'upcoming' ? 'No upcoming assessments' : 'No assessments assigned',
+              studentListMode === 'upcoming'
+                ? 'No upcoming assessments'
+                : 'No assessments assigned',
               studentListMode === 'upcoming'
                 ? 'Upcoming assessments match the dashboard list: published, due in the future, and still actionable.'
                 : 'Assessments will appear here when your teacher publishes them.',
@@ -1418,15 +1420,18 @@ function handleChange(e: Event): void {
       const isInd = (target as HTMLSelectElement).value === 'individual';
       wrapper.classList.toggle('hide', !isInd);
       if (isInd) {
-        const classSel = document.getElementById('builder-class-select') as HTMLSelectElement | null;
+        const classSel = document.getElementById(
+          'builder-class-select'
+        ) as HTMLSelectElement | null;
         const existingClass = (
-          document.querySelector('#assessment-form input[name="existingClassId"]') as HTMLInputElement | null
+          document.querySelector(
+            '#assessment-form input[name="existingClassId"]'
+          ) as HTMLInputElement | null
         )?.value?.trim();
-        const courseId =
-          classSel?.value?.trim() ||
-          existingClass ||
-          '';
-        const hidden = document.getElementById('builder-assigned-ids-hidden') as HTMLInputElement | null;
+        const courseId = classSel?.value?.trim() || existingClass || '';
+        const hidden = document.getElementById(
+          'builder-assigned-ids-hidden'
+        ) as HTMLInputElement | null;
         const prev = (hidden?.value || '')
           .split(',')
           .map((s) => s.trim())
@@ -1437,7 +1442,8 @@ function handleChange(e: Event): void {
   }
 
   if (target.id === 'builder-class-select') {
-    const mode = (document.getElementById('builder-assigned-mode') as HTMLSelectElement | null)?.value;
+    const mode = (document.getElementById('builder-assigned-mode') as HTMLSelectElement | null)
+      ?.value;
     if (mode === 'individual') {
       void refreshBuilderStudentRoster((target as HTMLSelectElement).value, []);
     }
