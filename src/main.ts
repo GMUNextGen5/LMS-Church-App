@@ -132,11 +132,7 @@ import {
   initGradesMobileUI,
   renderGradesMobile,
 } from './ui/grades-mobile-ui';
-import {
-  ensureDeferredShellFragmentsSync,
-  injectImmediateShellFragments,
-  injectRegistrationFragmentsSync,
-} from './ui/templates';
+import { ensureDeferredShellFragmentsSync, injectShellFragments } from './ui/templates';
 import { initLegalModals } from './ui/legal';
 import { setupSignupPasswordStrengthMeter } from './ui/signup-password-strength';
 import { setupProfilePasswordStrengthMeter } from './ui/profile-password-strength';
@@ -735,17 +731,15 @@ async function init(): Promise<void> {
 
   try {
     setUserProfileSnapshotHandler((user) => {
-      scheduleDomPaint(() => {
-        configureUIForRole(user);
-        setDashboardWelcome(user);
-        const gw = window as LmsGlobalWindow;
-        const sidebarLabel = userProfileDisplayLabel(user);
-        gw.updateSidebarUserInfo?.(
-          sidebarLabel === '—' ? user.email || '' : sidebarLabel,
-          user.role,
-          user.email || ''
-        );
-      });
+      configureUIForRole(user);
+      setDashboardWelcome(user);
+      const gw = window as LmsGlobalWindow;
+      const sidebarLabel = userProfileDisplayLabel(user);
+      gw.updateSidebarUserInfo?.(
+        sidebarLabel === '—' ? user.email || '' : sidebarLabel,
+        user.role,
+        user.email || ''
+      );
       invalidateUserDisplayNameCache(user.uid);
       void loadUserProfile();
       paintMobileDashboardForRole();
@@ -957,9 +951,6 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       user.email || ''
     );
 
-    injectImmediateShellFragments();
-    injectRegistrationFragmentsSync();
-
     try {
       particleSystem?.destroy();
       particleSystem = null;
@@ -980,6 +971,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
 
     invalidateStudentGpaSessionCacheIfUserChanged(user.uid);
 
+    await injectShellFragments();
     await initDashboard();
     void loadUserProfile();
 
@@ -3994,13 +3986,14 @@ function renderStudentGpaMetricReplaceChildren(gpa: number | null, grades: Grade
   wrap.className = 'space-y-3';
   if (pres.showNewLearnerBadge) {
     const nl = document.createElement('p');
-    nl.className = 'text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary-400/90';
+    nl.className =
+      'text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary-700 dark:text-primary-400/90';
     nl.textContent = 'New learner';
     wrap.appendChild(nl);
   }
   const value = document.createElement('p');
   value.className =
-    'text-4xl sm:text-5xl font-bold tracking-tight text-on-surface font-display tabular-nums';
+    'text-3xl sm:text-4xl font-bold tracking-tight text-on-surface font-display tabular-nums';
   value.textContent = pres.numericDisplay;
   value.setAttribute('aria-label', pres.ariaLabel);
   const scale = document.createElement('p');
@@ -4053,7 +4046,7 @@ function buildStudentUpcomingDashboardHtml(
           .join('')}</ul>`;
   const heading = compact
     ? ''
-    : `<p class="text-xs font-semibold uppercase tracking-widest text-primary-400/90">Assessments &amp; classes</p>`;
+    : `<p class="text-xs font-semibold uppercase tracking-widest text-primary-700 dark:text-primary-400/90">Assessments &amp; classes</p>`;
   const headingTitleClass = compact
     ? 'text-base font-bold text-slate-800 dark:text-slate-100 font-display'
     : 'text-lg font-bold text-on-surface font-display';
@@ -5165,6 +5158,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
         );
       });
       try {
+        await injectShellFragments();
         await initDashboard();
       } catch {
         /* dashboard load error */
@@ -5173,17 +5167,18 @@ function refreshAppShellAfterSignupModalDismiss(): void {
       return;
     }
 
+    configureUIForRole(user!);
+    const userRoleAfterSignup = getCurrentUserRole();
+    const gwSignup = window as LmsGlobalWindow;
+    const sidebarLabelSignup = userProfileDisplayLabel(user!);
+    gwSignup.updateSidebarUserInfo?.(
+      sidebarLabelSignup === '—' ? user!.email || '' : sidebarLabelSignup,
+      userRoleAfterSignup ?? 'student',
+      user!.email || ''
+    );
+
     scheduleDomPaint(() => {
       showAppContainer();
-      configureUIForRole(user!);
-      const userRole = getCurrentUserRole();
-      const gw = window as LmsGlobalWindow;
-      const sidebarLabel = userProfileDisplayLabel(user!);
-      gw.updateSidebarUserInfo?.(
-        sidebarLabel === '—' ? user!.email || '' : sidebarLabel,
-        userRole ?? 'student',
-        user!.email || ''
-      );
 
       document.querySelectorAll('.tab-content').forEach((c) => c.classList.add('hide'));
       document.getElementById('dashboard-content')?.classList.remove('hide');
@@ -5215,6 +5210,7 @@ function refreshAppShellAfterSignupModalDismiss(): void {
     });
 
     try {
+      await injectShellFragments();
       await initDashboard();
     } catch {
       /* dashboard load error */

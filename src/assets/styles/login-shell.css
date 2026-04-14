@@ -3706,6 +3706,10 @@ button {
   margin-bottom: 0.125rem;
 }
 
+[data-theme='light'] .lms-nav-section-title {
+  color: #0f766e;
+}
+
 .lms-nav-item {
   display: flex;
   align-items: center;

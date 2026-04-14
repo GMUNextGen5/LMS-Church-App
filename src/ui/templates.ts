@@ -102,9 +102,12 @@ export function scheduleDeferredShellFragments(onComplete?: () => void): void {
 
 /**
  * Boots the shell: verify mount points, inject registration HTML synchronously, idle-schedule modals.
+ * Registration bodies are never deferred — only Legal / Edit Student / AI / Change Role modals use idle.
+ * Resolves after synchronous registration injection (idle modal parse continues in the background).
  */
-export function injectShellFragments(): void {
+export function injectShellFragments(onDeferredModalsReady?: () => void): Promise<void> {
   injectImmediateShellFragments();
   injectRegistrationFragmentsSync();
-  scheduleDeferredShellFragments();
+  scheduleDeferredShellFragments(onDeferredModalsReady);
+  return Promise.resolve();
 }

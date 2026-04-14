@@ -6,12 +6,7 @@ import DOMPurify from 'dompurify';
 import { renderTemplate } from './dom-render';
 import { activateModalLayer } from '../core/modal-focus';
 import { canAccessMainTab } from '../core/tab-access';
-import {
-  ensureDeferredShellFragmentsSync,
-  injectImmediateShellFragments,
-  injectRegistrationFragmentsSync,
-  scheduleDeferredShellFragments,
-} from './templates';
+import { ensureDeferredShellFragmentsSync, injectShellFragments } from './templates';
 
 let domPurifyHooksInstalled = false;
 
@@ -258,9 +253,7 @@ function installAiModalDelegatedClicks(): void {
 
 /** Binds auth tab buttons, main tab buttons, and AI modal dismiss controls. */
 export function initUI(onDeferredShellReady?: () => void): void {
-  injectImmediateShellFragments();
-  injectRegistrationFragmentsSync();
-  scheduleDeferredShellFragments(() => {
+  injectShellFragments(() => {
     aiModal = document.getElementById('ai-modal');
     aiModalTitle = document.getElementById('ai-modal-title');
     aiModalContent = document.getElementById('ai-modal-content');
