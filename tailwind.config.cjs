@@ -5,8 +5,30 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Instrument Sans', 'Geist Variable', 'Geist', 'system-ui', 'sans-serif'],
-        display: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
+        sans: [
+          'Inter Variable',
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'system-ui',
+          'sans-serif',
+        ],
+        display: [
+          'Inter Variable',
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'system-ui',
+          'sans-serif',
+        ],
       },
       colors: {
         burgundy: {

@@ -1,6 +1,6 @@
 /** Application bootstrap: auth, shell state, and tab wiring. */
 
-import '@fontsource-variable/geist';
+import '@fontsource-variable/inter';
 import './assets/styles/tailwind.css';
 import './assets/styles/login-shell.css';
 import { canAccessMainTab } from './core/tab-access';
