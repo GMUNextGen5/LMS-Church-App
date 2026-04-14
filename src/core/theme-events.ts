@@ -34,7 +34,7 @@ export function installThemeChangeBridge(): void {
     themeRefreshHandlers.forEach((fn) => {
       try {
         fn();
-      } catch (_e) {
+      } catch {
         /* Do not let one handler block others */
       }
     });
