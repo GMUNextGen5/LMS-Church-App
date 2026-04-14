@@ -1661,13 +1661,13 @@
         min-width: 0;
         box-sizing: border-box;
         border-radius: 0.5rem;
-        border: 1px solid rgb(71 85 105 / 0.85);
-        background: rgb(30 41 59);
+        border: 1px solid transparent;
+        background: transparent;
         overflow: hidden;
       }
       [data-theme='light'] .lms-mark-attendance-date-field {
-        border-color: #cbd5e1;
-        background: #f8fafc;
+        border-color: transparent;
+        background: transparent;
       }
       #mark-attendance-form input#attendance-date[type='date'] {
         display: block;
@@ -7931,13 +7931,13 @@
             <!-- Attendance Tab -->
             <div
               id="attendance-content"
-              class="tab-content hide min-w-0 max-w-full overflow-x-hidden"
+              class="tab-content hide min-w-0 max-w-full overflow-x-hidden bg-surface-container text-on-surface"
             >
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
+              <div class="flex flex-col gap-4 md:grid md:grid-cols-12 md:gap-6 min-w-0">
                 <!-- Learner personal attendance overview (students only; staff use class roll metrics below) -->
                 <div
                   id="attendance-personal-metrics-row"
-                  class="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 student-only hide attendance-learner-stats"
+                  class="md:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 student-only hide attendance-learner-stats"
                 >
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
@@ -8049,7 +8049,7 @@
                 <!-- Roll call session stats (teachers / admins only) -->
                 <div
                   id="attendance-class-metrics-row"
-                  class="teacher-only admin-only lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4 hide"
+                  class="teacher-only admin-only md:col-span-4 grid grid-cols-2 gap-4 hide order-3 md:order-none"
                 >
                   <div class="lms-att-stat-card glass-effect rounded-xl p-4">
                     <div class="flex items-center justify-between">
@@ -8162,10 +8162,22 @@
 
                 <!-- Mark Attendance Form (Teacher/Admin Only) -->
                 <div
-                  class="teacher-only admin-only glass-effect lms-reg-shell p-4 sm:p-6 hide min-w-0 max-w-full"
+                  class="teacher-only admin-only glass-effect lms-reg-shell p-4 sm:p-6 hide min-w-0 max-w-full md:col-span-4 order-4 md:order-none"
                 >
-                  <h3 class="lms-reg-section-title">Mark Attendance</h3>
-                  <form id="mark-attendance-form" class="space-y-3 sm:space-y-4 min-w-0">
+                  <div class="flex items-center justify-between gap-3 min-w-0">
+                    <h3 class="lms-reg-section-title min-w-0">Mark Attendance</h3>
+                    <button
+                      type="button"
+                      id="mark-attendance-mobile-toggle"
+                      class="md:hidden inline-flex min-h-11 items-center justify-center rounded-xl border border-surface-default bg-surface-glass px-4 text-sm font-semibold text-on-surface hover:bg-surface-glass/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                      aria-expanded="true"
+                      aria-controls="mark-attendance-mobile-body"
+                    >
+                      Collapse
+                    </button>
+                  </div>
+                  <div id="mark-attendance-mobile-body" class="mt-4">
+                    <form id="mark-attendance-form" class="space-y-3 sm:space-y-4 min-w-0">
                     <div class="min-w-0">
                       <label class="lms-form-label">Student</label>
                       <input
@@ -8191,7 +8203,7 @@
                     <div class="min-w-0 max-w-full">
                       <label class="lms-form-label" for="attendance-date">Date</label>
                       <div
-                        class="lms-mark-attendance-date-field focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-shadow"
+                        class="lms-mark-attendance-date-field w-full border border-surface-default bg-surface-glass focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-shadow"
                       >
                         <input
                           type="date"
@@ -8351,175 +8363,187 @@
                       Mark Attendance
                     </button>
                   </form>
+                  </div>
+                </div>
+
+                <!-- Presence by Exception (bulk roll call list) -->
+                <div class="teacher-only admin-only md:col-span-8 min-w-0 order-2 md:order-none">
                   <div
                     id="attendance-roll-call-root"
-                    class="teacher-only admin-only mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-dark-600/60 space-y-4 sm:space-y-5 min-w-0 max-w-full overflow-hidden"
+                    class="mt-0 sm:mt-0 space-y-4 sm:space-y-5 min-w-0 max-w-full"
                   >
-                    <div
-                      class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between min-w-0"
-                    >
-                      <div class="space-y-1.5 sm:space-y-2 min-w-0 flex-1">
-                        <p
-                          class="text-[0.65rem] sm:text-xs font-bold tracking-widest text-cyan-400/90"
-                        >
-                          ACTIVE CLASS
-                        </p>
-                        <h4
-                          id="attendance-active-class-title"
-                          class="text-lg sm:text-xl font-bold text-white break-words"
-                        >
-                          All students
-                        </h4>
-                        <p
-                          id="attendance-active-class-meta"
-                          class="text-slate-400 text-xs sm:text-sm flex flex-col gap-1 min-w-0 max-w-full sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-1"
-                        >
-                          <span
-                            id="attendance-meta-date"
-                            class="min-w-0 max-w-full break-words text-slate-300 [overflow-wrap:anywhere]"
-                          ></span>
-                          <span
-                            id="attendance-meta-extra"
-                            class="min-w-0 max-w-full break-words empty:hidden sm:before:mr-2 sm:before:inline-block sm:before:text-slate-500 sm:before:content-['·'] [overflow-wrap:anywhere]"
-                          ></span>
+                    <div class="flex flex-col gap-3 sm:gap-4 min-w-0">
+                      <div class="space-y-1.5 sm:space-y-2 min-w-0">
+                        <p class="text-xs font-bold tracking-widest text-primary-400">PRESENCE BY EXCEPTION</p>
+                        <p class="text-sm text-slate-400">
+                          Default is Present. Save only exceptions (A/L/E) for high performance on large rosters.
                         </p>
                       </div>
+
                       <div
-                        class="grid grid-cols-1 sm:grid-cols-2 xl:flex xl:flex-row xl:flex-wrap gap-2 sm:gap-3 w-full min-w-0 xl:max-w-none xl:shrink-0 xl:justify-end"
+                        class="flex flex-wrap items-center gap-3"
+                        aria-label="Attendance header controls"
                       >
-                        <label class="sr-only" for="attendance-class-select">Switch class</label>
-                        <select
-                          id="attendance-class-select"
-                          class="min-h-[48px] w-full sm:col-span-2 xl:w-auto xl:min-w-[12rem] px-3 sm:px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
-                        >
-                          <option value="">All students</option>
-                        </select>
-                        <button
-                          type="button"
-                          id="mark-all-present-btn"
-                          class="min-h-[48px] w-full sm:w-auto justify-center px-4 sm:px-5 rounded-xl border-2 border-emerald-500/70 text-emerald-300 font-semibold text-xs sm:text-sm hover:bg-emerald-500/10 transition-all whitespace-normal sm:whitespace-nowrap text-center leading-snug inline-flex items-center"
-                        >
-                          Mark all present
-                        </button>
-                        <button
-                          type="button"
-                          id="save-bulk-attendance-btn"
-                          class="min-h-[48px] w-full sm:w-auto justify-center px-4 sm:px-6 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs sm:text-sm hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20 whitespace-normal sm:whitespace-nowrap text-center leading-snug inline-flex items-center"
-                        >
-                          Save attendance
-                        </button>
-                      </div>
-                    </div>
-                    <div class="min-w-0">
-                      <label class="sr-only" for="roll-call-student-search">Search roster</label>
-                      <input
-                        type="search"
-                        id="roll-call-student-search"
-                        placeholder="Search student by name or ID…"
-                        class="w-full min-w-0 max-w-full min-h-[48px] px-3 sm:px-4 rounded-xl bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
-                      />
-                    </div>
-                    <div
-                      class="flex flex-nowrap sm:flex-wrap gap-2 items-center overflow-x-auto sm:overflow-visible pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none touch-pan-x [-webkit-overflow-scrolling:touch]"
-                      role="group"
-                      aria-label="Filter attendance by status"
-                    >
-                      <span
-                        class="text-xs font-semibold text-slate-500 shrink-0 snap-start pr-1 sm:pr-0 sm:w-auto"
-                        >FILTER STATUS</span
-                      >
-                      <button
-                        type="button"
-                        data-roll-filter="all"
-                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        data-roll-filter="present"
-                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
-                      >
-                        Present
-                      </button>
-                      <button
-                        type="button"
-                        data-roll-filter="absent"
-                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
-                      >
-                        Absent
-                      </button>
-                      <button
-                        type="button"
-                        data-roll-filter="late"
-                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
-                      >
-                        Late
-                      </button>
-                      <button
-                        type="button"
-                        data-roll-filter="excused"
-                        class="min-h-[48px] px-4 rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
-                      >
-                        Excused
-                      </button>
-                    </div>
-                    <div
-                      id="roll-call-filter-empty-mount"
-                      class="hidden mt-3"
-                      aria-live="polite"
-                    ></div>
-                    <div
-                      class="hidden md:block rounded-xl border border-slate-600/60 bg-slate-900/30 overflow-hidden"
-                    >
-                      <div
-                        class="overflow-x-auto max-h-[min(28rem,60vh)] overflow-y-auto overscroll-contain"
-                      >
-                        <table class="w-full min-w-[640px] text-left">
-                          <thead
-                            class="sticky top-0 z-10 bg-slate-900/95 border-b border-slate-600"
+                        <div class="min-w-0 flex-1">
+                          <p class="text-[0.65rem] sm:text-xs font-bold tracking-widest text-cyan-400/90">
+                            ACTIVE CLASS
+                          </p>
+                          <h4
+                            id="attendance-active-class-title"
+                            class="text-lg sm:text-xl font-bold text-white break-words"
                           >
-                            <tr>
-                              <th
-                                scope="col"
-                                class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
-                              >
-                                Student
-                              </th>
-                              <th
-                                scope="col"
-                                class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
-                              >
-                                Student ID
-                              </th>
-                              <th
-                                scope="col"
-                                class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
-                              >
-                                Status
-                              </th>
-                              <th
-                                scope="col"
-                                class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider text-right"
-                              >
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody id="attendance-roster-table-body"></tbody>
-                        </table>
+                            All students
+                          </h4>
+                          <p
+                            id="attendance-active-class-meta"
+                            class="text-slate-400 text-xs sm:text-sm flex flex-col gap-1 min-w-0 max-w-full sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-1"
+                          >
+                            <span
+                              id="attendance-meta-date"
+                              class="min-w-0 max-w-full break-words text-slate-300 [overflow-wrap:anywhere]"
+                            ></span>
+                            <span
+                              id="attendance-meta-extra"
+                              class="min-w-0 max-w-full break-words empty:hidden sm:before:mr-2 sm:before:inline-block sm:before:text-slate-500 sm:before:content-['·'] [overflow-wrap:anywhere]"
+                            ></span>
+                          </p>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-3 justify-start sm:justify-end w-full sm:w-auto">
+                          <label class="sr-only" for="attendance-class-select">Switch class</label>
+                          <select
+                            id="attendance-class-select"
+                            class="min-h-11 w-full sm:w-auto sm:min-w-[12rem] px-3 sm:px-4 rounded-xl bg-surface-glass border border-surface-default text-on-surface text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+                          >
+                            <option value="">All students</option>
+                          </select>
+                          <button
+                            type="button"
+                            id="mark-all-present-btn"
+                            class="min-h-11 w-full sm:w-auto justify-center px-4 sm:px-5 rounded-xl border border-surface-default bg-surface-glass text-on-surface font-semibold text-sm hover:bg-surface-glass/80 transition-all whitespace-nowrap text-center leading-snug inline-flex items-center"
+                          >
+                            Mark all present
+                          </button>
+                          <button
+                            type="button"
+                            id="save-bulk-attendance-btn"
+                            class="min-h-11 w-full sm:w-auto justify-center px-4 sm:px-6 rounded-xl bg-primary-500 text-white font-bold text-sm hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20 whitespace-nowrap text-center leading-snug inline-flex items-center"
+                          >
+                            Save attendance
+                          </button>
+                        </div>
                       </div>
                     </div>
+
                     <div
-                      id="attendance-roster-cards"
-                      class="md:hidden space-y-3 max-h-[min(22rem,50dvh)] sm:max-h-[min(28rem,55dvh)] overflow-y-auto overscroll-contain pr-1 min-w-0 -mx-0.5 px-0.5"
-                    ></div>
+                      class="rounded-xl border border-surface-default bg-surface-glass overflow-hidden min-w-0"
+                    >
+                      <div class="max-h-[min(34rem,68dvh)] overflow-y-auto overscroll-contain">
+                        <div class="sticky top-0 z-20 bg-surface-container/95 backdrop-blur border-b border-surface-default p-3 sm:p-4 space-y-3">
+                          <div class="min-w-0">
+                            <label class="sr-only" for="roll-call-student-search">Search roster</label>
+                            <input
+                              type="search"
+                              id="roll-call-student-search"
+                              placeholder="Search student by name or ID…"
+                              class="w-full min-w-0 max-w-full min-h-11 px-3 sm:px-4 rounded-xl bg-surface-glass border border-surface-default text-on-surface placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400/40"
+                            />
+                          </div>
+
+                          <div
+                            class="flex flex-nowrap sm:flex-wrap gap-2 items-center overflow-x-auto sm:overflow-visible pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none touch-pan-x [-webkit-overflow-scrolling:touch]"
+                            role="group"
+                            aria-label="Filter attendance by status"
+                          >
+                            <span class="text-xs font-semibold text-slate-500 shrink-0 snap-start pr-1 sm:pr-0">
+                              FILTER STATUS
+                            </span>
+                            <button
+                              type="button"
+                              data-roll-filter="all"
+                              class="min-h-11 px-4 rounded-xl border border-surface-default bg-surface-glass text-on-surface text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                            >
+                              All
+                            </button>
+                            <button
+                              type="button"
+                              data-roll-filter="present"
+                              class="min-h-11 px-4 rounded-xl border border-surface-default bg-surface-glass text-on-surface text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                            >
+                              Present
+                            </button>
+                            <button
+                              type="button"
+                              data-roll-filter="absent"
+                              class="min-h-11 px-4 rounded-xl border border-surface-default bg-surface-glass text-on-surface text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                            >
+                              Absent
+                            </button>
+                            <button
+                              type="button"
+                              data-roll-filter="late"
+                              class="min-h-11 px-4 rounded-xl border border-surface-default bg-surface-glass text-on-surface text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                            >
+                              Late
+                            </button>
+                            <button
+                              type="button"
+                              data-roll-filter="excused"
+                              class="min-h-11 px-4 rounded-xl border border-surface-default bg-surface-glass text-on-surface text-sm font-semibold touch-manipulation cursor-pointer active:scale-[0.97] transition-all shrink-0 snap-start"
+                            >
+                              Excused
+                            </button>
+                          </div>
+
+                          <div id="roll-call-filter-empty-mount" class="hidden" aria-live="polite"></div>
+                        </div>
+
+                        <div class="hidden md:block overflow-x-auto">
+                          <table class="w-full min-w-[640px] text-left">
+                            <thead class="bg-surface-container border-b border-surface-default">
+                              <tr>
+                                <th
+                                  scope="col"
+                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
+                                >
+                                  Student
+                                </th>
+                                <th
+                                  scope="col"
+                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
+                                >
+                                  Student ID
+                                </th>
+                                <th
+                                  scope="col"
+                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
+                                >
+                                  Status
+                                </th>
+                                <th
+                                  scope="col"
+                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider text-right"
+                                >
+                                  Actions
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody id="attendance-roster-table-body"></tbody>
+                          </table>
+                        </div>
+
+                        <div
+                          id="attendance-roster-cards"
+                          class="md:hidden space-y-3 p-3 sm:p-4"
+                        ></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <!-- Attendance History (full width at lg — no empty column beside staff tools) -->
                 <div
-                  class="lg:col-span-3 glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 min-w-0 max-w-full overflow-hidden"
+                  class="md:col-span-12 glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 min-w-0 max-w-full overflow-hidden order-5 md:order-none"
                 >
                   <div
                     class="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 min-w-0"

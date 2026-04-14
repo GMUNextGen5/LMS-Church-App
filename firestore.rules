@@ -74,6 +74,20 @@ service cloud.firestore {
         sd.teacherIds.hasAny([request.auth.uid]);
     }
 
+    /**
+     * Soft-delete guard for `students/{id}` rows.
+     * Active means: `deletedAt` missing, null, or empty/whitespace string.
+     *
+     * IMPORTANT: In rules we cannot reliably query for "field missing" (client queries would still
+     * read the document), so we must enforce this at read-time on each document.
+     */
+    function studentDocumentIsActive(studentData) {
+      return !studentData.keys().hasAny(['deletedAt']) ||
+        studentData.deletedAt == null ||
+        studentData.deletedAt == '' ||
+        studentData.deletedAt == ' ';
+    }
+
     /** Student-owned profiles must keep signup `acceptedAt` fixed (merge updates may omit nested maps). */
     function studentLegalAcceptanceAcceptedAtUnchanged() {
       return resource.data.role != 'student' ||
@@ -127,6 +141,10 @@ service cloud.firestore {
         return request.auth.uid == uid &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentProfileId']) &&
+          // Prevent over-posting (e.g. injecting permissions/claims-like fields).
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'displayName', 'phoneNumber', 'birthYear', 'memberId', 'updatedAt', 'legalAcceptance'
+          ]) &&
           studentLegalAcceptanceAcceptedAtUnchanged();
       }
 
@@ -179,6 +197,10 @@ service cloud.firestore {
           request.auth.uid == resource.data.studentUid;
       }
 
+      function isActiveStudentRow() {
+        return studentDocumentIsActive(resource.data);
+      }
+
       /** Learner may sync self-service identity fields onto their linked roster row (name/phone/DOB). */
       function studentSelfMirrorsToStudentDoc() {
         return isStudentRole() &&
@@ -192,10 +214,16 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'deletedBy']);
       }
 
+      /**
+       * Read access:
+       * - Admins: may read active + archived for audit/support.
+       * - Teachers: may read active + archived, but only when linked via `teacherIds` (prevents ID-guessing).
+       * - Parents/students: may read ONLY active profiles (prevents archived data exposure via ID-guessing).
+       */
       allow read: if isAuthenticated() && (
         isAdmin() ||
-        isOwner() ||
-        (isTeacher() && resource.data.keys().hasAll(['teacherIds']) && resource.data.teacherIds.hasAny([request.auth.uid]))
+        (isTeacher() && resource.data.keys().hasAll(['teacherIds']) && resource.data.teacherIds.hasAny([request.auth.uid])) ||
+        (isOwner() && isActiveStudentRow())
       );
 
       // Profile edits and roster-driven teacherIds updates use app-layer checks; grade/attendance are rule-scoped below.
@@ -215,8 +243,9 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (
           isAdmin() ||
           (isTeacher() && teacherLinkedToStudent(studentId)) ||
-          get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
-          get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid
+          (studentDocumentIsActive(get(/databases/$(database)/documents/students/$(studentId)).data) &&
+            (get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
+              get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid))
         );
 
         allow create, update, delete: if isAdmin() || (isTeacher() && teacherLinkedToStudent(studentId));
@@ -226,8 +255,9 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (
           isAdmin() ||
           (isTeacher() && teacherLinkedToStudent(studentId)) ||
-          get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
-          get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid
+          (studentDocumentIsActive(get(/databases/$(database)/documents/students/$(studentId)).data) &&
+            (get(/databases/$(database)/documents/students/$(studentId)).data.parentUid == request.auth.uid ||
+              get(/databases/$(database)/documents/students/$(studentId)).data.studentUid == request.auth.uid))
         );
 
         allow create, update, delete: if isAdmin() || (isTeacher() && teacherLinkedToStudent(studentId));
@@ -269,9 +299,41 @@ service cloud.firestore {
           );
         }
 
+        /**
+         * Individual assessments:
+         * - `assignedMode == "class"`: any enrolled learner can read when published.
+         * - `assignedMode == "individual"`: ONLY assigned learners can read when published.
+         *
+         * The array is stored as student profile document IDs. For backward compatibility we also
+         * accept Firebase auth UID if present in the array.
+         */
+        function assessmentAssignedToCaller(courseId, assessmentId) {
+          let a = get(/databases/$(database)/documents/courses/$(courseId)/assessments/$(assessmentId)).data;
+          let pid = userStudentProfileId();
+          return !a.keys().hasAny(['assignedMode']) ||
+            a.assignedMode != 'individual' ||
+            (a.keys().hasAll(['assignedStudentIds']) &&
+              (a.assignedStudentIds.hasAny([request.auth.uid]) ||
+                (pid != null && a.assignedStudentIds.hasAny([pid]))));
+        }
+
+        function assessmentAssignedToProfile(courseId, assessmentId, studentProfileId) {
+          let a = get(/databases/$(database)/documents/courses/$(courseId)/assessments/$(assessmentId)).data;
+          return !a.keys().hasAny(['assignedMode']) ||
+            a.assignedMode != 'individual' ||
+            (a.keys().hasAll(['assignedStudentIds']) && a.assignedStudentIds.hasAny([studentProfileId]));
+        }
+
+        function studentProfileOnCourseRoster(courseId, studentProfileId) {
+          let c = get(/databases/$(database)/documents/courses/$(courseId)).data;
+          return c.keys().hasAll(['studentIds']) && c.studentIds.hasAny([studentProfileId]);
+        }
+
         allow read: if isAuthenticated() && (
           isAssessmentTeacher() ||
-          (assessmentPublished(courseId, assessmentId) && isStudentEnrolledInCourse(courseId))
+          (assessmentPublished(courseId, assessmentId) &&
+            isStudentEnrolledInCourse(courseId) &&
+            assessmentAssignedToCaller(courseId, assessmentId))
         );
 
         allow create, update, delete: if isAssessmentTeacher();
@@ -279,7 +341,9 @@ service cloud.firestore {
         match /questions/{questionId} {
           allow read: if isAuthenticated() && (
             isAssessmentTeacher() ||
-            (assessmentPublished(courseId, assessmentId) && isStudentEnrolledInCourse(courseId))
+            (assessmentPublished(courseId, assessmentId) &&
+              isStudentEnrolledInCourse(courseId) &&
+              assessmentAssignedToCaller(courseId, assessmentId))
           );
 
           allow create, update, delete: if isAssessmentTeacher();
@@ -295,16 +359,31 @@ service cloud.firestore {
             );
           }
 
+          function canTeacherAccessThisSubmission() {
+            return isAdmin() ||
+              (get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid &&
+                studentProfileOnCourseRoster(courseId, studentProfileId));
+          }
+
           allow read: if isAuthenticated() && (
-            isAssessmentTeacher() ||
-            isOwnSubmission()
+            canTeacherAccessThisSubmission() ||
+            (isOwnSubmission() &&
+              assessmentPublished(courseId, assessmentId) &&
+              assessmentAssignedToProfile(courseId, assessmentId, studentProfileId))
           );
 
-          allow create: if isAuthenticated() && isOwnSubmission();
+          allow create: if isAuthenticated() && (
+            isOwnSubmission() &&
+              assessmentPublished(courseId, assessmentId) &&
+              assessmentAssignedToProfile(courseId, assessmentId, studentProfileId)
+          );
 
           allow update: if isAuthenticated() && (
-            isAssessmentTeacher() ||
-            (isOwnSubmission() && resource.data.status == 'in_progress')
+            canTeacherAccessThisSubmission() ||
+            (isOwnSubmission() &&
+              resource.data.status == 'in_progress' &&
+              assessmentPublished(courseId, assessmentId) &&
+              assessmentAssignedToProfile(courseId, assessmentId, studentProfileId))
           );
 
           allow delete: if isAdmin();

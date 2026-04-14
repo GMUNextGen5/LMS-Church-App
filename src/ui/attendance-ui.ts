@@ -6,6 +6,7 @@ import {
   pickAvatarDiscPalette,
   safeStudentDisplayName,
 } from '../core/display-fallbacks';
+import { cleanProfilePlainText } from '../core/profile-text';
 import { reportClientFault } from '../core/client-errors';
 import {
   emptyStateBlockHtml,
@@ -95,7 +96,7 @@ function statusPill(status: Attendance['status']): string {
 
 function pickButton(st: Attendance['status'], letter: string): string {
   return `<button type="button" data-roll-pick="${st}" aria-pressed="false" aria-label="Mark ${st}"
-    class="lms-att-pick-btn min-w-[48px] min-h-[48px] w-12 h-12 shrink-0 rounded-xl border-2 border-slate-600 bg-slate-800/90 text-white text-sm font-bold hover:border-cyan-400/60 hover:bg-slate-700/90 active:scale-[0.97] transition-all touch-manipulation cursor-pointer">${letter}</button>`;
+    class="lms-att-pick-btn min-w-11 min-h-11 w-11 h-11 shrink-0 rounded-xl border-2 border-surface-default bg-surface-glass text-on-surface text-sm font-bold hover:border-cyan-400/60 hover:bg-surface-glass/80 active:scale-[0.97] transition-all touch-manipulation cursor-pointer">${letter}</button>`;
 }
 
 function rosterAvatarCell(student: Student): string {
@@ -105,11 +106,11 @@ function rosterAvatarCell(student: Student): string {
 }
 
 function rosterTableRowHtml(student: Student): string {
-  const displayName = safeStudentDisplayName(student.name);
+  const displayName = cleanProfilePlainText(safeStudentDisplayName(student.name), 80) || 'Student';
   const id = esc(student.id);
   const name = esc(displayName);
   const sid = esc(student.memberId || student.id);
-  return `<tr class="${ROSTER_ROW} border-b border-slate-700/70 hover:bg-white/[0.04] transition-colors" data-student-id="${id}" data-status="present">
+  return `<tr class="${ROSTER_ROW} border-b border-surface-default bg-surface-glass hover:bg-surface-glass/80 transition-colors" data-student-id="${id}" data-status="present">
     <td class="py-3 px-3 align-middle">
       <div class="flex items-center gap-3 min-w-0">
         ${rosterAvatarCell(student)}
@@ -119,7 +120,7 @@ function rosterTableRowHtml(student: Student): string {
     <td class="py-3 px-3 align-middle text-slate-300 text-sm font-mono">${sid}</td>
     <td class="py-3 px-2 align-middle">
       <div class="flex flex-wrap items-center gap-2">
-        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Attendance status">
+        <div class="flex flex-row flex-nowrap gap-1.5" role="group" aria-label="Attendance status">
           ${pickButton('present', 'P')}
           ${pickButton('absent', 'A')}
           ${pickButton('late', 'L')}
@@ -129,7 +130,7 @@ function rosterTableRowHtml(student: Student): string {
       </div>
     </td>
     <td class="py-3 px-2 align-middle text-right">
-      <button type="button" data-roll-reset class="min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors touch-manipulation" aria-label="Reset row to present" title="Reset to present">
+      <button type="button" data-roll-reset class="min-w-11 min-h-11 inline-flex items-center justify-center rounded-xl border border-surface-default text-slate-300 hover:bg-surface-glass hover:text-on-surface transition-colors touch-manipulation" aria-label="Reset row to present" title="Reset to present">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
     </td>
@@ -137,11 +138,11 @@ function rosterTableRowHtml(student: Student): string {
 }
 
 function rosterCardHtml(student: Student): string {
-  const displayName = safeStudentDisplayName(student.name);
+  const displayName = cleanProfilePlainText(safeStudentDisplayName(student.name), 80) || 'Student';
   const id = esc(student.id);
   const name = esc(displayName);
   const sid = esc(student.memberId || student.id);
-  return `<div class="${ROSTER_ROW} lms-att-roster-card rounded-xl border border-slate-600/80 bg-slate-900/50 p-4 space-y-3 shadow-lg shadow-black/20" data-student-id="${id}" data-status="present">
+  return `<div class="${ROSTER_ROW} lms-att-roster-card rounded-xl border border-surface-default bg-surface-glass p-4 space-y-3 shadow-lg shadow-black/20" data-student-id="${id}" data-status="present">
     <div class="flex items-start gap-3">
       ${rosterAvatarCell(student)}
       <div class="min-w-0 flex-1">
@@ -150,13 +151,13 @@ function rosterCardHtml(student: Student): string {
         <div class="mt-2"><span class="roll-pill-slot">${statusPill('present')}</span></div>
       </div>
     </div>
-    <div class="flex flex-wrap gap-1.5 justify-between" role="group" aria-label="Attendance status">
+    <div class="flex flex-row flex-nowrap gap-1.5 justify-between" role="group" aria-label="Attendance status">
       ${pickButton('present', 'P')}
       ${pickButton('absent', 'A')}
       ${pickButton('late', 'L')}
       ${pickButton('excused', 'E')}
     </div>
-    <button type="button" data-roll-reset class="w-full min-h-[48px] rounded-xl border border-slate-600 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition-colors touch-manipulation active:scale-[0.98]">Reset to present</button>
+    <button type="button" data-roll-reset class="w-full min-h-11 rounded-xl border border-surface-default text-slate-300 text-sm font-semibold hover:bg-surface-glass transition-colors touch-manipulation active:scale-[0.98]">Reset to present</button>
   </div>`;
 }
 

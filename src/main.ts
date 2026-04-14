@@ -1776,6 +1776,24 @@ function setupAppForms(): void {
 
   const markAttendanceForm = document.getElementById('mark-attendance-form') as HTMLFormElement;
   if (markAttendanceForm) {
+    const mobileToggle = document.getElementById(
+      'mark-attendance-mobile-toggle'
+    ) as HTMLButtonElement | null;
+    const mobileBody = document.getElementById('mark-attendance-mobile-body') as HTMLElement | null;
+    if (mobileToggle && mobileBody && typeof window !== 'undefined') {
+      const mql = window.matchMedia?.('(max-width: 767px)');
+      const setCollapsed = (collapsed: boolean): void => {
+        mobileBody.classList.toggle('hide', collapsed);
+        mobileToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        mobileToggle.textContent = collapsed ? 'Expand' : 'Collapse';
+      };
+      setCollapsed(mql?.matches === true);
+      mobileToggle.addEventListener('click', () => {
+        setCollapsed(!mobileBody.classList.contains('hide'));
+      });
+      mql?.addEventListener?.('change', (e) => setCollapsed(e.matches));
+    }
+
     const dateInput = document.getElementById('attendance-date') as HTMLInputElement;
     if (dateInput) dateInput.valueAsDate = new Date();
     updateAttendanceClassChrome();
