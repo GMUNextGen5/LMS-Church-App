@@ -3734,7 +3734,7 @@ function buildAdminMobileDashboardHtml(
   return `
 <div class="space-y-6">
 <div>
-<p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
+<p id="dashboard-mobile-greeting" class="text-xl font-semibold text-on-surface font-sans tracking-tight leading-snug"></p>
 <p class="text-sm text-on-surface-muted mt-1">Institutional snapshot</p>
 </div>
 <div class="grid grid-cols-1 gap-2">
@@ -3814,7 +3814,7 @@ function buildTeacherMobileDashboardHtml(
   return `
 <div class="space-y-6">
 <div>
-<p id="dashboard-mobile-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight"></p>
+<p id="dashboard-mobile-greeting" class="text-xl font-semibold text-on-surface font-sans tracking-tight leading-snug"></p>
 <p class="text-sm text-on-surface-muted mt-1">Classes, grading, and latest submissions.</p>
 </div>
 <div class="grid grid-cols-2 gap-3" role="group" aria-label="Class and grading summary">
@@ -3860,7 +3860,7 @@ async function paintMobileStudentDashboard(): Promise<void> {
 
   const html = `
 <div class="flex flex-col gap-6 px-4 sm:px-0">
-<p id="dashboard-mobile-student-greeting" class="text-xl font-bold text-primary-800 dark:text-primary-300 font-display tracking-tight" aria-live="polite"></p>
+<p id="dashboard-mobile-student-greeting" class="text-xl font-semibold text-on-surface font-sans tracking-tight leading-snug" aria-live="polite"></p>
 <div id="dashboard-mobile-student-gpa-root" aria-busy="true">${studentMobileGpaBentoSkeletonHtml()}</div>
 <div id="dashboard-mobile-student-upcoming-root" aria-busy="true">${studentMobileUpcomingSkeletonHtml()}</div>
 <div class="min-h-[160px] rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20" role="note" aria-label="Reflection from Ethiopian Orthodox tradition">

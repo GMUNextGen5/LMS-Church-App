@@ -5,7 +5,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Geist Variable', 'Geist', 'system-ui', 'sans-serif'],
+        sans: ['Instrument Sans', 'Geist Variable', 'Geist', 'system-ui', 'sans-serif'],
         display: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
       },
       colors: {

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
 
@@ -26,8 +27,13 @@
   }
 
   html {
-    font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
+    font-family: 'Instrument Sans', 'Geist Variable', 'Geist', system-ui, sans-serif;
+    font-size: 106.25%;
+    line-height: 1.6;
     font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
@@ -37,6 +43,7 @@
     font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
     font-weight: 400;
     letter-spacing: -0.02em;
+    line-height: 1.2;
   }
 }
 
