@@ -1301,79 +1301,84 @@
                 <div
                   class="flex flex-col gap-6 px-4 md:px-0 md:grid md:grid-cols-12 md:gap-6 md:items-stretch"
                 >
-                <div
-                  id="dashboard-student-mastery-row"
-                  class="hidden md:block md:col-span-6 min-w-0"
-                >
-                  <article
-                    class="card-blur progress-bar-glow relative min-w-0 min-h-[160px] overflow-hidden rounded-2xl card-hover h-full"
-                  >
-                    <div
-                      class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
-                      aria-hidden="true"
-                    ></div>
-                    <div class="relative flex items-start justify-between gap-3 mb-5">
-                      <div>
-                        <p
-                          class="text-xs font-semibold uppercase tracking-widest text-primary-400/90"
-                        >
-                          My Academic Standing
-                        </p>
-                        <h3 class="mt-1 text-lg font-bold text-on-surface font-display">
-                          Overall GPA
-                        </h3>
-                      </div>
-                      <div
-                        class="shrink-0 rounded-xl bg-primary-400/10 p-3 ring-1 ring-primary-400/25"
-                      >
-                        <svg
-                          class="h-6 w-6 text-primary-300"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m0 0H9m3 0h3"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div id="student-gpa-metric-root" class="relative min-h-[160px]"></div>
-                  </article>
-                </div>
-
-                <div
-                  id="dashboard-student-upcoming-panel"
-                  class="hidden md:block md:col-span-6 min-w-0"
-                >
-                  <article
-                    class="card-blur progress-bar-glow relative min-w-0 min-h-[160px] overflow-hidden rounded-2xl card-hover h-full border border-surface-default"
-                  >
-                    <div id="dashboard-student-upcoming-inner" class="relative min-h-[160px]"></div>
-                  </article>
-                </div>
-
-                <div class="hidden md:block md:col-span-12 min-w-0">
                   <div
-                    class="min-h-[160px] rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20"
-                    role="note"
-                    aria-label="Reflection from Ethiopian Orthodox tradition"
+                    id="dashboard-student-mastery-row"
+                    class="hidden md:block md:col-span-6 min-w-0"
                   >
-                    <p
-                      data-lms-dashboard-proverb
-                      class="lms-mobile-proverb-body text-sm italic leading-relaxed text-on-surface-muted min-h-[3.25rem]"
+                    <article
+                      class="card-blur progress-bar-glow relative min-w-0 min-h-[160px] overflow-hidden rounded-2xl card-hover h-full"
                     >
-                      Daily wisdom loading…
-                    </p>
-                    <p class="text-[0.65rem] text-on-surface-subtle mt-3 uppercase tracking-widest">
-                      Ethiopian Orthodox tradition
-                    </p>
+                      <div
+                        class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
+                        aria-hidden="true"
+                      ></div>
+                      <div class="relative flex items-start justify-between gap-3 mb-5">
+                        <div>
+                          <p
+                            class="text-xs font-semibold uppercase tracking-widest text-primary-400/90"
+                          >
+                            My Academic Standing
+                          </p>
+                          <h3 class="mt-1 text-lg font-bold text-on-surface font-display">
+                            Overall GPA
+                          </h3>
+                        </div>
+                        <div
+                          class="shrink-0 rounded-xl bg-primary-400/10 p-3 ring-1 ring-primary-400/25"
+                        >
+                          <svg
+                            class="h-6 w-6 text-primary-300"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m0 0H9m3 0h3"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                      <div id="student-gpa-metric-root" class="relative min-h-[160px]"></div>
+                    </article>
                   </div>
-                </div>
+
+                  <div
+                    id="dashboard-student-upcoming-panel"
+                    class="hidden md:block md:col-span-6 min-w-0"
+                  >
+                    <article
+                      class="card-blur progress-bar-glow relative min-w-0 min-h-[160px] overflow-hidden rounded-2xl card-hover h-full border border-surface-default"
+                    >
+                      <div
+                        id="dashboard-student-upcoming-inner"
+                        class="relative min-h-[160px]"
+                      ></div>
+                    </article>
+                  </div>
+
+                  <div class="hidden md:block md:col-span-12 min-w-0">
+                    <div
+                      class="min-h-[160px] rounded-2xl border-l-4 border-secondary-700 dark:border-secondary-500/60 bg-surface-container ring-1 ring-slate-200/85 dark:ring-white/10 p-5 shadow-md shadow-slate-200/45 dark:shadow-lg dark:shadow-black/20"
+                      role="note"
+                      aria-label="Reflection from Ethiopian Orthodox tradition"
+                    >
+                      <p
+                        data-lms-dashboard-proverb
+                        class="lms-mobile-proverb-body text-sm italic leading-relaxed text-on-surface-muted min-h-[3.25rem]"
+                      >
+                        Daily wisdom loading…
+                      </p>
+                      <p
+                        class="text-[0.65rem] text-on-surface-subtle mt-3 uppercase tracking-widest"
+                      >
+                        Ethiopian Orthodox tradition
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1441,7 +1446,12 @@
                         class="student-only w-full px-4 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hide"
                       >
                         <span class="flex items-center justify-center gap-2">
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
                             <path
                               stroke-linecap="round"
                               stroke-linejoin="round"
@@ -1458,7 +1468,12 @@
                         class="student-only w-full px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-teal-500 text-white font-semibold hover:from-green-600 hover:to-teal-600 transition-all shadow-lg hide"
                       >
                         <span class="flex items-center justify-center gap-2">
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
                             <path
                               stroke-linecap="round"
                               stroke-linejoin="round"
