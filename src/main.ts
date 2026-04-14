@@ -760,7 +760,7 @@ async function init(): Promise<void> {
       /* Always re-run so scales/point borders match theme even when the series is empty. */
       renderGradeCharts(currentGrades);
       particleSystem?.refreshForTheme();
-    } catch (e) {
+    } catch (_e) {
       /* theme refresh */
     }
   });
