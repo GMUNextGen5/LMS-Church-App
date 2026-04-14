@@ -39,7 +39,7 @@ export function attendanceHistoryEmptyRowHtml(message: string, ctaHtml?: string)
   return `
     <tr>
       <td colspan="4" class="p-0">
-        <div class="text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container mx-2 my-2">
+        <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none mx-2 my-2">
           <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📋</div>
           <p class="text-on-surface font-semibold">${esc(message)}</p>
           ${cta}
@@ -74,10 +74,10 @@ export function renderAttendanceHistoryRows(
       const studentName = resolveStudentName(record.studentId);
       return `
       <tr class="${historyRowClasses(record.status)}">
-        <td class="py-3 px-4 text-white">${esc(date)}</td>
-        <td class="py-3 px-4 text-dark-300">${esc(studentName)}</td>
-        <td class="py-3 px-4 text-center">${badges[record.status] || ''}</td>
-        <td class="py-3 px-4 text-dark-400 text-sm">${esc(record.notes || '-')}</td>
+        <td class="py-3 px-4 text-on-surface">${esc(date)}</td>
+        <td class="py-3 px-4 text-on-surface-muted">${esc(studentName)}</td>
+        <td class="py-3 px-4 text-center min-w-[5.5rem]">${badges[record.status] || ''}</td>
+        <td class="py-3 px-4 text-on-surface-subtle text-sm">${esc(record.notes || '-')}</td>
       </tr>`;
     })
     .join('');

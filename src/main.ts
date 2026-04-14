@@ -2,8 +2,8 @@
 
 import '@fontsource-variable/geist';
 import './assets/styles/tailwind.css';
-import './core/shims/chart-bridge';
-import './core/shims/jspdf-bridge';
+import './assets/styles/login-shell.css';
+import { canAccessMainTab } from './core/tab-access';
 import { reportClientFault } from './core/client-errors';
 import { isFirebasePermissionDenied } from './core/firestore-errors';
 import {
@@ -27,11 +27,7 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from './core/firebase';
-import {
-  getAppTheme,
-  installThemeChangeBridge,
-  registerThemeRefreshHandler,
-} from './core/theme-events';
+import { installThemeChangeBridge, registerThemeRefreshHandler } from './core/theme-events';
 import {
   initAuth,
   setUserProfileSnapshotHandler,
@@ -42,7 +38,6 @@ import {
   getCurrentUser,
   reloadCurrentUserFromFirestore,
 } from './core/auth';
-import { ParticleSystem } from './ui/particles';
 import {
   initUI,
   showAuthContainer,
@@ -115,12 +110,14 @@ import {
   fetchTeacherClasses,
   invalidateUserDisplayNameCache,
 } from './data/classes-data';
-import { Chart } from 'chart.js';
-import type { ChartConfiguration, TooltipItem } from 'chart.js';
-
-type AnyChartInstance = InstanceType<typeof Chart>;
-import { initAssessments, loadAssessments } from './ui/assessment-ui';
-import { dismissClassesModals, initClasses, loadClasses } from './ui/classes-ui';
+import { gradePercent100 } from './core/grade-math';
+import { renderGradeCharts } from './ui/grade-charts';
+import {
+  prefetchTabPanelChunks,
+  loadAssessmentsTab,
+  loadClassesTab,
+  dismissClassesModalsSafe,
+} from './bootstrap/lazy-tab-panels';
 import {
   initAttendanceBulkUI,
   applyRollCallAttendanceHydration,
@@ -157,7 +154,9 @@ import {
   escapeHtmlText,
   renderTemplate,
 } from './ui/dom-render';
-import { hydrateLmsLucideIcons } from './ui/lucide-hydrate';
+function hydrateLucideIcons(root: Document | Element): void {
+  void import('./ui/lucide-hydrate').then((m) => m.hydrateLmsLucideIcons(root));
+}
 
 let currentStudents: Student[] = [];
 let archivedStudents: Student[] = [];
@@ -167,7 +166,9 @@ let selectedStudentId: string | null = null;
 let attendanceRollCourses: Course[] = [];
 let rollCallHydrateGeneration = 0;
 let gradesUnsubscribe: (() => void) | null = null;
-let particleSystem: ParticleSystem | null = null;
+let particleSystem: InstanceType<
+  Awaited<typeof import('./ui/particles')>['ParticleSystem']
+> | null = null;
 /** Last UID session data was bound to; when it changes, in-memory caches must reset before new loads. */
 let sessionDataBoundUid: string | null = null;
 let sessionFirestoreTeardownRegistered = false;
@@ -504,16 +505,27 @@ function setupLmsDelegatedActions(): void {
   });
 }
 
+/** Wraps inline `window.switchToTab` so privileged tabs cannot be opened without an allowed role. */
+function installRoleGuardedSwitchToTab(): void {
+  const w = window as unknown as {
+    switchToTab?: (n: string) => void;
+    __lmsSwitchToTabWrapped?: boolean;
+  };
+  if (w.__lmsSwitchToTabWrapped || typeof w.switchToTab !== 'function') return;
+  const inner = w.switchToTab.bind(window);
+  w.__lmsSwitchToTabWrapped = true;
+  w.switchToTab = (tabName: string) => {
+    const role = getCurrentUser()?.role ?? null;
+    if (!canAccessMainTab(tabName, role)) {
+      showAppToast('You do not have access to that area.', 'error');
+      return;
+    }
+    inner(tabName);
+  };
+}
+
 /** Bootstraps UI, auth, forms, feature modules, and the centralized theme refresh bridge. */
 async function init(): Promise<void> {
-  /**
-   * Critical-path resilience:
-   * - Show a boot overlay immediately to avoid a blank/half-rendered shell.
-   * - Guarantee the overlay is cleared even if auth never resolves (watchdog) or a handler throws (finally).
-   *
-   * Rationale: if Firebase fails to initialize cleanly or network/auth stalls, `onAuthStateChanged` can
-   * appear to "never fire" from the user's perspective, leaving the app stuck on "Loading..." forever.
-   */
   try {
     showLoading();
   } catch {
@@ -524,7 +536,7 @@ async function init(): Promise<void> {
     initUI();
     hideAllRoleRegionsForAuthHandshake();
     try {
-      hydrateLmsLucideIcons(document);
+      hydrateLucideIcons(document);
     } catch {
       /* lucide placeholders */
     }
@@ -606,6 +618,21 @@ async function init(): Promise<void> {
     setupAuthForms();
   } catch {
     /* auth form wiring */
+  }
+
+  try {
+    const scheduleJspdf = (): void => {
+      void import('./core/shims/jspdf-bridge').catch(() => {
+        /* optional */
+      });
+    };
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(scheduleJspdf, { timeout: 6000 });
+    } else {
+      window.setTimeout(scheduleJspdf, 800);
+    }
+  } catch {
+    /* optional */
   }
 
   const firebaseErr = ensureFirebaseClient();
@@ -729,16 +756,7 @@ async function init(): Promise<void> {
   } catch {
     /* delegated actions */
   }
-  try {
-    initAssessments();
-  } catch {
-    /* assessments init */
-  }
-  try {
-    initClasses();
-  } catch {
-    /* classes init */
-  }
+  prefetchTabPanelChunks();
 
   try {
     installThemeChangeBridge();
@@ -765,16 +783,18 @@ async function init(): Promise<void> {
     }
   });
 
+  installRoleGuardedSwitchToTab();
+
   document.addEventListener('tab-switched', async (e: Event) => {
     const tab = (e as CustomEvent<TabSwitchedDetail>).detail?.tab;
-    if (tab === 'classes') await loadClasses();
+    if (tab === 'classes') await loadClassesTab();
     else if (tab === 'attendance') {
       syncAttendanceRollCallRoster();
       if (selectedStudentId) await loadStudentAttendance(selectedStudentId);
     } else if (tab === 'dashboard') {
       await refreshInstitutionalDashboardMetrics();
       await loadRecentActivity();
-    } else if (tab === 'assessments') await loadAssessments();
+    } else if (tab === 'assessments') await loadAssessmentsTab();
     else if (tab === 'users') await loadAllUsers();
     else if (tab === 'student-profile') void loadUserProfile();
     else if (tab === 'teacher-registration') {
@@ -789,17 +809,18 @@ async function init(): Promise<void> {
  * Starts the login canvas after `load` so layout and dimensions are stable (avoids racing the DOM).
  */
 function startParticleSystemWhenReady(): void {
-  const boot = (): void => {
+  const boot = async (): Promise<void> => {
     if (particleSystem) return;
     if (!document.getElementById('background-canvas')) return;
     try {
+      const { ParticleSystem } = await import('./ui/particles');
       particleSystem = new ParticleSystem('background-canvas');
     } catch {
       particleSystem = null;
     }
   };
-  if (document.readyState === 'complete') boot();
-  else window.addEventListener('load', boot, { once: true });
+  if (document.readyState === 'complete') void boot();
+  else window.addEventListener('load', () => void boot(), { once: true });
 }
 
 // --- Auth state & form handlers ---
@@ -2580,7 +2601,7 @@ async function loadAllUsers(): Promise<void> {
   </div>
 </li>`
         );
-        hydrateLmsLucideIcons(mobileList);
+        hydrateLucideIcons(mobileList);
       }
       return;
     }
@@ -2665,7 +2686,7 @@ async function loadAllUsers(): Promise<void> {
         })
         .join('');
       renderTemplate(mobileList, mobileCardsHtml);
-      hydrateLmsLucideIcons(mobileList);
+      hydrateLucideIcons(mobileList);
     }
   } catch (error: unknown) {
     if (tableBody) {
@@ -2686,7 +2707,7 @@ async function loadAllUsers(): Promise<void> {
   </div>
 </li>`
       );
-      hydrateLmsLucideIcons(mobileList);
+      hydrateLucideIcons(mobileList);
     }
     showAppToast(formatErrorForUserToast(error, 'Could not load users.'), 'error');
   }
@@ -3125,175 +3146,6 @@ function displayGrades(grades: Grade[]): void {
   renderGradesMobile(grades, selectedStudentId, getCurrentUserRole());
 }
 
-let gradeTrendChart: AnyChartInstance | null = null;
-let categoryChart: AnyChartInstance | null = null;
-
-function isAppLightTheme(): boolean {
-  return getAppTheme() === 'light';
-}
-
-/** Builds Chart.js scale options for the current `data-theme` (light vs dark surfaces). */
-function getGradeChartOptions(): Record<string, unknown> {
-  const light = isAppLightTheme();
-  const scales = light
-    ? {
-        x: {
-          grid: { color: 'rgba(15, 23, 42, 0.08)' },
-          ticks: { color: '#475569', maxRotation: 45, minRotation: 0, padding: 6 },
-        },
-        y: {
-          beginAtZero: true,
-          max: 100,
-          grid: { color: 'rgba(15, 23, 42, 0.08)' },
-          ticks: { color: '#475569', padding: 10, callback: (v: number) => v + '%' },
-        },
-      }
-    : {
-        x: {
-          grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: 'rgba(255,255,255,0.6)', maxRotation: 45, minRotation: 0, padding: 6 },
-        },
-        y: {
-          beginAtZero: true,
-          max: 100,
-          grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: 'rgba(255,255,255,0.6)', padding: 10, callback: (v: number) => v + '%' },
-        },
-      };
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 300 },
-    layout: {
-      padding: light
-        ? { left: 6, right: 14, top: 12, bottom: 10 }
-        : { left: 4, right: 12, top: 10, bottom: 8 },
-    },
-    plugins: { legend: { display: false } },
-    scales,
-  };
-}
-
-/**
- * Renders or updates grade trend and category charts. Destroys existing Chart instances first to avoid leaks.
- */
-function renderGradeCharts(grades: Grade[]): void {
-  const sortedGrades = [...grades].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
-  const trendLabels = sortedGrades.map((g) => {
-    const nm = safeAssignmentTitle(g.assignmentName);
-    return nm.length > 12 ? `${nm.slice(0, 12)}…` : nm;
-  });
-  const trendData = sortedGrades.map((g) => {
-    const p = gradePercent100(g);
-    return p == null ? null : Number(p.toFixed(1));
-  });
-
-  const categoryData: Record<string, { total: number; count: number }> = {};
-  for (const grade of grades) {
-    const p = gradePercent100(grade);
-    if (p == null) continue;
-    const cat = grade.category;
-    if (!categoryData[cat]) categoryData[cat] = { total: 0, count: 0 };
-    categoryData[cat].total += p;
-    categoryData[cat].count += 1;
-  }
-  const categoryLabels = Object.keys(categoryData);
-  const categoryAverages = categoryLabels.map((cat) => {
-    const { total, count } = categoryData[cat];
-    const avg = count > 0 ? total / count : 0;
-    return Number.isFinite(avg) ? avg.toFixed(1) : '0';
-  });
-  const categoryColors = ['#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#3b82f6'];
-
-  const chartOptions = getGradeChartOptions() as ChartConfiguration<'line' | 'bar'>['options'];
-  const light = isAppLightTheme();
-  const pointBorder = light ? '#0f172a' : '#ffffff';
-
-  const trendCanvas = document.getElementById('grade-trend-chart') as HTMLCanvasElement;
-  if (trendCanvas) {
-    if (gradeTrendChart) {
-      gradeTrendChart.destroy();
-      gradeTrendChart = null;
-    }
-    const ctx = trendCanvas.getContext('2d');
-    if (ctx) {
-      try {
-        gradeTrendChart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: trendLabels,
-            datasets: [
-              {
-                label: 'Grade %',
-                data: trendData,
-                borderColor: '#06b6d4',
-                backgroundColor: 'rgba(6,182,212,0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#06b6d4',
-                pointBorderColor: pointBorder,
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-              },
-            ],
-          },
-          options: chartOptions,
-        });
-      } catch {
-        gradeTrendChart = null;
-      }
-    }
-  }
-
-  const categoryCanvas = document.getElementById('category-chart') as HTMLCanvasElement;
-  if (categoryCanvas) {
-    if (categoryChart) {
-      categoryChart.destroy();
-      categoryChart = null;
-    }
-    const ctx = categoryCanvas.getContext('2d');
-    if (ctx) {
-      try {
-        categoryChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: categoryLabels,
-            datasets: [
-              {
-                label: 'Average %',
-                data: categoryAverages,
-                backgroundColor: categoryLabels.map(
-                  (_, i) => categoryColors[i % categoryColors.length]
-                ),
-                borderRadius: 8,
-                barThickness: 40,
-              },
-            ],
-          },
-          options: {
-            ...chartOptions,
-            plugins: {
-              ...chartOptions?.plugins,
-              tooltip: {
-                callbacks: {
-                  label: (ctx: TooltipItem<'bar'>) =>
-                    `Average: ${ctx.formattedValue ?? (ctx.raw == null ? '' : String(ctx.raw))}%`,
-                },
-              },
-            },
-          },
-        });
-      } catch {
-        categoryChart = null;
-      }
-    }
-  }
-}
-
 const lmsWin = window as LmsGlobalWindow;
 
 lmsWin.handleDeleteGrade = async (studentId: string, gradeId: string) => {
@@ -3678,14 +3530,6 @@ function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grad
   wrap.append(top, gpaEl, barTrack);
   root.replaceChildren(wrap);
   root.setAttribute('aria-busy', 'false');
-}
-
-function gradePercent100(g: Grade): number | null {
-  const tp = Number(g.totalPoints);
-  const sc = Number(g.score);
-  if (!Number.isFinite(tp) || tp <= 0 || !Number.isFinite(sc)) return null;
-  const p = (sc / tp) * 100;
-  return Number.isFinite(p) ? p : null;
 }
 
 function computeAverageGradePercent(grades: Grade[]): { pctLabel: string; count: number } {
@@ -4381,7 +4225,7 @@ async function loadRecentActivity(): Promise<void> {
           const pct = gradePercent100(grade);
           const percentage = pct == null ? '—' : pct.toFixed(1);
           const cls = pct == null ? 'text-dark-400' : pct >= 70 ? 'text-green-400' : 'text-red-400';
-          return `<tr class="${rowStripe}"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td><td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-300">Grade</span></td><td class="py-3 px-4 text-sm ${cls} tabular-nums font-medium">${percentage}${pct == null ? '' : '%'}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
+          return `<tr class="${rowStripe}"><td class="py-3 px-4 text-on-surface font-medium">${escapeHtmlText(safeAssignmentTitle(grade.assignmentName))}</td><td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-700 dark:text-violet-300">Grade</span></td><td class="py-3 px-4 text-sm ${cls} tabular-nums font-medium">${percentage}${pct == null ? '' : '%'}</td><td class="py-3 px-4 text-on-surface-muted text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
         }
         const att = activity.data as Attendance;
         const statusBadgeMap: Record<string, [string, string, string]> = {
@@ -4395,7 +4239,7 @@ async function loadRecentActivity(): Promise<void> {
           'text-dark-300',
           'bg-dark-700',
         ];
-        return `<tr class="${rowStripe}"><td class="py-3 px-4 text-white font-medium">${escapeHtmlText(att.notes || badge)}</td><td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md ${badgeBg} ${color}">${badge}</span></td><td class="py-3 px-4 text-sm ${color} font-medium">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-dark-400 text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
+        return `<tr class="${rowStripe}"><td class="py-3 px-4 text-on-surface font-medium">${escapeHtmlText(att.notes || badge)}</td><td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-md ${badgeBg} ${color}">${badge}</span></td><td class="py-3 px-4 text-sm ${color} font-medium">${escapeHtmlText(att.notes || '—')}</td><td class="py-3 px-4 text-on-surface-muted text-xs whitespace-nowrap text-right">${escapeHtmlText(dateStr)}</td></tr>`;
       })
       .join('');
     renderTemplate(
@@ -4403,7 +4247,7 @@ async function loadRecentActivity(): Promise<void> {
       `<div class="card-blur progress-bar-glow rounded-2xl overflow-hidden border border-white/10">
 <div class="overflow-x-auto">
 <table class="w-full min-w-0 text-left text-sm">
-<thead><tr class="text-[0.65rem] uppercase tracking-wider text-dark-400 border-b border-white/10">
+<thead><tr class="text-[0.65rem] uppercase tracking-wider text-on-surface-muted border-b border-surface-default/80 dark:text-dark-400 dark:border-white/10">
 <th class="py-3 px-4 font-semibold">Item</th><th class="py-3 px-4 font-semibold">Type</th><th class="py-3 px-4 font-semibold">Detail</th><th class="py-3 px-4 font-semibold text-right">When</th>
 </tr></thead>
 <tbody>${activityRows}</tbody>
@@ -4422,7 +4266,7 @@ async function loadRecentActivity(): Promise<void> {
 }
 
 function resetAppState(): void {
-  dismissClassesModals();
+  dismissClassesModalsSafe();
   closeEditStudentModal();
   closeChangeRoleModal();
   stopDashboardProverbRotation();
@@ -5333,13 +5177,11 @@ function runInit(): void {
   }, 5000);
 
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      void init().catch((_e) => {
-        showBootstrapError(
-          'The app failed to finish loading. Please refresh the page or try again later.'
-        );
-        markAuthShellReady();
-      });
+    void init().catch((_e) => {
+      showBootstrapError(
+        'The app failed to finish loading. Please refresh the page or try again later.'
+      );
+      markAuthShellReady();
     });
   });
 }

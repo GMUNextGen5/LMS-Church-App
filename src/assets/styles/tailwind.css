@@ -118,6 +118,21 @@
 }
 
 @layer components {
+  /** Shared empty-state card (tables + tab bodies). */
+  .lms-empty-state-panel {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /**
+   * Sticky regions inside overflow scrollers (reduces compositor jank on iOS Safari / Chrome).
+   * Use with existing sticky/top/z/backdrop classes.
+   */
+  .lms-sticky-scroll-safe {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
   /** Registration / roster panels — matches User Management shell for light + dark. Pair with `glass-effect` in markup. */
   .lms-reg-shell {
     @apply rounded-xl md:rounded-2xl overflow-hidden min-w-0;

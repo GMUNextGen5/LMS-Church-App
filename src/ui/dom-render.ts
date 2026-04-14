@@ -43,7 +43,7 @@ export function emptyStateBlockHtml(
     ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${escapeHtmlText(subtitle)}</p>`
     : '';
   return `
-    <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container">
+    <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none">
       ${brand}
       <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📚</div>
       <h3 class="text-on-surface font-semibold text-lg">${escapeHtmlText(title)}</h3>

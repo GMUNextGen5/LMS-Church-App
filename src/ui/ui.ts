@@ -5,6 +5,8 @@ import { User, UserRole } from '../types';
 import DOMPurify from 'dompurify';
 import { renderTemplate } from './dom-render';
 import { activateModalLayer } from '../core/modal-focus';
+import { canAccessMainTab } from '../core/tab-access';
+import { injectShellFragments } from './templates';
 
 let domPurifyHooksInstalled = false;
 
@@ -101,9 +103,9 @@ const loginError = document.getElementById('login-error');
 const signupError = document.getElementById('signup-error');
 const logoutBtn = document.getElementById('logout-btn');
 const loadingOverlay = document.getElementById('loading-overlay');
-const aiModal = document.getElementById('ai-modal');
-const aiModalTitle = document.getElementById('ai-modal-title');
-const aiModalContent = document.getElementById('ai-modal-content');
+let aiModal: HTMLElement | null = null;
+let aiModalTitle: HTMLElement | null = null;
+let aiModalContent: HTMLElement | null = null;
 
 let currentUserRole: UserRole | null = null;
 
@@ -248,6 +250,11 @@ function installAiModalDelegatedClicks(): void {
 
 /** Binds auth tab buttons, main tab buttons, and AI modal dismiss controls. */
 export function initUI(): void {
+  injectShellFragments();
+  aiModal = document.getElementById('ai-modal');
+  aiModalTitle = document.getElementById('ai-modal-title');
+  aiModalContent = document.getElementById('ai-modal-content');
+
   loginTabBtn?.addEventListener('click', () => switchAuthTab('login'));
   signupTabBtn?.addEventListener('click', () => switchAuthTab('signup'));
   document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -293,14 +300,12 @@ export function showAppContainer(): void {
 }
 
 /**
- * Shows or hides `.admin-only`, `.teacher-only`, and `.student-only` regions based on `user.role`.
- */
-/**
  * Hides all role-gated chrome before auth resolves (cold start) or after sign-out.
  * Prevents privileged nav from flashing while `onAuthStateChanged` is still in flight.
  */
 export function hideAllRoleRegionsForAuthHandshake(): void {
   currentUserRole = null;
+  document.documentElement.removeAttribute('data-lms-role');
   document
     .querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav')
     .forEach((el) => {
@@ -314,6 +319,7 @@ export function configureUIForRole(user: User): void {
   const isValidRole = typeof role === 'string' && (validRoles as readonly string[]).includes(role);
   if (!isValidRole) {
     currentUserRole = null;
+    document.documentElement.removeAttribute('data-lms-role');
     // Hide role-based regions until we have a valid profile.
     document
       .querySelectorAll('.admin-only, .teacher-only, .student-only, .lms-my-account-nav')
@@ -325,6 +331,7 @@ export function configureUIForRole(user: User): void {
   }
 
   currentUserRole = role as UserRole;
+  document.documentElement.setAttribute('data-lms-role', role);
 
   // Query DOM at call-time (module-level lookups can run before DOM is ready).
   const emailEl = document.getElementById('user-email');
@@ -373,11 +380,21 @@ const VALID_MAIN_TABS = new Set([
   'student-profile',
 ]);
 
+function roleFromDomAttr(): UserRole | null {
+  const r = document.documentElement.getAttribute('data-lms-role');
+  if (r === UserRole.Admin || r === UserRole.Teacher || r === UserRole.Student) return r;
+  return null;
+}
+
 /**
  * Activates a main LMS tab from the top tab bar: updates `.tab-btn` / `.tab-content` and emits `tab-switched`.
  */
 function switchTab(tabName: string): void {
   if (!VALID_MAIN_TABS.has(tabName)) return;
+  if (!canAccessMainTab(tabName, roleFromDomAttr())) {
+    showAppToast('You do not have access to that area.', 'error');
+    return;
+  }
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.classList.remove('tab-active');
     btn.classList.add('text-dark-300');
@@ -452,7 +469,7 @@ function ensureToastHost(): HTMLElement {
     host = document.createElement('div');
     host.id = LMS_TOAST_HOST_ID;
     host.className =
-      'fixed bottom-4 left-1/2 z-[10001] flex max-w-md w-[min(100%-2rem,28rem)] -translate-x-1/2 flex-col gap-2 pointer-events-none';
+      'pointer-events-none fixed bottom-4 left-1/2 z-[10001] flex w-[min(100%-2rem,28rem)] max-w-md -translate-x-1/2 flex-col gap-2';
     document.body.appendChild(host);
   }
   return host;
@@ -460,10 +477,10 @@ function ensureToastHost(): HTMLElement {
 
 const TOAST_STYLES: Record<AppToastKind, string> = {
   success:
-    'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-primary-100 border-primary-400/35',
+    'pointer-events-auto rounded-xl border border-primary-400/35 bg-dark-950/95 px-4 py-3 text-sm text-primary-100 shadow-xl backdrop-blur-md',
   error:
-    'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-red-100 border-red-500/40',
-  info: 'pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur-md bg-dark-950/95 text-dark-100 border-secondary-400/30',
+    'pointer-events-auto rounded-xl border border-red-500/40 bg-dark-950/95 px-4 py-3 text-sm text-red-100 shadow-xl backdrop-blur-md',
+  info: 'pointer-events-auto rounded-xl border border-secondary-400/30 bg-dark-950/95 px-4 py-3 text-sm text-dark-100 shadow-xl backdrop-blur-md',
 };
 
 /**
@@ -533,9 +550,8 @@ export function showFirebaseConfigurationError(message: string): void {
   banner.id = FIREBASE_CONFIG_BANNER_ID;
   banner.setAttribute('role', 'alert');
   banner.className = [
-    'mx-auto max-w-lg rounded-xl border px-4 py-3 text-sm shadow-xl m-4 backdrop-blur-md',
-    'bg-dark-950/95 text-red-100 border-red-500/35',
-    'dark:bg-dark-950/95 dark:text-red-100 dark:border-red-500/35',
+    'mx-auto m-4 max-w-lg rounded-xl border border-red-500/35 bg-dark-950/95 px-4 py-3 text-sm text-red-100 shadow-xl backdrop-blur-md',
+    'dark:border-red-500/35 dark:bg-dark-950/95 dark:text-red-100',
   ].join(' ');
   banner.textContent = message;
   root.insertBefore(banner, root.firstChild);
@@ -554,9 +570,8 @@ export function showBootstrapError(message: string): void {
   banner.id = INIT_ERROR_BANNER_ID;
   banner.setAttribute('role', 'alert');
   banner.className = [
-    'mx-auto max-w-lg rounded-xl border px-4 py-3 text-sm shadow-xl m-4 backdrop-blur-md',
-    'bg-dark-950/95 text-amber-100 border-secondary-400/35',
-    'dark:bg-dark-950/95 dark:text-amber-100 dark:border-secondary-400/35',
+    'mx-auto m-4 max-w-lg rounded-xl border border-secondary-400/35 bg-dark-950/95 px-4 py-3 text-sm text-amber-100 shadow-xl backdrop-blur-md',
+    'dark:border-secondary-400/35 dark:bg-dark-950/95 dark:text-amber-100',
   ].join(' ');
   banner.textContent = message;
   root.insertBefore(banner, root.firstChild);

@@ -12,6 +12,8 @@ export default tseslint.config(
       'coverage/**',
       '**/*.html',
       '**/*.cjs',
+      'scripts/**',
+      'src/ui/templates.part.ts',
     ],
   },
   eslint.configs.recommended,

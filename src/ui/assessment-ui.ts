@@ -291,11 +291,11 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
         <td class="py-3 px-4 text-center">
           <div class="inline-flex items-center gap-1 flex-nowrap overflow-x-auto max-w-full align-middle" style="scrollbar-width: none;">
           <button data-action="edit-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
-                  class="px-2 py-1 rounded text-xs bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap">Edit</button>
+                  class="inline-flex items-center justify-center min-h-11 px-3 rounded-lg text-xs font-semibold bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap transition-all duration-200">Edit</button>
           <button data-action="view-submissions" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
-                  class="px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 whitespace-nowrap">Submissions</button>
+                  class="inline-flex items-center justify-center min-h-11 px-3 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 whitespace-nowrap transition-all duration-200">Submissions</button>
           <button data-action="delete-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
-                  class="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 whitespace-nowrap">Delete</button>
+                  class="inline-flex items-center justify-center min-h-11 px-3 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 whitespace-nowrap transition-all duration-200">Delete</button>
           </div>
         </td>
       </tr>`;
@@ -329,11 +329,11 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
         </div>
         <div class="flex items-center gap-2 overflow-x-auto pb-1" style="scrollbar-width: none;">
           <button data-action="edit-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
-                  class="px-3 py-2 rounded-lg text-xs font-semibold bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap">Edit</button>
+                  class="inline-flex items-center justify-center min-h-11 px-3 rounded-lg text-xs font-semibold bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 whitespace-nowrap transition-all duration-200">Edit</button>
           <button data-action="view-submissions" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
-                  class="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 whitespace-nowrap">Submissions</button>
+                  class="inline-flex items-center justify-center min-h-11 px-3 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 whitespace-nowrap transition-all duration-200">Submissions</button>
           <button data-action="delete-assessment" data-class-id="${esc(a.classId)}" data-id="${esc(a.id)}"
-                  class="px-3 py-2 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 whitespace-nowrap">Delete</button>
+                  class="inline-flex items-center justify-center min-h-11 px-3 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 whitespace-nowrap transition-all duration-200">Delete</button>
         </div>
       </div>`;
     })
@@ -346,8 +346,8 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
       ${sectionHeader(
         'Assessments',
         `
-        <button data-action="create-assessment"
-                class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">
+          <button data-action="create-assessment"
+                class="inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-all duration-200">
           + Create Assessment
         </button>
       `
@@ -357,7 +357,7 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
           ? emptyState(
               'No assessments yet',
               'Create your first assessment to get started.',
-              `<button data-action="create-assessment" type="button" class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">+ Create assessment</button>`
+              `<button data-action="create-assessment" type="button" class="inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-all duration-200">+ Create assessment</button>`
             )
           : `<div class="md:hidden grid gap-4">${cards}</div>
           <div class="hidden md:block overflow-x-auto rounded-xl border border-dark-700">
@@ -373,7 +373,7 @@ async function renderTeacherList(_role: UserRole): Promise<void> {
                   <th class="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody>${rows}</tbody>
+              <tbody class="bg-slate-900">${rows}</tbody>
             </table>
           </div>`
       }
@@ -1034,7 +1034,7 @@ async function renderSubmissionsList(): Promise<void> {
                   <th class="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody>${rows}</tbody>
+              <tbody class="bg-slate-900">${rows}</tbody>
             </table>
           </div>`
       }
@@ -1878,8 +1878,8 @@ function formatDate(isoStr: string): string {
 
 function sectionHeader(title: string, rightHtml?: string): string {
   return `
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-xl font-bold text-on-surface">${esc(title)}</h2>
+    <div class="flex items-center justify-between gap-3 transition-all duration-200">
+      <h2 class="text-xl font-bold text-on-surface font-display">${esc(title)}</h2>
       <div class="flex items-center gap-2 shrink-0">${rightHtml || ''}</div>
     </div>`;
 }
@@ -1889,10 +1889,11 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
     ? `<div class="mt-6 flex flex-wrap justify-center gap-3">${ctaHtml}</div>`
     : '';
   return `
-    <div class="text-center py-16 px-4">
-      <div class="text-4xl mb-3 opacity-30">📋</div>
+    <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none max-w-lg mx-auto">
+      <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-2">DSKM LMS</p>
+      <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📋</div>
       <h3 class="text-on-surface font-semibold text-lg">${esc(title)}</h3>
-      ${subtitle ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
+      ${subtitle ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto leading-relaxed">${esc(subtitle)}</p>` : ''}
       ${cta}
     </div>`;
 }
@@ -1969,8 +1970,8 @@ function teacherListSkeletonHtml(): string {
       ${sectionHeader(
         'Assessments',
         `
-        <button data-action="create-assessment"
-                class="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">
+          <button data-action="create-assessment"
+                class="inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-all duration-200">
           + Create Assessment
         </button>
       `
@@ -1989,7 +1990,7 @@ function teacherListSkeletonHtml(): string {
               <th class="py-3 px-4 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody>${row.repeat(8)}</tbody>
+          <tbody class="bg-slate-900">${row.repeat(8)}</tbody>
         </table>
       </div>
     </div>`;

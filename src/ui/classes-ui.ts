@@ -49,11 +49,11 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
     ? `<div class="mt-6 flex flex-wrap justify-center gap-3">${ctaHtml}</div>`
     : '';
   return `
-    <div class="text-center py-16 px-4">
-      <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-dark-500 mb-2">DSKM LMS</p>
+    <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none max-w-lg mx-auto">
+      <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-2">DSKM LMS</p>
       <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📚</div>
       <h3 class="text-on-surface font-semibold text-lg">${esc(title)}</h3>
-      ${subtitle ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto">${esc(subtitle)}</p>` : ''}
+      ${subtitle ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto leading-relaxed">${esc(subtitle)}</p>` : ''}
       ${cta}
     </div>`;
 }
@@ -636,8 +636,8 @@ async function renderStudentView(): Promise<void> {
         <p class="text-on-surface-subtle text-xs mt-1.5">${esc(progLabel)}</p>
       </div>
       <div class="flex flex-wrap gap-2 pt-1">
-        <a href="#" data-tab="assessments" class="classes-quick-link min-h-[36px] inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-primary-600/20 bg-primary-600/10 text-primary-800 hover:bg-primary-600/15 dark:border-transparent dark:bg-primary-500/15 dark:text-primary-400 dark:hover:bg-primary-500/25 active:scale-[0.97] transition-all touch-manipulation">Assessments</a>
-        <a href="#" data-tab="grades" class="classes-quick-link min-h-[36px] inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-transparent dark:bg-dark-600 dark:text-dark-300 dark:hover:bg-dark-500 active:scale-[0.97] transition-all touch-manipulation">Grades</a>
+        <a href="#" data-tab="assessments" class="classes-quick-link min-h-11 md:min-h-9 inline-flex items-center px-3.5 py-2 md:py-1.5 rounded-xl text-xs font-semibold border border-primary-600/20 bg-primary-600/10 text-primary-800 hover:bg-primary-600/15 dark:border-transparent dark:bg-primary-500/15 dark:text-primary-400 dark:hover:bg-primary-500/25 active:scale-[0.97] transition-all duration-200 touch-manipulation">Assessments</a>
+        <a href="#" data-tab="grades" class="classes-quick-link min-h-11 md:min-h-9 inline-flex items-center px-3.5 py-2 md:py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-transparent dark:bg-dark-600 dark:text-dark-300 dark:hover:bg-dark-500 active:scale-[0.97] transition-all duration-200 touch-manipulation">Grades</a>
       </div>
     </div>`;
   });
@@ -738,7 +738,7 @@ async function renderTeacherView(): Promise<void> {
               <th class="py-3 px-4 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody>${tableRows.join('')}</tbody>
+          <tbody class="bg-slate-900">${tableRows.join('')}</tbody>
         </table>
       </div>`;
 
@@ -866,7 +866,7 @@ async function renderAdminView(): Promise<void> {
               <th class="py-3 px-4 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody>${tableRows.join('')}</tbody>
+          <tbody class="bg-slate-900">${tableRows.join('')}</tbody>
         </table>
       </div>`;
 

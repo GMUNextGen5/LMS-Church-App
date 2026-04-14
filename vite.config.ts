@@ -1,65 +1,37 @@
-import fs from 'node:fs';
 import path from 'node:path';
-import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-/** Log file at cwd (reliable) — not vite.config dirname (may differ under tooling). */
-function debugLogPath(): string {
-  return path.join(process.cwd(), 'debug-ecf1fb.log');
-}
-
-/** Writes one NDJSON line per POST (debug session ecf1fb). Dev server only. */
-function debugIngestEcf1fbPlugin(): Plugin {
-  return {
-    name: 'debug-ingest-ecf1fb',
-    /* Run before Vite HTML fallback so POST /__debug/ingest is not swallowed. */
-    enforce: 'pre',
-    configureServer(server) {
-      try {
-        fs.appendFileSync(
-          debugLogPath(),
-          `${JSON.stringify({
-            sessionId: 'ecf1fb',
-            hypothesisId: 'BOOT',
-            message: 'vite dev server configured (debug ingest middleware registered)',
-            timestamp: Date.now(),
-          })}\n`,
-          'utf8'
-        );
-      } catch {
-        /* ignore */
-      }
-      server.middlewares.use((req, res, next) => {
-        const pathname = (req.url ?? '').split('?')[0];
-        if (pathname !== '/__debug/ingest' || req.method !== 'POST') {
-          next();
-          return;
-        }
-        const chunks: Buffer[] = [];
-        req.on('data', (chunk: Buffer) => {
-          chunks.push(chunk);
-        });
-        req.on('end', () => {
-          try {
-            const body = Buffer.concat(chunks).toString('utf8').trim();
-            fs.appendFileSync(debugLogPath(), `${body}\n`, 'utf8');
-            res.statusCode = 204;
-          } catch {
-            res.statusCode = 500;
-          }
-          res.end();
-        });
-        req.on('error', () => {
-          res.statusCode = 500;
-          res.end();
-        });
-      });
-    },
-  };
+/**
+ * Route Rollup module ids into named async chunks.
+ * Firebase app/auth/firestore/functions share `vendor-firebase`; heavy UI effects share `ui-vendor`.
+ */
+function manualChunks(id: string): string | undefined {
+  const normalized = id.split(path.sep).join('/');
+  if (
+    normalized.includes('node_modules/firebase/') ||
+    normalized.includes('node_modules/@firebase/')
+  ) {
+    return 'vendor-firebase';
+  }
+  if (normalized.includes('node_modules/chart.js')) return 'vendor-chart';
+  if (normalized.includes('node_modules/jspdf')) return 'vendor-jspdf';
+  if (normalized.includes('node_modules/lucide')) return 'vendor-lucide';
+  if (normalized.includes('node_modules/dompurify')) return 'vendor-sanitize';
+  if (normalized.includes('/src/ui/particles') || normalized.includes('/src/ui/lucide-hydrate')) {
+    return 'ui-vendor';
+  }
+  if (normalized.includes('/src/ui/templates.part')) return 'ui-templates-shell';
+  if (normalized.includes('/src/ui/assessment-ui')) return 'ui-assessments';
+  if (normalized.includes('/src/ui/classes-ui')) return 'ui-classes';
+  if (normalized.includes('/src/ui/attendance-ui')) return 'ui-attendance';
+  if (normalized.includes('/src/ui/grades-mobile-ui')) return 'ui-grades-mobile';
+  if (normalized.includes('/src/ui/grade-charts')) return 'ui-grade-charts';
+  if (normalized.includes('/src/bootstrap/lazy-tab-panels')) return 'bootstrap-tab-panels';
+  if (normalized.includes('/src/data/')) return 'data-layer';
+  return undefined;
 }
 
 export default defineConfig({
-  plugins: [debugIngestEcf1fbPlugin()],
   build: {
     outDir: 'dist',
     rollupOptions: {
@@ -69,13 +41,10 @@ export default defineConfig({
         terms: './terms.html',
       },
       output: {
-        manualChunks: {
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions'],
-          sanitize: ['dompurify'],
-        },
+        manualChunks,
       },
     },
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 500,
   },
   server: {
     port: 3000,
