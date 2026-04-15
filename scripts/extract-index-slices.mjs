@@ -36,8 +36,7 @@ const templatesPath = path.join(root, 'src/ui/templates.part.ts');
 const templatesRaw = fs.readFileSync(templatesPath, 'utf8');
 
 /** `export const NAME = \`...\`;` — capture template literal bodies */
-const exportRe =
-  /export const (TEMPLATE_[A-Z0-9_]+)\s*=\s*`([\s\S]*?)`(?:\s*;)?/gm;
+const exportRe = /export const (TEMPLATE_[A-Z0-9_]+)\s*=\s*`([\s\S]*?)`(?:\s*;)?/gm;
 let m;
 const names = [];
 const minLen = 80;

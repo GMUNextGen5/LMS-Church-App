@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '../types';
-import { canAccessMainTab } from './tab-access';
+import { canAccessMainTab, resolveTabSwitchTarget } from './tab-access';
 
 describe('canAccessMainTab', () => {
   it('allows common tabs for students', () => {
@@ -18,5 +18,18 @@ describe('canAccessMainTab', () => {
 
   it('denies staff tabs when role is unknown', () => {
     expect(canAccessMainTab('ai-agent', null)).toBe(false);
+  });
+});
+
+describe('resolveTabSwitchTarget', () => {
+  it('returns the requested tab when allowed', () => {
+    expect(resolveTabSwitchTarget('classes', UserRole.Teacher)).toBe('classes');
+    expect(resolveTabSwitchTarget('users', UserRole.Admin)).toBe('users');
+  });
+
+  it('returns dashboard when the tab is not allowed for the role', () => {
+    expect(resolveTabSwitchTarget('users', UserRole.Teacher)).toBe('dashboard');
+    expect(resolveTabSwitchTarget('users', UserRole.Student)).toBe('dashboard');
+    expect(resolveTabSwitchTarget('ai-agent', UserRole.Student)).toBe('dashboard');
   });
 });

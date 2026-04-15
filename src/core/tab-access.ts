@@ -14,3 +14,9 @@ export function canAccessMainTab(tabName: string, role: UserRole | null): boolea
   if (!role) return false;
   return required.includes(role);
 }
+
+/** Target tab after role guard (used by `installRoleGuardedSwitchToTab` and tests). */
+export function resolveTabSwitchTarget(tabName: string, role: UserRole | null): string {
+  if (canAccessMainTab(tabName, role)) return tabName;
+  return 'dashboard';
+}

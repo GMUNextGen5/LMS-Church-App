@@ -3,7 +3,7 @@
 import '@fontsource-variable/inter';
 import './assets/styles/tailwind.css';
 import './assets/styles/login-shell.css';
-import { canAccessMainTab } from './core/tab-access';
+import { resolveTabSwitchTarget } from './core/tab-access';
 import { reportClientFault } from './core/client-errors';
 import { isFirebasePermissionDenied } from './core/firestore-errors';
 import {
@@ -308,6 +308,15 @@ function renderRoleBasedBottomNav(role: UserRole | null): void {
     return;
   }
 
+  const studentCompactNav = role === 'student' && items.length >= 5;
+  slot.className = [
+    'flex items-stretch max-w-lg mx-auto',
+    studentCompactNav
+      ? 'no-scrollbar overflow-x-auto overflow-y-hidden justify-start gap-1 px-2 snap-x snap-mandatory'
+      : 'justify-around px-2',
+    'pt-2 pb-safe min-h-[56px]',
+  ].join(' ');
+
   const win = window as unknown as { switchToTab?: (t: string) => void };
   let activeTab = getActiveMainTabFromDom();
   if (!items.some((i) => i.tab === activeTab)) {
@@ -331,8 +340,10 @@ function renderRoleBasedBottomNav(role: UserRole | null): void {
     btn.className = [
       'lms-mobile-nav-btn',
       'flex flex-col items-center justify-center gap-1',
-      'flex-1 min-h-[48px] min-w-[48px]',
-      'rounded-2xl px-2 py-2 transition-colors touch-manipulation',
+      studentCompactNav
+        ? 'snap-start flex-none min-h-[48px] w-[4.5rem] min-w-[4.5rem] shrink-0 px-1 py-2'
+        : 'flex-1 min-h-[48px] min-w-[48px] px-2 py-2',
+      'rounded-2xl transition-colors touch-manipulation',
       ...(on ? LMS_MOBILE_NAV_ACTIVE_CLASSES : LMS_MOBILE_NAV_INACTIVE_CLASSES),
     ].join(' ');
     btn.setAttribute('data-tab', item.tab);
@@ -519,12 +530,11 @@ function installRoleGuardedSwitchToTab(): void {
   w.__lmsSwitchToTabWrapped = true;
   w.switchToTab = (tabName: string) => {
     const role = getCurrentUser()?.role ?? null;
-    if (!canAccessMainTab(tabName, role)) {
+    const target = resolveTabSwitchTarget(tabName, role);
+    if (target !== tabName) {
       showAppToast('You do not have access to that area.', 'error');
-      inner('dashboard');
-      return;
     }
-    inner(tabName);
+    inner(target);
   };
 }
 
@@ -802,6 +812,26 @@ async function init(): Promise<void> {
       await Promise.all([loadRegisteredTeachers(), populateTeacherAccountDropdown()]);
     } else if (tab === 'registration') {
       await Promise.all([loadRegisteredStudents(), populateStudentAccountDropdown()]);
+    } else if (tab === 'grades') {
+      const r = getCurrentUserRole();
+      if (r === 'teacher' || r === 'admin') {
+        const sel = document.getElementById('student-select') as HTMLSelectElement | null;
+        const id = sel?.value?.trim() ?? '';
+        if (!id) {
+          if (gradesUnsubscribe) {
+            gradesUnsubscribe();
+            gradesUnsubscribe = null;
+          }
+          currentGrades = [];
+          selectedStudentId = null;
+          document.getElementById('pdf-report-section')?.classList.add('hide');
+          displayGrades([]);
+        } else {
+          selectedStudentId = id;
+          document.getElementById('pdf-report-section')?.classList.remove('hide');
+          await loadStudentGrades(id);
+        }
+      }
     }
   });
 
@@ -969,6 +999,7 @@ async function handleAuthStateChange(user: User | null): Promise<void> {
       if (goLiveBtn) goLiveBtn.remove();
       const headerSearch = document.getElementById('lms-header-search-wrap');
       if (headerSearch) headerSearch.remove();
+      document.getElementById('lms-mobile-staff-search-wrap')?.remove();
     }
 
     invalidateStudentGpaSessionCacheIfUserChanged(user.uid);
@@ -2018,16 +2049,36 @@ function setupAppForms(): void {
   const headerStudentSearch = document.getElementById(
     'lms-header-search-input'
   ) as HTMLInputElement | null;
+  const mobileStaffSearch = document.getElementById(
+    'lms-mobile-staff-search-input'
+  ) as HTMLInputElement | null;
 
-  const syncHeaderToDashboardSearch = (v: string): void => {
+  const mirrorStaffInputToDashboardAndPeer = (v: string, source: HTMLInputElement): void => {
     if (dashboardStudentSearch && document.activeElement !== dashboardStudentSearch) {
       dashboardStudentSearch.value = v;
     }
+    if (
+      headerStudentSearch &&
+      source !== headerStudentSearch &&
+      document.activeElement !== headerStudentSearch
+    ) {
+      headerStudentSearch.value = v;
+    }
+    if (
+      mobileStaffSearch &&
+      source !== mobileStaffSearch &&
+      document.activeElement !== mobileStaffSearch
+    ) {
+      mobileStaffSearch.value = v;
+    }
   };
 
-  const syncDashboardToHeaderSearch = (v: string): void => {
+  const syncDashboardToStaffSearchInputs = (v: string): void => {
     if (headerStudentSearch && document.activeElement !== headerStudentSearch) {
       headerStudentSearch.value = v;
+    }
+    if (mobileStaffSearch && document.activeElement !== mobileStaffSearch) {
+      mobileStaffSearch.value = v;
     }
   };
 
@@ -2045,28 +2096,34 @@ function setupAppForms(): void {
     dashboardStudentSearch.addEventListener('input', (e) => {
       if (e.target !== dashboardStudentSearch) return;
       const raw = (e.target as HTMLInputElement).value;
-      syncDashboardToHeaderSearch(raw);
+      syncDashboardToStaffSearchInputs(raw);
       doSearch(raw.toLowerCase().trim());
     });
   }
 
-  if (headerStudentSearch && dashboardStudentSelect) {
-    const doHeaderSearch = debounce((searchTerm: string) => {
-      filterStudentSelectOptions(dashboardStudentSelect, searchTerm, dashboardFilterEmptyEl);
-      const visibleOptions = Array.from(dashboardStudentSelect.querySelectorAll('option')).filter(
+  if (dashboardStudentSelect) {
+    const dashSel = dashboardStudentSelect;
+    const doStaffBarSearch = debounce((searchTerm: string) => {
+      filterStudentSelectOptions(dashSel, searchTerm, dashboardFilterEmptyEl);
+      const visibleOptions = Array.from(dashSel.querySelectorAll('option')).filter(
         (opt) => opt.value !== '' && opt.style.display !== 'none'
       );
       if (visibleOptions.length === 1 && searchTerm) {
-        dashboardStudentSelect.value = visibleOptions[0].value;
-        dashboardStudentSelect.dispatchEvent(new Event('change'));
+        dashSel.value = visibleOptions[0].value;
+        dashSel.dispatchEvent(new Event('change'));
       }
     }, LMS_SEARCH_DEBOUNCE_MS);
-    headerStudentSearch.addEventListener('input', (e) => {
-      if (e.target !== headerStudentSearch) return;
-      const raw = (e.target as HTMLInputElement).value;
-      syncHeaderToDashboardSearch(raw);
-      doHeaderSearch(raw.toLowerCase().trim());
-    });
+    const wireStaffSearchInput = (input: HTMLInputElement | null): void => {
+      if (!input) return;
+      input.addEventListener('input', (e) => {
+        if (e.target !== input) return;
+        const raw = (e.target as HTMLInputElement).value;
+        mirrorStaffInputToDashboardAndPeer(raw, input);
+        doStaffBarSearch(raw.toLowerCase().trim());
+      });
+    };
+    wireStaffSearchInput(headerStudentSearch);
+    wireStaffSearchInput(mobileStaffSearch);
   }
 
   if (clearStudentSelection) {
@@ -2078,6 +2135,7 @@ function setupAppForms(): void {
       }
       if (dashboardStudentSearch) dashboardStudentSearch.value = '';
       if (headerStudentSearch) headerStudentSearch.value = '';
+      if (mobileStaffSearch) mobileStaffSearch.value = '';
     });
   }
 

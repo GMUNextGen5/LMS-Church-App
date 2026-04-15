@@ -4132,6 +4132,12 @@ body.modal-scroll-lock {
   box-shadow: 0 0 0 2px rgba(3, 105, 161, 0.2);
 }
 
+#lms-mobile-staff-search-wrap .lms-mobile-staff-search-inner {
+  max-width: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .lms-go-live-btn {
   border: 1px solid rgba(159, 255, 242, 0.45);
   color: var(--lms-primary, #9ffff2);
