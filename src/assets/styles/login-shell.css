@@ -1935,11 +1935,12 @@ body {
     gap: 0.5rem;
   }
   #attendance-class-metrics-row .lms-att-stat-card {
-    padding: 0.75rem;
+    padding: 0.625rem 0.75rem;
   }
   #attendance-class-metrics-row .lms-att-stat-icon {
     width: 2rem;
     height: 2rem;
+    border-radius: 0.5rem;
   }
   #attendance-class-metrics-row .lms-att-stat-icon svg {
     width: 1rem;
@@ -1958,6 +1959,10 @@ body {
     flex: 1;
     min-width: 0;
     width: auto;
+  }
+  #attendance-date-container {
+    padding: 0.75rem;
+    border-radius: 0.75rem;
   }
 }
 @media (max-width: 380px) {
