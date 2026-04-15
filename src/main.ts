@@ -34,6 +34,7 @@ import {
   signUp,
   signIn,
   logout,
+  resetPassword,
   userLegalAcceptanceIncomplete,
   getCurrentUser,
   reloadCurrentUserFromFirestore,
@@ -1082,6 +1083,32 @@ function setupAuthForms(): void {
       if (loginSubmit) loginSubmit.disabled = false;
     }
   });
+
+  const forgotBtn = document.getElementById('forgot-password-btn');
+  if (forgotBtn) {
+    forgotBtn.addEventListener('click', async () => {
+      clearError(loginError);
+      const emailInput = lf.querySelector<HTMLInputElement>('input[name="email"]');
+      const email = emailInput?.value?.trim() ?? '';
+      if (!email) {
+        showError(loginError, 'Enter your email address above, then click Forgot Password.');
+        emailInput?.focus();
+        return;
+      }
+      forgotBtn.setAttribute('disabled', '');
+      const result = await resetPassword(email);
+      forgotBtn.removeAttribute('disabled');
+      if (result.ok) {
+        const successEl = document.getElementById('login-success');
+        if (successEl) {
+          successEl.textContent = result.message;
+          successEl.classList.remove('hide');
+        }
+      } else {
+        showError(loginError, result.message);
+      }
+    });
+  }
 
   sf.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -3616,7 +3643,7 @@ function updateStudentMobileGpaBentoFromMetrics(gpa: number | null, grades: Grad
 
   const wrap = document.createElement('div');
   wrap.className =
-    'min-h-[160px] rounded-2xl border border-surface-default bg-surface-container p-5 shadow-lg shadow-slate-200/50 dark:shadow-black/20';
+    'min-h-[160px] rounded-2xl border border-surface-default bg-surface-container p-5 shadow-lg shadow-slate-200/50 dark:shadow-black/20 transition-all duration-200 hover:shadow-xl hover:shadow-slate-300/40 dark:hover:shadow-black/25 hover:-translate-y-0.5';
 
   const top = document.createElement('div');
   top.className = 'flex flex-wrap items-start justify-between gap-3 mb-4';
@@ -3704,7 +3731,7 @@ function buildAdminInstitutionalHtml(
       ? `<p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-3">DSKM LMS</p><p class="text-sm text-on-surface-muted max-w-xl mb-6">Welcome to your first day — add learners under Registration and publish classes so enrollment and GPA insights can grow here.</p>`
       : '';
   const bento =
-    'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem]';
+    'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem] transition-all duration-200 hover:shadow-md hover:shadow-slate-300/40 dark:hover:shadow-black/20 hover:-translate-y-0.5';
   return `${firstDayNote}<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 <div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">Total enrollment</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${snapshot.enrollment}</p><p class="text-xs text-on-surface-muted mt-3">Active learner profiles</p></div>
 <div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">Grade average</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${escapeHtmlText(snapshot.systemAvg)}</p><p class="text-xs text-on-surface-muted mt-3">${countNote}</p></div>
@@ -3739,7 +3766,7 @@ function buildTeacherInstitutionalHtml(
           })
           .join('');
   const bento =
-    'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem]';
+    'rounded-2xl border-surface-default bg-surface-container p-6 shadow-sm shadow-slate-200/30 dark:shadow-none min-h-[7.5rem] transition-all duration-200 hover:shadow-md hover:shadow-slate-300/40 dark:hover:shadow-black/20 hover:-translate-y-0.5';
   return `${firstDayNote}<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 <div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('book')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">My classes</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${snapshot.myClasses}</p><p class="text-xs text-on-surface-muted mt-3">Courses you instruct</p></div>
 <div class="${bento}"><div class="flex items-start justify-between gap-2 mb-4"><div class="p-2.5 rounded-xl bg-orange-500/15">${adminKpiSvg('chart')}</div></div><p class="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-on-surface-muted">Grading queue</p><p class="text-4xl font-extrabold text-on-surface font-display tabular-nums mt-1.5 leading-none">${snapshot.gradingQueue}</p><p class="text-xs text-on-surface-muted mt-3">Submissions awaiting your review</p></div>
@@ -3801,7 +3828,7 @@ function buildAdminMobileDashboardHtml(
 <span class="text-primary-400 dark:text-primary-400 shrink-0" aria-hidden="true">›</span>
 </button>
 </div>
-<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none">
+<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-4 shadow-sm shadow-slate-200/25 dark:shadow-none transition-all duration-200 hover:shadow-md hover:shadow-slate-300/40 dark:hover:shadow-black/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm">
 <div class="flex items-start justify-between gap-2">
 <div class="p-2.5 rounded-xl bg-primary-500/15">${adminKpiSvg('users')}</div>
 </div>
@@ -3809,7 +3836,7 @@ function buildAdminMobileDashboardHtml(
 <p class="text-3xl font-bold text-on-surface font-display tabular-nums">${snapshot.enrollment}</p>
 <p class="text-xs text-on-surface-muted">Active learner profiles</p>
 </div>
-<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-3 shadow-sm shadow-slate-200/25 dark:shadow-none">
+<div class="rounded-2xl border-surface-default bg-surface-container p-5 space-y-3 shadow-sm shadow-slate-200/25 dark:shadow-none transition-all duration-200 hover:shadow-md hover:shadow-slate-300/40 dark:hover:shadow-black/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm">
 <div class="flex items-start justify-between gap-2">
 <div class="p-2.5 rounded-xl bg-secondary-500/15">${adminKpiSvg('chart')}</div>
 </div>
@@ -3876,12 +3903,12 @@ function buildTeacherMobileDashboardHtml(
 <p class="text-sm text-on-surface-muted mt-1">Classes, grading, and latest submissions.</p>
 </div>
 <div class="grid grid-cols-2 gap-3" role="group" aria-label="Class and grading summary">
-<div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
+<div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none transition-all duration-200 hover:shadow-md hover:shadow-slate-300/40 dark:hover:shadow-black/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm">
 <div class="p-2 w-fit rounded-xl bg-violet-100 text-violet-900 dark:bg-violet-500/15 dark:text-violet-300 mb-2">${adminKpiSvg('book')}</div>
 <p class="text-2xl font-bold text-on-surface font-display tabular-nums">${snapshot.myClasses}</p>
 <p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">My classes</p>
 </div>
-<div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none">
+<div class="rounded-2xl border-surface-default bg-surface-container p-4 shadow-sm shadow-slate-200/20 dark:shadow-none transition-all duration-200 hover:shadow-md hover:shadow-slate-300/40 dark:hover:shadow-black/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm">
 <div class="p-2 w-fit rounded-xl bg-primary-100 text-primary-900 dark:bg-teal-500/15 dark:text-teal-300 mb-2">${adminKpiSvg('chart')}</div>
 <p class="text-2xl font-bold text-on-surface dark:text-primary-200 font-display tabular-nums">${snapshot.gradingQueue}</p>
 <p class="text-[0.6rem] uppercase tracking-wide text-on-surface-subtle mt-1">Grading queue</p>
@@ -4399,7 +4426,7 @@ async function loadRecentActivity(): Promise<void> {
     reportClientFault(err);
     renderTemplate(
       recentActivityEl,
-      `<div class="card-blur progress-bar-glow rounded-xl text-on-surface-muted text-sm text-center">Recent activity is unavailable right now.</div>`
+      `<div class="card-blur progress-bar-glow rounded-xl text-on-surface-muted text-sm text-center p-5">Recent activity is unavailable right now.</div>`
     );
     showAppToast(formatErrorForUserToast(err, 'Could not load recent activity.'), 'error');
   }

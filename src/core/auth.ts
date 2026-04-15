@@ -6,6 +6,7 @@ import {
   signOut,
   onAuthStateChanged,
   deleteUser,
+  sendPasswordResetEmail,
   doc,
   getDoc,
   getDocs,
@@ -708,6 +709,26 @@ export async function logout(): Promise<void> {
     if (typeof window !== 'undefined') {
       window.location.reload();
     }
+  }
+}
+
+/** Sends a Firebase password-reset email. Returns a user-facing success/error message. */
+export async function resetPassword(email: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { ok: true, message: 'Password reset email sent. Check your inbox.' };
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code ?? '';
+    if (code === 'auth/user-not-found') {
+      return { ok: true, message: 'If an account exists for this email, a reset link has been sent.' };
+    }
+    if (code === 'auth/too-many-requests') {
+      return { ok: false, message: 'Too many attempts. Please try again later.' };
+    }
+    if (code === 'auth/invalid-email') {
+      return { ok: false, message: 'Please enter a valid email address.' };
+    }
+    return { ok: false, message: 'Could not send reset email. Please try again.' };
   }
 }
 

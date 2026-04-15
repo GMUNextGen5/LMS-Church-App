@@ -13,6 +13,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
+  sendPasswordResetEmail,
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -115,6 +116,7 @@ export {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
+  sendPasswordResetEmail,
   doc,
   getDoc,
   setDoc,

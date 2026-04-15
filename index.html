@@ -114,422 +114,351 @@
     <a href="#login-form" class="skip-link">Skip to login form</a>
 
     <div id="auth-container" role="main" aria-label="Authentication">
-      <div class="auth-theme-toggle">
-        <div
-          class="lms-theme-switch lms-theme-switch--compact"
-          data-lms-theme-switch
-          role="group"
-          aria-label="Color theme"
-        >
-          <button
-            type="button"
-            class="lms-theme-seg"
-            data-theme-pref="light"
-            aria-label="Light theme"
-            title="Light"
-          >
-            <svg
-              class="lms-theme-seg-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="4"></circle>
-              <path
-                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
-              ></path>
-            </svg>
-          </button>
-          <button
-            type="button"
-            class="lms-theme-seg"
-            data-theme-pref="system"
-            aria-label="Match system theme"
-            title="System"
-          >
-            <svg
-              class="lms-theme-seg-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-          </button>
-          <button
-            type="button"
-            class="lms-theme-seg"
-            data-theme-pref="dark"
-            aria-label="Dark theme"
-            title="Dark"
-          >
-            <svg
-              class="lms-theme-seg-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-          </button>
-        </div>
+
+      <!-- Auth Theme Toggle (Fixed — Top Right) -->
+      <div class="fixed top-4 right-4 z-50">
+        <button id="auth-theme-toggle-btn" class="theme-toggle" title="Toggle dark/light mode"
+          aria-label="Toggle theme">
+          <svg class="toggle-sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+          <svg class="toggle-moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
       </div>
 
-      <div class="pro-badge">Next Generation Learning</div>
-
-      <div class="ng5-logo-container">
-        <div class="ng5-logo-glow"></div>
-        <div class="ng5-logo-ring"></div>
-        <img
-          src="/ng5-logo.png"
-          alt="DSKM Learning Management System"
-          class="ng5-logo"
-          draggable="false"
-        />
+      <!-- Animated background orbs -->
+      <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;">
+        <div class="auth-orb orb-1"></div>
+        <div class="auth-orb orb-2"></div>
+        <div class="auth-orb orb-3"></div>
+        <div class="auth-orb orb-4"></div>
       </div>
 
-      <h1 class="hero-title">DSKM LMS</h1>
-      <p class="hero-subtitle" id="typewriter-subtitle"></p>
+      <!-- Center column -->
+      <div class="auth-center">
 
-      <div class="auth-card">
-        <div class="auth-tabs">
-          <button id="login-tab-btn" class="tab-btn active">Sign in</button>
-          <button id="signup-tab-btn" class="tab-btn">Create account</button>
+        <!-- Brand / Logo -->
+        <div class="auth-brand">
+          <div class="auth-logo-wrap">
+            <img src="/ng5-logo.png" alt="DSKM Learning Management System" loading="lazy">
+          </div>
+          <h1>DSKM LMS</h1>
+          <p>Learning Management Platform</p>
         </div>
 
-        <div id="login-form-container">
-          <form
-            id="login-form"
-            method="post"
-            action="#"
-            onsubmit="
-              event.preventDefault();
-              return false;
-            "
-            aria-labelledby="login-form-title"
-          >
-            <h2 id="login-form-title" class="sr-only">Sign in to your account</h2>
-            <div class="input-group">
-              <label for="login-email" class="auth-form-label text-slate-900 dark:text-slate-300"
-                >Email address</label
-              >
-              <div class="input-wrapper">
-                <input
-                  type="email"
-                  id="login-email"
-                  name="email"
-                  required
-                  placeholder="name@example.com"
-                  autocomplete="email"
-                  aria-describedby="login-email-desc"
-                />
-                <span id="login-email-desc" class="sr-only">Enter your email address</span>
-                <svg
-                  class="input-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                  ></path>
-                  <polyline points="22,6 12,13 2,6"></polyline>
-                </svg>
-              </div>
-            </div>
-            <div class="input-group">
-              <label for="login-password" class="auth-form-label text-slate-900 dark:text-slate-300"
-                >Password</label
-              >
-              <div class="input-wrapper">
-                <input
-                  type="password"
-                  id="login-password"
-                  name="password"
-                  required
-                  placeholder="Enter your password"
-                  autocomplete="current-password"
-                  aria-describedby="login-password-desc"
-                />
-                <span id="login-password-desc" class="sr-only">Enter your password</span>
-                <svg
-                  class="input-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-              </div>
-            </div>
-            <div id="login-error" class="error-message hide" role="alert" aria-live="polite"></div>
-            <button type="submit" class="btn-primary" aria-label="Sign in to your account">
-              <span>Sign in</span>
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                class="ml-2 shrink-0"
-                aria-hidden="true"
-              >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </button>
-          </form>
-          <div class="divider">or</div>
-          <p class="text-center text-sm text-muted">
-            Don't have an account?
-            <a
-              href="#"
-              class="link"
-              onclick="
-                document.getElementById('signup-tab-btn').click();
-                return false;
-              "
-              >Create one</a
-            >
-          </p>
-        </div>
+        <!-- Glass Auth Card -->
+        <div class="auth-glass-card w-full">
 
-        <div id="signup-form-container" class="hide">
-          <form
-            id="signup-form"
-            method="post"
-            action="#"
-            onsubmit="
-              event.preventDefault();
-              return false;
-            "
-          >
-            <div class="input-group">
-              <label class="auth-form-label text-slate-900 dark:text-slate-300"
-                >Email address</label
-              >
-              <div class="input-wrapper">
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  placeholder="name@example.com"
-                  autocomplete="email"
-                />
-                <svg
-                  class="input-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                  ></path>
-                  <polyline points="22,6 12,13 2,6"></polyline>
-                </svg>
-              </div>
-            </div>
-            <div class="input-group">
-              <label
-                class="auth-form-label text-slate-900 dark:text-slate-300"
-                for="signup-password"
-                >Password</label
-              >
-              <div class="input-wrapper">
-                <input
-                  type="password"
-                  id="signup-password"
-                  name="password"
-                  required
-                  minlength="6"
-                  placeholder="Create a password"
-                  autocomplete="new-password"
-                  aria-describedby="signup-password-strength-label signup-password-strength-live"
-                />
-                <svg
-                  class="input-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-              </div>
-              <span
-                id="signup-password-strength-live"
-                class="sr-only"
-                aria-live="polite"
-                aria-atomic="true"
-              ></span>
-              <div id="signup-password-strength-wrap" class="mt-2 min-h-[2rem] w-full min-w-0">
-                <div
-                  id="signup-password-strength-inner"
-                  class="invisible flex min-h-[2rem] min-w-0 items-center gap-3"
-                  aria-hidden="true"
-                >
-                  <div
-                    id="signup-password-strength-bar"
-                    class="flex min-w-0 flex-1 gap-1 rounded-[14px] bg-slate-300/40 p-1 dark:bg-slate-600/35"
-                    role="progressbar"
-                    aria-label="Password strength"
-                    aria-valuemin="0"
-                    aria-valuemax="4"
-                    aria-valuenow="0"
-                    aria-valuetext="Password strength: empty"
-                  >
-                    <div
-                      class="signup-pw-seg h-2 min-w-0 flex-1 rounded-[10px] bg-slate-400/35 transition-colors duration-150 ease-out dark:bg-slate-500/40"
-                      aria-hidden="true"
-                    ></div>
-                    <div
-                      class="signup-pw-seg h-2 min-w-0 flex-1 rounded-[10px] bg-slate-400/35 transition-colors duration-150 ease-out dark:bg-slate-500/40"
-                      aria-hidden="true"
-                    ></div>
-                    <div
-                      class="signup-pw-seg h-2 min-w-0 flex-1 rounded-[10px] bg-slate-400/35 transition-colors duration-150 ease-out dark:bg-slate-500/40"
-                      aria-hidden="true"
-                    ></div>
-                    <div
-                      class="signup-pw-seg h-2 min-w-0 flex-1 rounded-[10px] bg-slate-400/35 transition-colors duration-150 ease-out dark:bg-slate-500/40"
-                      aria-hidden="true"
-                    ></div>
+          <!-- Tab bar -->
+          <div class="auth-tabs-glass" role="tablist">
+            <button id="login-tab-btn" class="auth-tab-glass-btn tab-active" role="tab" aria-selected="true">Login</button>
+            <button id="signup-tab-btn" class="auth-tab-glass-btn" role="tab" aria-selected="false">Sign Up</button>
+          </div>
+
+          <!-- Forms wrapper -->
+          <div id="auth-forms-wrapper">
+
+            <!-- ——— Login Form ——— -->
+            <div id="login-form-container" class="auth-form-slide">
+              <div class="auth-form-body">
+                <form id="login-form" novalidate>
+
+                  <!-- Email -->
+                  <div class="auth-glass-field">
+                    <label class="auth-glass-label" for="login-email">Email Address</label>
+                    <div class="auth-input-wrap">
+                      <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                      <input type="email" id="login-email" name="email" required
+                        placeholder="your@email.com"
+                        class="auth-glass-input focus:outline-none"
+                        autocomplete="email">
+                    </div>
                   </div>
-                  <span
-                    id="signup-password-strength-label"
-                    class="shrink-0 text-xs font-medium tabular-nums leading-none text-slate-600 dark:text-slate-400"
-                  ></span>
-                </div>
-              </div>
-            </div>
-            <div class="input-group">
-              <label class="auth-form-label text-slate-900 dark:text-slate-300"
-                >Confirm Password</label
-              >
-              <div class="input-wrapper">
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  required
-                  minlength="6"
-                  placeholder="Confirm your password"
-                  autocomplete="new-password"
-                />
-                <svg
-                  class="input-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                </svg>
-              </div>
-            </div>
-            <div id="signup-legal-field" class="mt-2 mb-2 w-full min-w-0">
-              <label class="flex items-start gap-3 cursor-pointer text-left">
-                <input
-                  type="checkbox"
-                  id="signup-accept-legal"
-                  name="acceptTermsPrivacy"
-                  class="signup-legal-checkbox mt-1 h-4 w-4 shrink-0 rounded border-slate-400 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0 focus:ring-offset-transparent bg-white dark:bg-slate-900 dark:border-slate-500"
-                  aria-required="true"
-                />
-                <span
-                  class="text-sm leading-relaxed text-slate-700 dark:text-slate-300 flex-1 min-w-0"
-                >
-                  I agree to the
-                  <button
-                    type="button"
-                    class="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                    data-open-legal="terms"
-                  >
-                    Terms of Service
+
+                  <!-- Password -->
+                  <div class="auth-glass-field">
+                    <label class="auth-glass-label" for="login-password">Password</label>
+                    <div class="auth-input-wrap">
+                      <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                      <input type="password" id="login-password" name="password" required
+                        placeholder="Your password"
+                        class="auth-glass-input has-toggle focus:outline-none"
+                        autocomplete="current-password">
+                      <button type="button" class="auth-pw-toggle" id="login-pw-toggle"
+                        aria-label="Toggle password visibility">
+                        <svg id="login-eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Remember me + Forgot password -->
+                  <div class="auth-form-row">
+                    <label class="auth-checkbox-label">
+                      <input type="checkbox" id="remember-me" name="remember">
+                      Remember Me
+                    </label>
+                    <button type="button" id="forgot-password-btn" class="auth-forgot-btn">
+                      Forgot Password?
+                    </button>
+                  </div>
+
+                  <!-- Messages -->
+                  <div id="login-error" class="auth-msg auth-msg-error hide" role="alert" aria-live="polite"></div>
+                  <div id="login-success" class="auth-msg auth-msg-success hide"></div>
+
+                  <!-- Submit -->
+                  <button type="submit" class="auth-btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                      <polyline points="10 17 15 12 10 7"/>
+                      <line x1="15" y1="12" x2="3" y2="12"/>
+                    </svg>
+                    Sign In
                   </button>
-                  and
-                  <button
-                    type="button"
-                    class="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                    data-open-legal="privacy"
-                  >
-                    Privacy Policy</button
-                  >.
-                </span>
-              </label>
-            </div>
-            <div id="signup-error" class="error-message hide"></div>
-            <button type="submit" class="btn-primary">
-              <span>Create account</span>
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                class="ml-2 shrink-0"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="8.5" cy="7" r="4"></circle>
-                <line x1="20" y1="8" x2="20" y2="14"></line>
-                <line x1="23" y1="11" x2="17" y2="11"></line>
-              </svg>
-            </button>
-          </form>
-          <div class="divider">or</div>
-          <p class="text-center text-sm text-muted">
-            Already have an account?
-            <a
-              href="#"
-              class="link"
-              onclick="
-                document.getElementById('login-tab-btn').click();
-                return false;
-              "
-              >Sign in</a
-            >
-          </p>
+
+                </form>
+              </div>
+
+              <!-- Security bar -->
+              <div class="auth-security-bar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <p><strong>Military-Grade AES-256 Encryption</strong> &middot; End-to-End Protected &middot; Zero Data Retention</p>
+              </div>
+            </div><!-- /login-form-container -->
+
+            <!-- ——— Sign Up Form ——— -->
+            <div id="signup-form-container" class="auth-form-slide hide">
+              <div class="auth-form-body">
+                <form id="signup-form" novalidate>
+
+                  <!-- First & Last Name -->
+                  <div class="auth-name-grid" style="margin-bottom:1.25rem;">
+                    <div>
+                      <label class="auth-glass-label" for="signup-first-name">First Name</label>
+                      <input type="text" id="signup-first-name" name="firstName" required
+                        placeholder="John"
+                        class="auth-glass-input no-icon focus:outline-none"
+                        autocomplete="given-name">
+                    </div>
+                    <div>
+                      <label class="auth-glass-label" for="signup-last-name">Last Name</label>
+                      <input type="text" id="signup-last-name" name="lastName" required
+                        placeholder="Doe"
+                        class="auth-glass-input no-icon focus:outline-none"
+                        autocomplete="family-name">
+                    </div>
+                  </div>
+
+                  <!-- Email -->
+                  <div class="auth-glass-field">
+                    <label class="auth-glass-label" for="signup-email">Email Address</label>
+                    <div class="auth-input-wrap">
+                      <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                      <input type="email" id="signup-email" name="email" required
+                        placeholder="your@email.com"
+                        class="auth-glass-input focus:outline-none"
+                        autocomplete="email">
+                    </div>
+                  </div>
+
+                  <!-- Password + strength meter -->
+                  <div class="auth-glass-field">
+                    <label class="auth-glass-label" for="signup-password">Password</label>
+                    <div class="auth-input-wrap">
+                      <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                      <input type="password" id="signup-password" name="password" required minlength="6"
+                        placeholder="Create a strong password"
+                        class="auth-glass-input has-toggle focus:outline-none"
+                        autocomplete="new-password"
+                        aria-describedby="signup-password-strength-label signup-password-strength-live">
+                      <button type="button" class="auth-pw-toggle" id="signup-pw-toggle"
+                        aria-label="Toggle password visibility">
+                        <svg id="signup-eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <!-- Visual strength meter (user's design) -->
+                    <div id="auth-strength-wrap" style="display:none; margin-top:0.5rem;">
+                      <div class="auth-strength-label">
+                        <span>Password strength</span>
+                        <span id="auth-strength-text"></span>
+                      </div>
+                      <div class="auth-strength-track">
+                        <div class="auth-strength-fill" id="auth-strength-fill"></div>
+                      </div>
+                      <div class="auth-pw-reqs" id="auth-pw-reqs">
+                        <div class="auth-pw-req" id="req-length"><div class="auth-pw-req-dot"></div>At least 8 characters</div>
+                        <div class="auth-pw-req" id="req-upper"><div class="auth-pw-req-dot"></div>One uppercase letter</div>
+                        <div class="auth-pw-req" id="req-lower"><div class="auth-pw-req-dot"></div>One lowercase letter</div>
+                        <div class="auth-pw-req" id="req-number"><div class="auth-pw-req-dot"></div>One number</div>
+                        <div class="auth-pw-req" id="req-special"><div class="auth-pw-req-dot"></div>One special character</div>
+                      </div>
+                    </div>
+                    <!-- Legacy strength bar (hidden; IDs + .signup-pw-seg for signup-password-strength.ts ARIA) -->
+                    <span id="signup-password-strength-live" class="sr-only" aria-live="polite" aria-atomic="true"></span>
+                    <div id="signup-password-strength-wrap" style="display:none;" aria-hidden="true">
+                      <div id="signup-password-strength-inner" class="invisible">
+                        <div id="signup-password-strength-bar" role="progressbar"
+                          aria-label="Password strength" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0"
+                          aria-valuetext="Password strength: empty">
+                          <div class="signup-pw-seg" aria-hidden="true"></div>
+                          <div class="signup-pw-seg" aria-hidden="true"></div>
+                          <div class="signup-pw-seg" aria-hidden="true"></div>
+                          <div class="signup-pw-seg" aria-hidden="true"></div>
+                        </div>
+                        <span id="signup-password-strength-label"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Confirm Password -->
+                  <div class="auth-glass-field">
+                    <label class="auth-glass-label" for="signup-confirm-password">Confirm Password</label>
+                    <div class="auth-input-wrap">
+                      <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                      <input type="password" id="signup-confirm-password" name="confirmPassword" required minlength="6"
+                        placeholder="Confirm your password"
+                        class="auth-glass-input has-toggle focus:outline-none"
+                        autocomplete="new-password">
+                      <button type="button" class="auth-pw-toggle" id="confirm-pw-toggle"
+                        aria-label="Toggle password visibility">
+                        <svg id="confirm-eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <p class="auth-error-hint hide" id="signup-pw-mismatch">Passwords do not match</p>
+                  </div>
+
+                  <!-- Admin Code -->
+                  <div class="auth-glass-field">
+                    <label class="auth-glass-label" for="admin-code">
+                      Admin Code
+                      <span style="opacity:0.5; font-weight:400;">(Optional)</span>
+                    </label>
+                    <div class="auth-input-wrap">
+                      <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                      </svg>
+                      <input type="password" id="admin-code" name="adminCode"
+                        placeholder="Admin access code"
+                        class="auth-glass-input focus:outline-none"
+                        autocomplete="off">
+                    </div>
+                    <p class="auth-field-hint">Leave blank for a student account</p>
+                  </div>
+
+                  <!-- ADAPTATION #2: Legal acceptance checkbox (required by setupAuthForms) -->
+                  <div id="signup-legal-field" class="mt-2 mb-2 w-full min-w-0">
+                    <label class="flex items-start gap-3 cursor-pointer text-left">
+                      <input
+                        type="checkbox"
+                        id="signup-accept-legal"
+                        name="acceptTermsPrivacy"
+                        class="signup-legal-checkbox mt-1 h-4 w-4 shrink-0 rounded"
+                        aria-required="true"
+                      />
+                      <span class="text-sm leading-relaxed flex-1 min-w-0">
+                        I agree to the
+                        <button type="button" data-open-legal="terms">Terms of Service</button>
+                        and
+                        <button type="button" data-open-legal="privacy">Privacy Policy</button>.
+                      </span>
+                    </label>
+                  </div>
+
+                  <!-- Error message -->
+                  <div id="signup-error" class="auth-msg auth-msg-error hide"></div>
+
+                  <!-- Submit -->
+                  <button type="submit" class="auth-btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="8.5" cy="7" r="4"/>
+                      <line x1="20" y1="8" x2="20" y2="14"/>
+                      <line x1="23" y1="11" x2="17" y2="11"/>
+                    </svg>
+                    Create Account
+                  </button>
+
+                </form>
+              </div>
+            </div><!-- /signup-form-container -->
+
+          </div><!-- /auth-forms-wrapper -->
+        </div><!-- /auth-glass-card -->
+
+        <!-- Footer pill -->
+        <div class="auth-footer-pill" role="contentinfo">
+          <div class="auth-footer-main">
+            <span>&copy; 2026 DSKM LMS</span>
+            <span class="auth-footer-sep">&middot;</span>
+            <a href="#" class="auth-footer-link" data-legal-modal="privacy" role="button">Privacy</a>
+            <span class="auth-footer-sep">&middot;</span>
+            <a href="#" class="auth-footer-link" data-legal-modal="terms" role="button">Terms</a>
+          </div>
+          <div class="auth-footer-sec">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            AES-256 Encrypted &middot; HTTPS Only
+          </div>
+        </div>
+
+      </div><!-- /auth-center -->
+
+      <!-- Login Mascot (hidden visually but kept for TS module animation hooks) -->
+      <div id="login-mascot" class="login-mascot" style="display:none;" aria-hidden="true">
+        <div class="mascot-body">
+          <div class="mascot-ear left"><div class="mascot-ear-inner"></div></div>
+          <div class="mascot-ear right"><div class="mascot-ear-inner"></div></div>
+          <div class="mascot-face">
+            <div class="mascot-brow left"></div>
+            <div class="mascot-brow right"></div>
+            <div class="mascot-eye left"><div class="mascot-pupil"></div></div>
+            <div class="mascot-eye right"><div class="mascot-pupil"></div></div>
+            <div class="mascot-cheek left"></div>
+            <div class="mascot-cheek right"></div>
+            <div class="mascot-nose"></div>
+            <div class="mascot-mouth"><div class="mascot-tongue"></div></div>
+          </div>
+          <div class="mascot-hand left"></div>
+          <div class="mascot-hand right"></div>
         </div>
       </div>
 
-      <div class="auth-footer">
-        <div class="auth-footer-links">
-          <span>© 2026 DSKM LMS</span>
-          <a href="#" class="link" data-legal-modal="privacy" role="button">Privacy</a>
-          <a href="#" class="link" data-legal-modal="terms" role="button">Terms</a>
-        </div>
-      </div>
     </div>
 
     <div id="app-container" class="hide">
@@ -1334,10 +1263,10 @@
                     class="hidden md:block md:col-span-6 min-w-0 min-h-0"
                   >
                     <article
-                      class="card-blur progress-bar-glow relative min-w-0 min-h-0 overflow-x-hidden rounded-2xl card-hover h-full"
+                      class="card-blur progress-bar-glow relative min-w-0 min-h-0 overflow-hidden rounded-2xl card-hover h-full p-6"
                     >
                       <div
-                        class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
+                        class="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
                         aria-hidden="true"
                       ></div>
                       <div class="relative flex items-start justify-between gap-3 mb-5">
@@ -1372,7 +1301,7 @@
                       </div>
                       <div
                         id="student-gpa-metric-root"
-                        class="relative min-h-[140px] overflow-x-hidden overflow-y-visible"
+                        class="relative min-h-[140px]"
                       ></div>
                     </article>
                   </div>
@@ -1382,11 +1311,11 @@
                     class="hidden md:block md:col-span-6 min-w-0 min-h-0"
                   >
                     <article
-                      class="card-blur progress-bar-glow relative min-w-0 min-h-0 overflow-x-hidden rounded-2xl card-hover h-full border border-surface-default"
+                      class="card-blur progress-bar-glow relative min-w-0 min-h-0 overflow-hidden rounded-2xl card-hover h-full p-6 border border-surface-default"
                     >
                       <div
                         id="dashboard-student-upcoming-inner"
-                        class="relative min-h-[140px] overflow-x-hidden overflow-y-visible"
+                        class="relative min-h-[140px]"
                       ></div>
                     </article>
                   </div>
@@ -1420,7 +1349,7 @@
                   Recent academic activity
                 </h3>
                 <div id="recent-activity" class="min-h-[4rem]">
-                  <div class="card-blur progress-bar-glow rounded-xl text-on-surface-muted text-sm">
+                  <div class="card-blur progress-bar-glow rounded-xl text-on-surface-muted text-sm p-5">
                     No recent activity recorded.
                   </div>
                 </div>
@@ -1923,125 +1852,72 @@
 
                 <div
                   id="attendance-class-metrics-row"
-                  class="teacher-only admin-only md:col-span-4 grid grid-cols-2 gap-4 hide order-3 md:order-none"
+                  class="teacher-only admin-only md:col-span-4 grid grid-cols-2 gap-3 hide order-3 md:order-none"
                 >
-                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <p class="text-on-surface-muted text-sm">Total Students</p>
-                        <p
-                          id="roll-call-stat-total"
-                          class="text-2xl font-bold text-on-surface mt-1"
-                        >
-                          0
-                        </p>
-                      </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/15 text-cyan-300">
-                        <svg
-                          class="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4 lms-att-stat-card-enhanced">
+                    <div class="flex items-center gap-3">
+                      <div class="lms-att-stat-icon shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <p class="text-on-surface-muted text-xs font-medium tracking-wide uppercase">Total</p>
+                        <p id="roll-call-stat-total" class="text-xl font-bold text-on-surface leading-tight tabular-nums">0</p>
                       </div>
                     </div>
                   </div>
-                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <p class="text-on-surface-muted text-sm">Present</p>
-                        <p
-                          id="roll-call-stat-present"
-                          class="text-2xl font-bold text-cyan-700 dark:text-cyan-400 mt-1"
-                        >
-                          0
-                        </p>
-                      </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-cyan-500/20 text-cyan-300">
-                        <svg
-                          class="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4 lms-att-stat-card-enhanced">
+                    <div class="flex items-center gap-3">
+                      <div class="lms-att-stat-icon shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <p class="text-on-surface-muted text-xs font-medium tracking-wide uppercase">Present</p>
+                        <p id="roll-call-stat-present" class="text-xl font-bold text-emerald-400 leading-tight tabular-nums">0</p>
                       </div>
                     </div>
                   </div>
-                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <p class="text-on-surface-muted text-sm">Absent</p>
-                        <p id="roll-call-stat-absent" class="text-2xl font-bold text-rose-400 mt-1">
-                          0
-                        </p>
-                      </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-rose-500/20 text-rose-300">
-                        <svg
-                          class="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4 lms-att-stat-card-enhanced">
+                    <div class="flex items-center gap-3">
+                      <div class="lms-att-stat-icon shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-rose-500/15 text-rose-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <p class="text-on-surface-muted text-xs font-medium tracking-wide uppercase">Absent</p>
+                        <p id="roll-call-stat-absent" class="text-xl font-bold text-rose-400 leading-tight tabular-nums">0</p>
                       </div>
                     </div>
                   </div>
-                  <div class="lms-att-stat-card glass-effect rounded-xl p-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <p class="text-on-surface-muted text-sm">Late</p>
-                        <p id="roll-call-stat-late" class="text-2xl font-bold text-amber-400 mt-1">
-                          0
-                        </p>
-                      </div>
-                      <div class="lms-att-stat-icon p-3 rounded-lg bg-amber-500/20 text-amber-300">
-                        <svg
-                          class="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
+                  <div class="lms-att-stat-card glass-effect rounded-xl p-4 lms-att-stat-card-enhanced">
+                    <div class="flex items-center gap-3">
+                      <div class="lms-att-stat-icon shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-amber-500/15 text-amber-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <p class="text-on-surface-muted text-xs font-medium tracking-wide uppercase">Late</p>
+                        <p id="roll-call-stat-late" class="text-xl font-bold text-amber-400 leading-tight tabular-nums">0</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div
-                  class="teacher-only admin-only glass-effect lms-reg-shell p-4 sm:p-6 hide min-w-0 max-w-full md:col-span-4 order-4 md:order-none"
+                  class="teacher-only admin-only glass-effect lms-reg-shell p-4 sm:p-5 hide min-w-0 max-w-full md:col-span-4 order-4 md:order-none rounded-2xl"
                 >
                   <div class="flex items-center justify-between gap-3 min-w-0">
-                    <h3 class="lms-reg-section-title min-w-0">Mark Attendance</h3>
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <div class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-primary-500/15 text-primary-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      </div>
+                      <h3 class="lms-reg-section-title min-w-0 text-base font-bold">Mark Attendance</h3>
+                    </div>
                     <button
                       type="button"
                       id="mark-attendance-mobile-toggle"
@@ -2080,123 +1956,31 @@
                         <label class="lms-form-label">Status</label>
                         <div class="grid grid-cols-2 gap-2 min-w-0">
                           <label class="attendance-status-option min-w-0">
-                            <input
-                              type="radio"
-                              name="status"
-                              value="present"
-                              required
-                              class="hidden peer"
-                            />
-                            <div
-                              class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-green-600 peer-checked:bg-green-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-green-500 dark:peer-checked:bg-green-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
-                            >
-                              <svg
-                                class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-green-600 dark:text-green-400 shrink-0"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                ></path>
-                              </svg>
-                              <span
-                                class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
-                                >Present</span
-                              >
+                            <input type="radio" name="status" value="present" required class="hidden peer"/>
+                            <div class="lms-att-status-tile peer-checked:border-emerald-500 peer-checked:bg-emerald-500/15 peer-checked:shadow-[0_0_12px_rgba(16,185,129,0.15)] hover:border-emerald-500/40">
+                              <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                              <span class="text-on-surface text-xs font-semibold">Present</span>
                             </div>
                           </label>
                           <label class="attendance-status-option min-w-0">
-                            <input
-                              type="radio"
-                              name="status"
-                              value="absent"
-                              required
-                              class="hidden peer"
-                            />
-                            <div
-                              class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-red-600 peer-checked:bg-red-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-red-500 dark:peer-checked:bg-red-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
-                            >
-                              <svg
-                                class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-red-600 dark:text-red-400 shrink-0"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                ></path>
-                              </svg>
-                              <span
-                                class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
-                                >Absent</span
-                              >
+                            <input type="radio" name="status" value="absent" required class="hidden peer"/>
+                            <div class="lms-att-status-tile peer-checked:border-rose-500 peer-checked:bg-rose-500/15 peer-checked:shadow-[0_0_12px_rgba(244,63,94,0.15)] hover:border-rose-500/40">
+                              <svg class="w-5 h-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                              <span class="text-on-surface text-xs font-semibold">Absent</span>
                             </div>
                           </label>
                           <label class="attendance-status-option min-w-0">
-                            <input
-                              type="radio"
-                              name="status"
-                              value="late"
-                              required
-                              class="hidden peer"
-                            />
-                            <div
-                              class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-amber-600 peer-checked:bg-amber-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-yellow-500 dark:peer-checked:bg-yellow-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
-                            >
-                              <svg
-                                class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-amber-600 dark:text-yellow-400 shrink-0"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                ></path>
-                              </svg>
-                              <span
-                                class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
-                                >Late</span
-                              >
+                            <input type="radio" name="status" value="late" required class="hidden peer"/>
+                            <div class="lms-att-status-tile peer-checked:border-amber-500 peer-checked:bg-amber-500/15 peer-checked:shadow-[0_0_12px_rgba(245,158,11,0.15)] hover:border-amber-500/40">
+                              <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                              <span class="text-on-surface text-xs font-semibold">Late</span>
                             </div>
                           </label>
                           <label class="attendance-status-option min-w-0">
-                            <input
-                              type="radio"
-                              name="status"
-                              value="excused"
-                              required
-                              class="hidden peer"
-                            />
-                            <div
-                              class="min-h-[48px] px-2 sm:px-4 py-2 rounded-lg bg-white border-2 border-slate-300 text-center cursor-pointer transition-all peer-checked:border-blue-600 peer-checked:bg-blue-500/15 hover:border-slate-400 dark:bg-dark-800 dark:border-dark-600 dark:peer-checked:border-blue-500 dark:peer-checked:bg-blue-500/20 dark:hover:border-dark-500 flex flex-col items-center justify-center min-w-0"
-                            >
-                              <svg
-                                class="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-0.5 sm:mb-1 text-blue-600 dark:text-blue-400 shrink-0"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                ></path>
-                              </svg>
-                              <span
-                                class="text-slate-900 dark:text-white text-xs sm:text-sm font-semibold leading-tight"
-                                >Excused</span
-                              >
+                            <input type="radio" name="status" value="excused" required class="hidden peer"/>
+                            <div class="lms-att-status-tile peer-checked:border-blue-500 peer-checked:bg-blue-500/15 peer-checked:shadow-[0_0_12px_rgba(59,130,246,0.15)] hover:border-blue-500/40">
+                              <svg class="w-5 h-5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                              <span class="text-on-surface text-xs font-semibold">Excused</span>
                             </div>
                           </label>
                         </div>
@@ -2220,7 +2004,7 @@
                       ></div>
                       <button
                         type="submit"
-                        class="w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-sm sm:text-base font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
+                        class="w-full min-h-[48px] py-3 px-4 bg-primary-500 text-white text-sm sm:text-base font-semibold rounded-xl hover:bg-primary-600 active:scale-[0.98] transition-all"
                       >
                         Mark Attendance
                       </button>
@@ -2235,7 +2019,7 @@
                   >
                     <div
                       id="attendance-date-container"
-                      class="lms-sticky-scroll-safe sticky top-0 z-[25] bg-surface-glass border border-surface-default backdrop-blur-md rounded-2xl p-4 sm:p-6 mb-2 sm:mb-3 shadow-sm dark:shadow-none"
+                      class="lms-sticky-scroll-safe sticky top-0 z-[25] bg-surface-glass/90 border border-surface-default backdrop-blur-xl rounded-2xl p-4 sm:p-5 mb-2 sm:mb-3 shadow-sm dark:shadow-none"
                     >
                       <label class="lms-form-label" for="attendance-date">Session date</label>
                       <div
@@ -2255,32 +2039,34 @@
 
                     <div
                       id="attendance-future-date-notice"
-                      class="hidden lms-empty-state-panel text-center py-8 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none mb-2 sm:mb-3"
+                      class="hidden lms-empty-state-panel text-center py-10 px-4 rounded-2xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none mb-2 sm:mb-3"
                       role="status"
                     >
-                      <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📅</div>
+                      <div class="mb-3 flex items-center justify-center" aria-hidden="true">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                          <svg class="w-6 h-6 text-amber-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                      </div>
                       <p class="text-on-surface font-semibold">No records for this date</p>
-                      <p class="text-on-surface-muted text-sm mt-2 max-w-md mx-auto">
+                      <p class="text-on-surface-muted text-sm mt-2 max-w-md mx-auto leading-relaxed">
                         This day is in the future. Exception records will appear here after sessions
                         are saved.
                       </p>
                     </div>
 
                     <div class="flex flex-col gap-3 sm:gap-4 min-w-0">
-                      <div class="space-y-1.5 sm:space-y-2 min-w-0">
-                        <p
-                          class="text-xs font-bold tracking-widest text-primary-700 dark:text-primary-400"
-                        >
-                          PRESENCE BY EXCEPTION
-                        </p>
-                        <p class="text-sm text-on-surface-muted">
-                          Default is Present. Save only exceptions (A/L/E) for high performance on
-                          large rosters.
-                        </p>
+                      <div class="flex items-start gap-3 rounded-xl bg-primary-500/8 border border-primary-500/15 p-3 sm:p-4 min-w-0">
+                        <div class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-primary-500/15 text-primary-400 mt-0.5">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                          <p class="text-xs font-bold tracking-widest text-primary-700 dark:text-primary-400">PRESENCE BY EXCEPTION</p>
+                          <p class="text-xs sm:text-sm text-on-surface-muted mt-0.5 leading-relaxed">Default is Present. Save only exceptions (A / L / E) for high performance on large rosters.</p>
+                        </div>
                       </div>
 
                       <div
-                        class="flex flex-wrap items-center gap-3"
+                        class="flex flex-wrap items-center gap-3 rounded-2xl bg-surface-glass border border-surface-default p-4 sm:p-5"
                         aria-label="Attendance header controls"
                       >
                         <div class="min-w-0 flex-1">
@@ -2291,7 +2077,7 @@
                           </p>
                           <h4
                             id="attendance-active-class-title"
-                            class="text-lg sm:text-xl font-bold text-on-surface break-words"
+                            class="text-lg sm:text-xl font-bold text-on-surface break-words leading-snug"
                           >
                             All students
                           </h4>
@@ -2339,11 +2125,11 @@
                     </div>
 
                     <div
-                      class="rounded-xl border border-surface-default bg-surface-glass overflow-hidden min-w-0"
+                      class="rounded-2xl border border-surface-default bg-surface-glass overflow-hidden min-w-0"
                     >
                       <div class="max-h-[min(34rem,68dvh)] overflow-y-auto overscroll-contain">
                         <div
-                          class="lms-sticky-scroll-safe sticky top-0 z-20 bg-surface-container/95 backdrop-blur border-b border-surface-default p-4 sm:p-6 space-y-3"
+                          class="lms-sticky-scroll-safe sticky top-0 z-20 bg-surface-container/95 backdrop-blur-xl border-b border-surface-default p-4 sm:p-5 space-y-3"
                         >
                           <div class="min-w-0">
                             <label class="sr-only" for="roll-call-student-search"
@@ -2413,32 +2199,12 @@
 
                         <div class="hidden md:block overflow-x-auto">
                           <table class="w-full min-w-[640px] text-left">
-                            <thead class="bg-surface-container border-b border-surface-default">
+                            <thead class="bg-surface-container/80 border-b border-surface-default">
                               <tr>
-                                <th
-                                  scope="col"
-                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
-                                >
-                                  Student
-                                </th>
-                                <th
-                                  scope="col"
-                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
-                                >
-                                  Student ID
-                                </th>
-                                <th
-                                  scope="col"
-                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider"
-                                >
-                                  Status
-                                </th>
-                                <th
-                                  scope="col"
-                                  class="py-3 px-3 text-xs font-bold text-slate-400 tracking-wider text-right"
-                                >
-                                  Actions
-                                </th>
+                                <th scope="col" class="py-3 px-4 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase">Student</th>
+                                <th scope="col" class="py-3 px-4 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase">Student ID</th>
+                                <th scope="col" class="py-3 px-4 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase">Status</th>
+                                <th scope="col" class="py-3 px-4 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase text-right">Actions</th>
                               </tr>
                             </thead>
                             <tbody id="attendance-roster-table-body"></tbody>
@@ -2455,25 +2221,25 @@
                 </div>
 
                 <div
-                  class="md:col-span-12 glass-effect rounded-xl md:rounded-2xl p-4 sm:p-6 min-w-0 max-w-full overflow-hidden order-5 md:order-none"
+                  class="md:col-span-12 glass-effect rounded-2xl p-4 sm:p-6 min-w-0 max-w-full overflow-hidden order-5 md:order-none"
                 >
                   <div
-                    class="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 min-w-0"
+                    class="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5 min-w-0"
                   >
-                    <h3 class="text-lg sm:text-xl font-bold text-on-surface min-w-0">
-                      Attendance History
-                    </h3>
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <div class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-primary-500/15 text-primary-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      </div>
+                      <h3 class="text-lg sm:text-xl font-bold text-on-surface min-w-0">
+                        Attendance History
+                      </h3>
+                    </div>
                     <button
                       id="refresh-attendance-btn"
-                      class="shrink-0 min-h-11 px-3 sm:px-4 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-700 dark:text-primary-400 text-sm transition-all duration-200 flex items-center gap-2"
+                      class="shrink-0 min-h-11 px-4 py-2 rounded-xl border border-surface-default bg-surface-glass text-on-surface text-sm font-semibold hover:bg-surface-glass/80 transition-all flex items-center gap-2"
                     >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                        ></path>
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                       </svg>
                       Refresh
                     </button>
@@ -2481,37 +2247,18 @@
 
                   <div class="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 touch-pan-x min-w-0">
                     <table class="w-full min-w-[280px] text-xs sm:text-sm">
-                      <caption class="sr-only">
-                        Attendance history. Select a student to load dated entries.
-                      </caption>
+                      <caption class="sr-only">Attendance history. Select a student to load dated entries.</caption>
                       <thead>
-                        <tr class="text-left border-b border-dark-700">
-                          <th
-                            scope="col"
-                            class="pb-2 sm:pb-3 pr-2 text-dark-300 font-semibold whitespace-nowrap"
-                          >
-                            Date
-                          </th>
-                          <th scope="col" class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold">
-                            Student
-                          </th>
-                          <th
-                            scope="col"
-                            class="pb-2 sm:pb-3 px-2 text-dark-300 font-semibold text-center"
-                          >
-                            Status
-                          </th>
-                          <th
-                            scope="col"
-                            class="pb-2 sm:pb-3 pl-2 text-dark-300 font-semibold min-w-[4rem]"
-                          >
-                            Notes
-                          </th>
+                        <tr class="text-left border-b border-surface-default">
+                          <th scope="col" class="pb-3 pr-2 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase whitespace-nowrap">Date</th>
+                          <th scope="col" class="pb-3 px-2 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase">Student</th>
+                          <th scope="col" class="pb-3 px-2 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase text-center">Status</th>
+                          <th scope="col" class="pb-3 pl-2 text-[0.65rem] font-bold text-on-surface-muted tracking-widest uppercase min-w-[4rem]">Notes</th>
                         </tr>
                       </thead>
                       <tbody id="attendance-history-body">
                         <tr>
-                          <td colspan="4" class="text-center py-8 text-dark-300">
+                          <td colspan="4" class="text-center py-10 text-on-surface-muted">
                             Select a student to view attendance history
                           </td>
                         </tr>
@@ -5844,95 +5591,108 @@
       window.copyAIResponse = copyAIResponse;
     </script>
 
+    <!-- ==================== GLASS AUTH UI ENHANCEMENTS ==================== -->
     <script>
-      (function initLoginAnimations() {
-        // Typewriter effect
-        const subtitleEl = document.getElementById('typewriter-subtitle');
-        if (subtitleEl) {
-          const text = 'Learning Management Platform';
-          let i = 0;
-          subtitleEl.style.borderRight = '2px solid var(--login-accent-1, #8B2942)';
+      (function setupGlassAuthEnhancements() {
+        'use strict';
 
-          function typeWriter() {
-            if (i < text.length) {
-              subtitleEl.textContent += text.charAt(i);
-              i++;
-              setTimeout(typeWriter, 50);
-            } else {
-              // Remove cursor after typing completes
-              setTimeout(() => {
-                subtitleEl.style.borderRight = 'none';
-              }, 1500);
+        // ── Password show/hide toggle ─────────────────────────────────────
+        var EYE_OPEN = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        var EYE_CLOSED = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+
+        function setupToggle(toggleId, inputId, iconId) {
+          var btn = document.getElementById(toggleId);
+          var input = document.getElementById(inputId);
+          var icon = document.getElementById(iconId);
+          if (!btn || !input) return;
+          btn.addEventListener('click', function () {
+            var isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            if (icon) icon.innerHTML = isHidden ? EYE_CLOSED : EYE_OPEN;
+            btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+          });
+        }
+
+        setupToggle('login-pw-toggle', 'login-password', 'login-eye-icon');
+        setupToggle('signup-pw-toggle', 'signup-password', 'signup-eye-icon');
+        setupToggle('confirm-pw-toggle', 'signup-confirm-password', 'confirm-eye-icon');
+
+        // ── Password strength meter ───────────────────────────────────────
+        var pwInput = document.getElementById('signup-password');
+        var strengthWrap = document.getElementById('auth-strength-wrap');
+        var strengthFill = document.getElementById('auth-strength-fill');
+        var strengthText = document.getElementById('auth-strength-text');
+        var pwReqs = document.getElementById('auth-pw-reqs');
+
+        var REQS = [
+          { id: 'req-length', test: function (p) { return p.length >= 8; } },
+          { id: 'req-upper', test: function (p) { return /[A-Z]/.test(p); } },
+          { id: 'req-lower', test: function (p) { return /[a-z]/.test(p); } },
+          { id: 'req-number', test: function (p) { return /\d/.test(p); } },
+          { id: 'req-special', test: function (p) { return /[!@#$%^&*(),.?":{}|<>]/.test(p); } }
+        ];
+
+        var COLORS = ['#ef4444', '#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#10b981'];
+        var LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'];
+
+        if (pwInput && strengthWrap && strengthFill && strengthText) {
+          pwInput.addEventListener('input', function () {
+            var val = pwInput.value;
+            if (!val) {
+              strengthWrap.style.display = 'none';
+              if (pwReqs) pwReqs.classList.remove('visible');
+              return;
             }
+            strengthWrap.style.display = '';
+            var met = REQS.filter(function (r) { return r.test(val); }).length;
+            var pct = (met / REQS.length) * 100;
+            strengthFill.style.width = pct + '%';
+            strengthFill.style.backgroundColor = COLORS[met] || '#10b981';
+            strengthText.textContent = LABELS[met] || '';
+            if (pwReqs) {
+              pwReqs.classList.add('visible');
+              REQS.forEach(function (r) {
+                var el = document.getElementById(r.id);
+                if (el) el.classList.toggle('met', r.test(val));
+              });
+            }
+          });
+        }
+
+        // ── Confirm password mismatch indicator ───────────────────────────
+        var confirmInput = document.getElementById('signup-confirm-password');
+        var mismatchEl = document.getElementById('signup-pw-mismatch');
+        if (confirmInput && mismatchEl && pwInput) {
+          function checkMismatch() {
+            var mismatch = confirmInput.value.length > 0 && confirmInput.value !== pwInput.value;
+            mismatchEl.classList.toggle('hide', !mismatch);
           }
-
-          // Start after initial animations
-          setTimeout(typeWriter, 1200);
+          confirmInput.addEventListener('input', checkMismatch);
+          pwInput.addEventListener('input', checkMismatch);
         }
 
-        // Button ripple effect
-        document.querySelectorAll('.btn-primary').forEach((button) => {
-          button.addEventListener('click', function (e) {
-            const rect = this.getBoundingClientRect();
-            const ripple = document.createElement('span');
-            ripple.className = 'ripple';
-            ripple.style.left = e.clientX - rect.left + 'px';
-            ripple.style.top = e.clientY - rect.top + 'px';
-            this.appendChild(ripple);
-            setTimeout(() => ripple.remove(), 600);
-          });
-        });
-
-        // Enhanced input focus animations
-        document.querySelectorAll('.input-wrapper input').forEach((input) => {
-          input.addEventListener('focus', function () {
-            this.parentElement.classList.add('focused');
-          });
-          input.addEventListener('blur', function () {
-            this.parentElement.classList.remove('focused');
-          });
-        });
-
-        // Magnetic effect on logo hover
-        const logoContainer = document.querySelector('.ng5-logo-container');
-        const logo = document.querySelector('.ng5-logo');
-        if (logoContainer && logo) {
-          logoContainer.addEventListener('mousemove', (e) => {
-            const rect = logoContainer.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width / 2;
-            const y = e.clientY - rect.top - rect.height / 2;
-
-            logo.style.transform = `translate(${x * 0.1}px, ${y * 0.1}px)`;
-          });
-
-          logoContainer.addEventListener('mouseleave', () => {
-            logo.style.transform = '';
-          });
-        }
-
-        // Tab switching animation
-        const tabs = document.querySelectorAll('.tab-btn');
-        const loginForm = document.getElementById('login-form-container');
-        const signupForm = document.getElementById('signup-form-container');
-
-        tabs.forEach((tab) => {
-          tab.addEventListener('click', function () {
-            tabs.forEach((t) => t.classList.remove('active'));
-            this.classList.add('active');
-
-            if (this.id === 'login-tab-btn') {
-              signupForm?.classList.add('hide');
-              loginForm?.classList.remove('hide');
-              loginForm?.classList.add('form-slide-in');
-              setTimeout(() => loginForm?.classList.remove('form-slide-in'), 400);
-            } else {
-              loginForm?.classList.add('hide');
-              signupForm?.classList.remove('hide');
-              signupForm?.classList.add('form-slide-in');
-              setTimeout(() => signupForm?.classList.remove('form-slide-in'), 400);
+        // ── Theme toggle bridge ───────────────────────────────────────────
+        // Bridges the auth-screen toggle button to the existing theme system
+        var themeToggleBtn = document.getElementById('auth-theme-toggle-btn');
+        if (themeToggleBtn) {
+          themeToggleBtn.addEventListener('click', function () {
+            document.documentElement.classList.add('theme-transitioning');
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = (current === 'light') ? 'dark' : 'light';
+            if (typeof themePreference !== 'undefined') {
+              themePreference = next;
+              safeSetStorage(LMS_THEME_STORAGE_KEY, next);
             }
+            if (typeof applyEffectiveTheme === 'function') {
+              applyEffectiveTheme(next);
+            } else {
+              document.documentElement.setAttribute('data-theme', next);
+            }
+            setTimeout(function () {
+              document.documentElement.classList.remove('theme-transitioning');
+            }, 350);
           });
-        });
+        }
       })();
     </script>
 

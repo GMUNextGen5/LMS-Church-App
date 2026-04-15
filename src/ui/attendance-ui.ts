@@ -23,12 +23,12 @@ const BULK_ROW = ROSTER_ROW;
 function statusBadges(): Record<string, string> {
   return {
     present:
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">✓ Present</span>',
+      '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>Present</span>',
     absent:
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">✗ Absent</span>',
-    late: '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">⏰ Late</span>',
+      '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/20"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>Absent</span>',
+    late: '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3"/></svg>Late</span>',
     excused:
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">📝 Excused</span>',
+      '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Excused</span>',
   };
 }
 
@@ -41,7 +41,11 @@ export function attendanceHistoryEmptyRowHtml(message: string, ctaHtml?: string)
     <tr>
       <td colspan="4" class="p-0">
         <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none mx-2 my-2">
-          <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📋</div>
+          <div class="mb-3 flex items-center justify-center" aria-hidden="true">
+            <div class="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center">
+              <svg class="w-6 h-6 text-primary-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            </div>
+          </div>
           <p class="text-on-surface font-semibold">${esc(message)}</p>
           ${cta}
         </div>
@@ -87,13 +91,13 @@ export function renderAttendanceHistoryRows(
 
 function statusPill(status: Attendance['status']): string {
   const map: Record<Attendance['status'], { cls: string; label: string }> = {
-    present: { cls: 'bg-cyan-500 text-slate-950', label: '✓ PRESENT' },
-    absent: { cls: 'bg-rose-500 text-white', label: '✗ ABSENT' },
-    late: { cls: 'bg-amber-500 text-slate-950', label: '⏱ LATE' },
-    excused: { cls: 'bg-slate-500 text-white', label: '📄 EXCUSED' },
+    present: { cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/25', label: 'PRESENT' },
+    absent: { cls: 'bg-rose-500/20 text-rose-400 border-rose-500/25', label: 'ABSENT' },
+    late: { cls: 'bg-amber-500/20 text-amber-400 border-amber-500/25', label: 'LATE' },
+    excused: { cls: 'bg-slate-500/20 text-slate-300 border-slate-500/25', label: 'EXCUSED' },
   };
   const m = map[status];
-  return `<span class="roll-status-pill inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold tracking-wide ${m.cls}">${m.label}</span>`;
+  return `<span class="roll-status-pill inline-flex items-center px-2.5 py-1 rounded-lg border text-[0.65rem] font-bold tracking-wider ${m.cls}">${m.label}</span>`;
 }
 
 function pickButton(st: Attendance['status'], letter: string): string {
@@ -112,16 +116,16 @@ function rosterTableRowHtml(student: Student): string {
   const id = esc(student.id);
   const name = esc(displayName);
   const sid = esc(student.memberId || student.id);
-  return `<tr class="${ROSTER_ROW} border-b border-surface-default bg-surface-glass hover:bg-surface-glass/80 transition-colors" data-student-id="${id}" data-status="present">
-    <td class="py-3 px-3 align-middle">
+  return `<tr class="${ROSTER_ROW} border-b border-surface-default hover:bg-surface-glass/60 transition-colors duration-150" data-student-id="${id}" data-status="present">
+    <td class="py-3.5 px-4 align-middle">
       <div class="flex items-center gap-3 min-w-0">
         ${rosterAvatarCell(student)}
         <span class="text-on-surface font-semibold truncate">${name}</span>
       </div>
     </td>
-    <td class="py-3 px-3 align-middle text-on-surface-muted text-sm font-mono">${sid}</td>
-    <td class="py-3 px-2 align-middle">
-      <div class="flex flex-wrap items-center gap-2">
+    <td class="py-3.5 px-4 align-middle text-on-surface-muted text-sm font-mono">${sid}</td>
+    <td class="py-3.5 px-4 align-middle">
+      <div class="flex flex-wrap items-center gap-2.5">
         <div class="flex flex-row flex-nowrap gap-1.5" role="group" aria-label="Attendance status">
           ${pickButton('present', 'P')}
           ${pickButton('absent', 'A')}
@@ -131,9 +135,9 @@ function rosterTableRowHtml(student: Student): string {
         <span class="roll-pill-slot">${statusPill('present')}</span>
       </div>
     </td>
-    <td class="py-3 px-2 align-middle text-right">
+    <td class="py-3.5 px-4 align-middle text-right">
       <button type="button" data-roll-reset class="min-w-11 min-h-11 inline-flex items-center justify-center rounded-xl border border-surface-default text-on-surface-muted hover:bg-surface-glass hover:text-on-surface transition-colors touch-manipulation" aria-label="Reset row to present" title="Reset to present">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
     </td>
   </tr>`;
@@ -144,22 +148,24 @@ function rosterCardHtml(student: Student): string {
   const id = esc(student.id);
   const name = esc(displayName);
   const sid = esc(student.memberId || student.id);
-  return `<div class="${ROSTER_ROW} lms-att-roster-card rounded-xl border border-surface-default bg-surface-glass p-4 space-y-3 shadow-lg shadow-black/20" data-student-id="${id}" data-status="present">
-    <div class="flex items-start gap-3">
+  return `<div class="${ROSTER_ROW} lms-att-roster-card rounded-2xl border border-surface-default bg-surface-glass p-4 space-y-3" data-student-id="${id}" data-status="present">
+    <div class="flex items-center gap-3">
       ${rosterAvatarCell(student)}
       <div class="min-w-0 flex-1">
-        <p class="text-on-surface font-bold truncate">${name}</p>
+        <p class="text-on-surface font-bold truncate leading-tight">${name}</p>
         <p class="text-on-surface-muted text-xs font-mono mt-0.5">${sid}</p>
-        <div class="mt-2"><span class="roll-pill-slot">${statusPill('present')}</span></div>
       </div>
+      <span class="roll-pill-slot shrink-0">${statusPill('present')}</span>
     </div>
-    <div class="flex flex-row flex-nowrap gap-1.5 justify-between" role="group" aria-label="Attendance status">
+    <div class="flex flex-row flex-nowrap gap-2" role="group" aria-label="Attendance status">
       ${pickButton('present', 'P')}
       ${pickButton('absent', 'A')}
       ${pickButton('late', 'L')}
       ${pickButton('excused', 'E')}
+      <button type="button" data-roll-reset class="min-w-11 min-h-11 w-11 h-11 shrink-0 inline-flex items-center justify-center rounded-xl border border-surface-default text-on-surface-muted hover:bg-surface-glass hover:text-on-surface transition-colors touch-manipulation" aria-label="Reset to present" title="Reset">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      </button>
     </div>
-    <button type="button" data-roll-reset class="w-full min-h-11 rounded-xl border border-surface-default text-on-surface-muted text-sm font-semibold hover:bg-surface-glass transition-colors touch-manipulation active:scale-[0.98]">Reset to present</button>
   </div>`;
 }
 
