@@ -160,15 +160,15 @@
 
           <!-- Tab bar -->
           <div class="auth-tabs-glass" role="tablist">
-            <button id="login-tab-btn" class="auth-tab-glass-btn tab-active" role="tab" aria-selected="true">Login</button>
-            <button id="signup-tab-btn" class="auth-tab-glass-btn" role="tab" aria-selected="false">Sign Up</button>
+            <button id="login-tab-btn" class="auth-tab-glass-btn tab-active" role="tab" aria-selected="true" aria-controls="login-form-container">Login</button>
+            <button id="signup-tab-btn" class="auth-tab-glass-btn" role="tab" aria-selected="false" aria-controls="signup-form-container">Sign Up</button>
           </div>
 
           <!-- Forms wrapper -->
           <div id="auth-forms-wrapper">
 
             <!-- ——— Login Form ——— -->
-            <div id="login-form-container" class="auth-form-slide">
+            <div id="login-form-container" class="auth-form-slide" role="tabpanel" aria-labelledby="login-tab-btn">
               <div class="auth-form-body">
                 <form id="login-form" novalidate>
 
@@ -247,7 +247,7 @@
             </div><!-- /login-form-container -->
 
             <!-- ——— Sign Up Form ——— -->
-            <div id="signup-form-container" class="auth-form-slide hide">
+            <div id="signup-form-container" class="auth-form-slide hide" role="tabpanel" aria-labelledby="signup-tab-btn">
               <div class="auth-form-body">
                 <form id="signup-form" novalidate>
 
@@ -696,6 +696,7 @@
         <main
           id="lms-main-content"
           tabindex="-1"
+          aria-label="Main content"
           class="lms-main min-w-0 max-w-full overflow-x-clip pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-0"
         >
           <div
@@ -704,7 +705,7 @@
           >
             <button
               type="button"
-              class="lms-sidebar-toggle p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-surface-hover dark:text-slate-300 dark:hover:text-white"
+              class="lms-sidebar-toggle min-w-[44px] min-h-[44px] p-2.5 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-surface-hover dark:text-slate-300 dark:hover:text-white"
               aria-label="Open menu"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1163,7 +1164,7 @@
                 ></h1>
                 <p
                   id="dashboard-welcome-sub"
-                  class="mt-2 text-sm text-dark-400 max-w-2xl leading-relaxed"
+                  class="mt-2 text-sm text-on-surface-muted max-w-2xl leading-relaxed"
                 ></p>
               </div>
 
@@ -1263,7 +1264,7 @@
                     class="hidden md:block md:col-span-6 min-w-0 min-h-0"
                   >
                     <article
-                      class="card-blur progress-bar-glow relative min-w-0 min-h-0 overflow-hidden rounded-2xl card-hover h-full p-6"
+                      class="card-blur progress-bar-glow relative min-w-0 min-h-0 overflow-hidden rounded-2xl card-hover h-full p-6 border border-surface-default"
                     >
                       <div
                         class="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary-400/10 blur-2xl"
@@ -1361,7 +1362,7 @@
                 >
                   DSKM LMS
                 </p>
-                <p class="text-sm text-dark-400 mt-1">
+                <p class="text-sm text-on-surface-muted mt-1">
                   Excellence in teaching, learning, and assessment.
                 </p>
               </div>
@@ -1403,7 +1404,7 @@
                       <button
                         id="ai-summary-btn"
                         type="button"
-                        class="student-only inline-flex w-full items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hide"
+                        class="student-only inline-flex w-full items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 transition-all hide"
                       >
                         <svg
                           class="w-5 h-5 shrink-0"
@@ -1424,7 +1425,7 @@
                       <button
                         id="study-tips-btn"
                         type="button"
-                        class="student-only inline-flex w-full items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-green-500 to-teal-500 text-white font-semibold hover:from-green-600 hover:to-teal-600 transition-all shadow-lg hide"
+                        class="student-only inline-flex w-full items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all hide"
                       >
                         <svg
                           class="w-5 h-5 shrink-0"
@@ -1482,7 +1483,7 @@
 
                         <button
                           id="download-transcript-pdf-btn"
-                          class="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 text-white font-bold transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-primary-500/25 hover:scale-[1.02] active:scale-[0.98]"
+                          class="w-full px-4 py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-bold transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
                         >
                           <svg
                             class="w-5 h-5"
@@ -1497,7 +1498,7 @@
                               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             ></path>
                           </svg>
-                          📜 Official Grade Transcript
+                          Official Grade Transcript
                         </button>
 
                         <div class="grid grid-cols-2 gap-2">
@@ -1612,7 +1613,7 @@
                       </div>
                       <button
                         type="submit"
-                        class="w-full py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
+                        class="w-full py-3 px-4 bg-primary-500 text-white font-semibold rounded-xl hover:bg-primary-600 active:scale-[0.98] transition-all"
                       >
                         Add Grade
                       </button>
@@ -1624,7 +1625,7 @@
                       <div class="chart-container card-lift">
                         <div class="chart-header">
                           <div>
-                            <h4 class="chart-title">📈 Grade Trend</h4>
+                            <h4 class="chart-title">Grade Trend</h4>
                             <p class="chart-subtitle">Performance over time</p>
                           </div>
                         </div>
@@ -1636,7 +1637,7 @@
                       <div class="chart-container card-lift">
                         <div class="chart-header">
                           <div>
-                            <h4 class="chart-title">📊 Performance by Category</h4>
+                            <h4 class="chart-title">Performance by Category</h4>
                             <p class="chart-subtitle">Average scores by assignment type</p>
                           </div>
                         </div>
@@ -2449,7 +2450,7 @@
                         <button
                           type="button"
                           id="student-profile-save-btn"
-                          class="px-6 py-3 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg"
+                          class="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold hover:bg-primary-600 active:scale-[0.98] transition-all"
                         >
                           Save profile
                         </button>
@@ -2560,7 +2561,7 @@
                         <button
                           type="button"
                           id="profile-update-password-btn"
-                          class="px-6 py-3 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg w-fit"
+                          class="px-6 py-3 rounded-xl bg-primary-500 text-white font-semibold hover:bg-primary-600 active:scale-[0.98] transition-all w-fit"
                         >
                           Update password
                         </button>
@@ -2638,6 +2639,7 @@
                         id="ai-settings-btn"
                         class="p-2.5 rounded-xl bg-slate-100 dark:bg-dark-800/50 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-600 dark:text-dark-400 hover:text-slate-900 dark:hover:text-white transition-all"
                         title="AI Settings"
+                        aria-label="AI Settings"
                       >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -2658,6 +2660,7 @@
                         id="clear-chat-btn"
                         class="p-2.5 rounded-xl bg-slate-100 dark:bg-dark-800/50 hover:bg-red-500/15 dark:hover:bg-red-500/20 text-slate-600 dark:text-dark-400 hover:text-red-600 dark:hover:text-red-400 transition-all"
                         title="Clear Chat"
+                        aria-label="Clear Chat"
                       >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
@@ -2701,7 +2704,7 @@
                         <p
                           class="text-slate-900 dark:text-white font-semibold text-lg mb-2 flex items-center gap-2"
                         >
-                          <span>👋</span> Welcome! I'm your AI Educational Advisor
+                          Welcome! I'm your AI Educational Advisor
                         </p>
                         <p class="text-slate-600 dark:text-dark-300 mb-4 leading-relaxed">
                           I have access to your complete Firebase database including student
@@ -2863,7 +2866,7 @@
                       data-query="Who are the top performing students?"
                     >
                       <span class="flex items-center gap-2">
-                        <span class="text-lg">🏆</span>
+                        <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
                         Top performers
                       </span>
                     </button>
@@ -2873,7 +2876,7 @@
                       data-query="Which students have attendance below 80%?"
                     >
                       <span class="flex items-center gap-2">
-                        <span class="text-lg">⚠️</span>
+                        <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
                         Low attendance alerts
                       </span>
                     </button>
@@ -2883,7 +2886,7 @@
                       data-query="Give me an overview of all student performance"
                     >
                       <span class="flex items-center gap-2">
-                        <span class="text-lg">📊</span>
+                        <svg class="w-4 h-4 text-primary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                         Performance overview
                       </span>
                     </button>
@@ -2893,7 +2896,7 @@
                       data-query="Which students need academic support?"
                     >
                       <span class="flex items-center gap-2">
-                        <span class="text-lg">🎯</span>
+                        <svg class="w-4 h-4 text-purple-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         Students needing support
                       </span>
                     </button>
@@ -4344,7 +4347,7 @@
           );
 
           doc.setFontSize(48);
-          doc.text('🎓', pageWidth / 2, 190, { align: 'center' });
+          doc.text('*', pageWidth / 2, 190, { align: 'center' });
 
           doc.setFontSize(16);
           doc.text('NG5 Learning Management System', pageWidth / 2, 220, { align: 'center' });
@@ -5052,7 +5055,7 @@
         } finally {
           if (transcriptBtn) {
             transcriptBtn.disabled = false;
-            transcriptBtn.innerHTML = '📜 Official Grade Transcript';
+            transcriptBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Official Grade Transcript';
           }
         }
       }
@@ -5225,10 +5228,9 @@
       function switchToTab(tabName) {
         // Update sidebar navigation
         document.querySelectorAll('.lms-nav-item[data-tab]').forEach((item) => {
-          item.classList.remove('active');
-          if (item.getAttribute('data-tab') === tabName) {
-            item.classList.add('active');
-          }
+          const on = item.getAttribute('data-tab') === tabName;
+          item.classList.toggle('active', on);
+          item.setAttribute('aria-current', on ? 'page' : 'false');
         });
 
         // Update breadcrumb

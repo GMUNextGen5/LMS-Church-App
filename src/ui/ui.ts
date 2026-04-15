@@ -221,7 +221,7 @@ function installAiModalDelegatedClicks(): void {
               'ring-offset-dark-800',
             ],
             remove: ['bg-primary-500', 'hover:bg-primary-600'],
-            successLabel: 'Copied! ✅',
+            successLabel: 'Copied!',
           });
         }
         return;

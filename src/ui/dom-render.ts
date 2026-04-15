@@ -45,7 +45,7 @@ export function emptyStateBlockHtml(
   return `
     <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none">
       ${brand}
-      <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📚</div>
+      <div class="mb-3 flex items-center justify-center" aria-hidden="true"><div class="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center"><svg class="w-6 h-6 text-primary-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg></div></div>
       <h3 class="text-on-surface font-semibold text-lg">${escapeHtmlText(title)}</h3>
       ${sub}
       ${cta}
@@ -90,8 +90,12 @@ export function renderErrorPanel(
     'lms-access-denied-panel card-blur progress-bar-glow max-w-lg mx-auto text-center py-14 px-6 rounded-2xl border border-primary-400/15 bg-dark-950/80';
 
   const icon = document.createElement('div');
-  icon.className = 'text-3xl mb-4 opacity-40';
-  icon.textContent = '⚠️';
+  icon.className = 'mb-4 flex items-center justify-center';
+  icon.setAttribute('aria-hidden', 'true');
+  const iconInner = document.createElement('div');
+  iconInner.className = 'w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center';
+  iconInner.innerHTML = '<svg class="w-6 h-6 text-amber-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>';
+  icon.appendChild(iconInner);
 
   const h3 = document.createElement('h3');
   h3.className = 'font-display text-lg font-semibold text-on-surface dark:text-primary-300';

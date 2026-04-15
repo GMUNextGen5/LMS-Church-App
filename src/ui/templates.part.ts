@@ -1037,10 +1037,10 @@ export const TEMPLATE_CHANGE_ROLE_MODAL = `    <div
       ></div>
       <div
         id="change-role-modal-panel"
-        class="lms-modal-surface relative z-10 w-full max-w-[22rem] overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white/85 shadow-[0_20px_60px_-12px_rgba(15,23,42,0.2),inset_0_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/15 dark:bg-gradient-to-b dark:from-white/[0.12] dark:to-white/[0.03] dark:shadow-[0_12px_48px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.12)]"
+        class="lms-modal-surface relative z-10 w-full max-w-[22rem] overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white/85 shadow-[0_20px_60px_-12px_rgba(15,23,42,0.2),inset_0_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/15 dark:bg-[rgba(15,23,42,0.75)] dark:shadow-[0_12px_48px_rgba(0,0,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.08)]"
       >
         <div
-          class="rounded-[1.5rem] px-5 pt-5 pb-4 dark:bg-gradient-to-b dark:from-white/[0.04] dark:to-transparent"
+          class="rounded-[1.5rem] px-5 pt-5 pb-4"
         >
           <div class="mb-4 flex items-start justify-between gap-2">
             <div class="min-w-0">

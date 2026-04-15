@@ -1079,9 +1079,15 @@ async function renderGradeView(): Promise<void> {
           .map((opt, oi) => {
             const isSelected = selected.includes(oi);
             const isCorrect = (q.correctAnswers || []).includes(String(oi));
-            const icon = isSelected ? (isCorrect ? '✅' : '❌') : isCorrect ? '🟢' : '';
-            return `<div class="flex items-center gap-2 text-sm ${isSelected ? 'text-white' : 'text-dark-400'}">
-          ${icon} ${esc(opt)}
+            const iconSvg = isSelected
+              ? isCorrect
+                ? '<svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>'
+                : '<svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>'
+              : isCorrect
+                ? '<svg class="w-4 h-4 text-emerald-400/60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>'
+                : '';
+            return `<div class="flex items-center gap-2 text-sm ${isSelected ? 'text-on-surface' : 'text-on-surface-muted'}">
+          ${iconSvg} ${esc(opt)}
         </div>`;
           })
           .join('');
@@ -1891,7 +1897,7 @@ function emptyState(title: string, subtitle?: string, ctaHtml?: string): string 
   return `
     <div class="lms-empty-state-panel text-center py-14 px-4 rounded-xl border border-surface-default bg-surface-container shadow-sm dark:shadow-none max-w-lg mx-auto">
       <p class="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-on-surface-subtle mb-2">DSKM LMS</p>
-      <div class="text-4xl mb-3 opacity-30" aria-hidden="true">📋</div>
+      <div class="mb-3 flex items-center justify-center" aria-hidden="true"><div class="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center"><svg class="w-6 h-6 text-primary-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div></div>
       <h3 class="text-on-surface font-semibold text-lg">${esc(title)}</h3>
       ${subtitle ? `<p class="text-on-surface-muted text-sm mt-1 max-w-md mx-auto leading-relaxed">${esc(subtitle)}</p>` : ''}
       ${cta}
