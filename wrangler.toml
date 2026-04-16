@@ -17,4 +17,4 @@
 # source of truth for the project name and any bindings/env vars.
 
 pages_build_output_dir = "./dist"
-compatibility_date = "2025-04-01"
+compatibility_date = "2026-04-16"
