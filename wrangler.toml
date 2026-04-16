@@ -13,8 +13,11 @@
 #   Functions added later. We don't ship Pages Functions today, but this is
 #   required by the schema.
 #
-# The Pages project name is intentionally omitted so the dashboard remains the
-# source of truth for the project name and any bindings/env vars.
+# The `name` field must match the Cloudflare Pages project name in the
+# dashboard. Pages requires it at the top level because environments (prod,
+# preview, branch) all target the same project, and the validator fails
+# configuration loading without it.
 
+name = "lms-church-app"
 pages_build_output_dir = "./dist"
 compatibility_date = "2026-04-16"
