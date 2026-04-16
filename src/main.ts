@@ -14,8 +14,6 @@ import { registerSessionTeardown } from './core/session-teardown';
 import {
   auth,
   db,
-  functions,
-  httpsCallable,
   ensureFirebaseClient,
   ensureAuthPersistence,
   signOut,
@@ -27,6 +25,8 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from './core/firebase';
+import { AI } from './core/ai-client';
+import { mountAiToolsPanel } from './ui/ai-tools';
 import { installThemeChangeBridge, registerThemeRefreshHandler } from './core/theme-events';
 import {
   initAuth,
@@ -381,6 +381,13 @@ function installRoleBasedMobileNavBridge(): void {
   const onRole = (ev: Event): void => {
     const role = (ev as CustomEvent<{ role: UserRole | null }>).detail?.role ?? null;
     renderRoleBasedBottomNav(role);
+    // Mount (or re-mount) the AI Tools panel inside the AI Agent tab. The panel
+    // is idempotent and respects role-based visibility internally.
+    try {
+      mountAiToolsPanel(role);
+    } catch {
+      /* ai-tools panel is best-effort; failures must not block navigation */
+    }
   };
   document.addEventListener('lms-role-configured', onRole);
 }
@@ -4466,18 +4473,7 @@ async function generatePerformanceSummary(studentId: string): Promise<void> {
   }
   try {
     showLoading();
-    const getPerformanceSummary = httpsCallable(functions, 'getPerformanceSummary', {
-      timeout: 120_000,
-    });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(
-        () =>
-          reject(new Error('Request timed out. The AI service may be busy — please try again.')),
-        120_000
-      )
-    );
-    const result = await Promise.race([getPerformanceSummary({ studentId }), timeoutPromise]);
-    const data = result.data as { studentName?: string; summaryHtml?: string };
+    const data = await AI.performanceSummary({ studentId });
     showModal(
       `Performance Summary - ${data?.studentName ?? 'Student'}`,
       data?.summaryHtml ?? '<p>No summary generated.</p>'
@@ -4505,16 +4501,7 @@ async function generateStudyTips(studentId: string): Promise<void> {
   }
   try {
     showLoading();
-    const getStudyTips = httpsCallable(functions, 'getStudyTips', { timeout: 120_000 });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(
-        () =>
-          reject(new Error('Request timed out. The AI service may be busy — please try again.')),
-        120_000
-      )
-    );
-    const result = await Promise.race([getStudyTips({ studentId }), timeoutPromise]);
-    const data = result.data as { studentName?: string; tipsHtml?: string };
+    const data = await AI.studyTips({ studentId });
     showModal(
       `Study Tips - ${data?.studentName ?? 'Student'}`,
       data?.tipsHtml ?? '<p>No study tips generated.</p>'
@@ -4585,9 +4572,7 @@ function setupAIAgentChat(): void {
     syncAiInputMirror();
     const typingId = addTypingIndicator();
     try {
-      const aiAgentChat = httpsCallable(functions, 'aiAgentChat');
-      const result = await aiAgentChat({ message, conversationHistory });
-      const data = result.data as { response?: string };
+      const data = await AI.agentChat({ message, conversationHistory });
       removeTypingIndicator(typingId);
       const responseText = data?.response;
       addMessageToChat(

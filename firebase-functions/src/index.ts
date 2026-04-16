@@ -293,10 +293,28 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   AI_MODEL_CONFIG,
   getApiKey,
+  getSafetySettings,
   PERFORMANCE_SUMMARY_SYSTEM_PROMPT,
   STUDY_TIPS_SYSTEM_PROMPT,
+  ORTHODOX_BIBLE_SYSTEM_PROMPT,
+  EARLY_WARNING_SYSTEM_PROMPT,
+  PROGRESS_REPORT_SYSTEM_PROMPT,
+  QUIZ_GENERATOR_SYSTEM_PROMPT,
+  LESSON_PLAN_SYSTEM_PROMPT,
+  PARENT_EMAIL_SYSTEM_PROMPT,
+  CURRICULUM_GAP_SYSTEM_PROMPT,
+  VOICE_COMMAND_SYSTEM_PROMPT,
+  EXAM_SCANNER_SYSTEM_PROMPT,
   buildPerformanceSummaryPrompt,
   buildStudyTipsPrompt,
+  buildOrthodoxBibleUserPrompt,
+  buildEarlyWarningPrompt,
+  buildProgressReportPrompt,
+  buildQuizGeneratorPrompt,
+  buildLessonPlanPrompt,
+  buildParentEmailPrompt,
+  buildCurriculumGapPrompt,
+  buildVoiceCommandPrompt,
   prepareGradesData,
   prepareAttendanceData,
   calculateCategoryAverages,
@@ -1008,6 +1026,545 @@ Instructions: Answer this question using ONLY the data provided above. If the us
     }
   }
 );
+
+// ==================== EXPANDED AI TOOL SUITE ====================
+//
+// The callables below power the broader AI product surface:
+//   aiBibleChat, aiProgressReport, aiQuizGenerator,
+//   aiLessonPlanGenerator, aiParentEmail, aiCurriculumGap,
+//   aiEarlyWarning, aiVoiceCommand, parseExamPaper.
+//
+// Conventions:
+// - All callables require request.auth.
+// - "Teacher/Admin" tools validate role via isPrivilegedAiRole().
+// - "Student" tools either validate role === 'student' or use
+//   checkStudentAccess() for per-student FERPA enforcement.
+// - Safety settings are chosen from role via getSafetySettings().
+// - Every Gemini call is wrapped with withTimeout().
+// - Errors are normalized to HttpsError so clients get a consistent shape.
+
+function getUserRoleStrict(role: unknown): string {
+  return typeof role === 'string' ? role : 'unknown';
+}
+
+async function requireAuthenticatedPrivileged(
+  request: any
+): Promise<{ uid: string; role: string }> {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be logged in');
+  }
+  const uid = request.auth.uid as string;
+  const userDoc = await db.doc(`users/${uid}`).get();
+  const role = getUserRoleStrict(userDoc.data()?.role);
+  if (!userDoc.exists || !isPrivilegedAiRole(role)) {
+    throw new HttpsError(
+      'permission-denied',
+      'Only administrators and teachers can use this AI tool'
+    );
+  }
+  return { uid, role };
+}
+
+async function requireAuthenticated(request: any): Promise<{ uid: string; role: string }> {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be logged in');
+  }
+  const uid = request.auth.uid as string;
+  const userDoc = await db.doc(`users/${uid}`).get();
+  const role = getUserRoleStrict(userDoc.data()?.role);
+  return { uid, role };
+}
+
+function stripJsonFences(text: string): string {
+  return String(text || '')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+}
+
+function parseJsonOrThrow<T = unknown>(text: string, label: string): T {
+  const cleaned = stripJsonFences(text);
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (err: any) {
+    throw new HttpsError(
+      'internal',
+      `${label} did not return valid JSON: ${err?.message ?? 'parse error'}`
+    );
+  }
+}
+
+async function runGemini(params: {
+  systemPrompt: string;
+  userPrompt: string;
+  role: string;
+  modelName?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  timeoutMs?: number;
+  label: string;
+}): Promise<string> {
+  if (!genAI) {
+    throw new HttpsError('failed-precondition', aiNotConfiguredMessage());
+  }
+  const model = genAI.getGenerativeModel({
+    model: params.modelName ?? AI_MODEL_CONFIG.model,
+    safetySettings: getSafetySettings(params.role) as any,
+    generationConfig: {
+      temperature: params.temperature ?? AI_MODEL_CONFIG.temperature,
+      maxOutputTokens: params.maxOutputTokens ?? AI_MODEL_CONFIG.maxTokens,
+      topP: AI_MODEL_CONFIG.topP,
+      topK: AI_MODEL_CONFIG.topK,
+    },
+  });
+  const result = await withTimeout(
+    model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${params.systemPrompt}\n\n${params.userPrompt}` }],
+        },
+      ],
+    }),
+    params.timeoutMs ?? 90_000,
+    `Gemini API (${params.label})`
+  );
+  const text = result.response.text();
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new HttpsError('internal', `${params.label} returned an empty response`);
+  }
+  return text;
+}
+
+/**
+ * Orthodox Bible Companion chat (student-safe).
+ * Input: { message, conversationHistory?: Array<{role, parts: [{text}]}> }
+ * Output: { reply, generatedAt }
+ */
+export const aiBibleChat = onCall({ timeoutSeconds: 120, memory: '512MiB' }, async (request) => {
+  const { uid, role } = await requireAuthenticated(request);
+  void uid;
+  const { message, conversationHistory = [] } = request.data || {};
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    throw new HttpsError('invalid-argument', 'message is required');
+  }
+  const userPrompt = buildOrthodoxBibleUserPrompt(message, conversationHistory);
+  const text = await runGemini({
+    systemPrompt: ORTHODOX_BIBLE_SYSTEM_PROMPT,
+    userPrompt,
+    role,
+    modelName: AI_MODEL_CONFIG.chatModel,
+    temperature: 0.85,
+    label: 'Bible Chat',
+  });
+  return {
+    reply: text,
+    generatedAt: new Date().toISOString(),
+  };
+});
+
+/**
+ * Parent-facing progress report (HTML). Teacher/Admin only.
+ */
+export const aiProgressReport = onCall(
+  { timeoutSeconds: 180, memory: '512MiB' },
+  async (request) => {
+    const { role } = await requireAuthenticatedPrivileged(request);
+    const { studentId, reportPeriod } = request.data || {};
+    if (!studentId || typeof studentId !== 'string') {
+      throw new HttpsError('invalid-argument', 'studentId is required');
+    }
+    const { hasAccess, studentData } = await checkStudentAccess(request.auth!.uid, studentId);
+    if (!hasAccess) {
+      throw new HttpsError('permission-denied', 'You do not have access to this student');
+    }
+
+    const [gradesSnap, attendanceSnap] = await Promise.all([
+      db.collection(`students/${studentId}/grades`).orderBy('date', 'desc').limit(30).get(),
+      db.collection(`students/${studentId}/attendance`).orderBy('date', 'desc').limit(40).get(),
+    ]);
+    const gradesData = gradesSnap.docs.map((d) => d.data());
+    const attendance = attendanceSnap.docs.map((d) => d.data());
+    const attendanceData = prepareAttendanceData(attendance);
+
+    const userPrompt = buildProgressReportPrompt({
+      studentName: studentData?.name ?? 'Student',
+      gradesData,
+      attendanceData: {
+        total: attendanceData.total,
+        present: attendanceData.present,
+        absent: attendanceData.absent,
+        late: attendanceData.late,
+      },
+      reportPeriod,
+    });
+    const text = await runGemini({
+      systemPrompt: PROGRESS_REPORT_SYSTEM_PROMPT,
+      userPrompt,
+      role,
+      modelName: AI_MODEL_CONFIG.proModel,
+      label: 'Progress Report',
+    });
+    return {
+      reportHtml: text,
+      studentName: studentData?.name ?? 'Student',
+      generatedAt: new Date().toISOString(),
+    };
+  }
+);
+
+/**
+ * AI Quiz Generator (Teacher/Admin). Returns quiz + answer key HTML.
+ */
+export const aiQuizGenerator = onCall(
+  { timeoutSeconds: 180, memory: '512MiB' },
+  async (request) => {
+    const { role } = await requireAuthenticatedPrivileged(request);
+    const {
+      topic,
+      gradeLevel = 'Grade 9',
+      questionCount = 10,
+      difficulty = 'medium',
+      questionTypes = 'mixed',
+    } = request.data || {};
+    if (!topic || typeof topic !== 'string' || !topic.trim()) {
+      throw new HttpsError('invalid-argument', 'topic is required');
+    }
+    const userPrompt = buildQuizGeneratorPrompt({
+      topic,
+      gradeLevel,
+      questionCount: Number(questionCount) || 10,
+      difficulty,
+      questionTypes,
+    });
+    const text = await runGemini({
+      systemPrompt: QUIZ_GENERATOR_SYSTEM_PROMPT,
+      userPrompt,
+      role,
+      label: 'Quiz Generator',
+      maxOutputTokens: 3000,
+    });
+    const quiz = /<!--\s*QUIZ_START\s*-->([\s\S]*?)<!--\s*QUIZ_END\s*-->/i.exec(text);
+    const answers = /<!--\s*ANSWERS_START\s*-->([\s\S]*?)<!--\s*ANSWERS_END\s*-->/i.exec(text);
+    return {
+      quizHtml: (quiz?.[1] ?? text).trim(),
+      answerKeyHtml: (answers?.[1] ?? '').trim(),
+      rawHtml: text,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+);
+
+/**
+ * AI Lesson Plan Generator (Teacher/Admin).
+ */
+export const aiLessonPlanGenerator = onCall(
+  { timeoutSeconds: 180, memory: '512MiB' },
+  async (request) => {
+    const { role } = await requireAuthenticatedPrivileged(request);
+    const {
+      topic,
+      subject = 'General',
+      gradeLevel = 'Grade 9',
+      duration = '45 minutes',
+      objectives,
+    } = request.data || {};
+    if (!topic || typeof topic !== 'string' || !topic.trim()) {
+      throw new HttpsError('invalid-argument', 'topic is required');
+    }
+    const userPrompt = buildLessonPlanPrompt({
+      topic,
+      subject,
+      gradeLevel,
+      duration,
+      objectives,
+    });
+    const text = await runGemini({
+      systemPrompt: LESSON_PLAN_SYSTEM_PROMPT,
+      userPrompt,
+      role,
+      label: 'Lesson Plan Generator',
+      maxOutputTokens: 3000,
+    });
+    return {
+      lessonPlanHtml: text,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+);
+
+/**
+ * AI Parent Email drafter (Teacher/Admin). Returns { subject, body }.
+ */
+export const aiParentEmail = onCall({ timeoutSeconds: 120, memory: '512MiB' }, async (request) => {
+  const { role } = await requireAuthenticatedPrivileged(request);
+  const { studentId, emailType = 'progress', parentName, context = '' } = request.data || {};
+  if (!studentId || typeof studentId !== 'string') {
+    throw new HttpsError('invalid-argument', 'studentId is required');
+  }
+  const validTypes = new Set(['progress', 'concern', 'achievement', 'attendance']);
+  if (!validTypes.has(String(emailType))) {
+    throw new HttpsError('invalid-argument', 'invalid emailType');
+  }
+  const { hasAccess, studentData } = await checkStudentAccess(request.auth!.uid, studentId);
+  if (!hasAccess) {
+    throw new HttpsError('permission-denied', 'You do not have access to this student');
+  }
+
+  const [gradesSnap, attendanceSnap] = await Promise.all([
+    db.collection(`students/${studentId}/grades`).orderBy('date', 'desc').limit(15).get(),
+    db.collection(`students/${studentId}/attendance`).orderBy('date', 'desc').limit(30).get(),
+  ]);
+  const grades = gradesSnap.docs.map((d) => d.data());
+  const attendance = prepareAttendanceData(attendanceSnap.docs.map((d) => d.data()));
+
+  const userPrompt = buildParentEmailPrompt({
+    studentName: studentData?.name ?? 'Student',
+    parentName,
+    emailType: emailType as any,
+    context,
+    recentGrades: grades,
+    attendanceData: attendance,
+  });
+  const text = await runGemini({
+    systemPrompt: PARENT_EMAIL_SYSTEM_PROMPT,
+    userPrompt,
+    role,
+    label: 'Parent Email',
+    maxOutputTokens: 1500,
+  });
+  const parsed = parseJsonOrThrow<{ subject: string; body: string }>(text, 'Parent email');
+  return {
+    subject: String(parsed.subject ?? '').trim(),
+    body: String(parsed.body ?? '').trim(),
+    studentName: studentData?.name ?? 'Student',
+    emailType,
+    generatedAt: new Date().toISOString(),
+  };
+});
+
+/**
+ * AI Curriculum Gap analysis across a class roster (Teacher/Admin).
+ */
+export const aiCurriculumGap = onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+  const { uid, role } = await requireAuthenticatedPrivileged(request);
+  const { className, timeRange, courseId } = request.data || {};
+
+  let allowedStudentIds: string[];
+  if (role === 'admin') {
+    const snap = await db.collection('students').limit(200).get();
+    allowedStudentIds = snap.docs.map((d) => d.id);
+  } else {
+    const coursesQuery = courseId
+      ? db.collection('courses').where('teacherId', '==', uid)
+      : db.collection('courses').where('teacherId', '==', uid);
+    const courseSnap = await coursesQuery.get();
+    const idSet = new Set<string>();
+    courseSnap.forEach((c) => {
+      if (courseId && c.id !== courseId) return;
+      const ids = c.data().studentIds as string[] | undefined;
+      if (Array.isArray(ids)) ids.forEach((id) => idSet.add(id));
+    });
+    allowedStudentIds = Array.from(idSet).slice(0, 200);
+  }
+
+  const rosterRows: Array<{ id: string; name: string; categories: any[] }> = [];
+  for (const sid of allowedStudentIds.slice(0, 120)) {
+    try {
+      const [studentDoc, gradesSnap] = await Promise.all([
+        db.doc(`students/${sid}`).get(),
+        db.collection(`students/${sid}/grades`).orderBy('date', 'desc').limit(20).get(),
+      ]);
+      const name = studentDoc.data()?.name ?? 'Student';
+      const categoryAverages = calculateCategoryAverages(gradesSnap.docs.map((d) => d.data()));
+      rosterRows.push({ id: sid, name, categories: categoryAverages });
+    } catch {
+      // Skip problematic student silently to keep the class analysis resilient.
+    }
+  }
+
+  const userPrompt = buildCurriculumGapPrompt({
+    className,
+    timeRange,
+    students: rosterRows,
+  });
+  const text = await runGemini({
+    systemPrompt: CURRICULUM_GAP_SYSTEM_PROMPT,
+    userPrompt,
+    role,
+    modelName: AI_MODEL_CONFIG.proModel,
+    label: 'Curriculum Gap',
+    maxOutputTokens: 3000,
+  });
+  return {
+    reportHtml: text,
+    studentsAnalyzed: rosterRows.length,
+    generatedAt: new Date().toISOString(),
+  };
+});
+
+/**
+ * AI Early Warning System (Teacher/Admin). Returns JSON list of at-risk students.
+ */
+export const aiEarlyWarning = onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+  const { uid, role } = await requireAuthenticatedPrivileged(request);
+
+  let studentIds: string[];
+  if (role === 'admin') {
+    const snap = await db.collection('students').limit(200).get();
+    studentIds = snap.docs.map((d) => d.id);
+  } else {
+    const coursesSnap = await db.collection('courses').where('teacherId', '==', uid).get();
+    const set = new Set<string>();
+    coursesSnap.forEach((c) => {
+      const ids = c.data().studentIds as string[] | undefined;
+      if (Array.isArray(ids)) ids.forEach((id) => set.add(id));
+    });
+    studentIds = Array.from(set).slice(0, 200);
+  }
+
+  const rosterRows: any[] = [];
+  for (const sid of studentIds.slice(0, 150)) {
+    try {
+      const [studentDoc, gradesSnap, attendanceSnap] = await Promise.all([
+        db.doc(`students/${sid}`).get(),
+        db.collection(`students/${sid}/grades`).orderBy('date', 'desc').limit(15).get(),
+        db.collection(`students/${sid}/attendance`).orderBy('date', 'desc').limit(30).get(),
+      ]);
+      const name = studentDoc.data()?.name ?? 'Student';
+      const grades = gradesSnap.docs.map((d) => d.data());
+      const categoryAverages = calculateCategoryAverages(grades);
+      const attendance = prepareAttendanceData(attendanceSnap.docs.map((d) => d.data()));
+      const gradePercents = grades
+        .map((g: any) => {
+          const total = Number(g?.totalPoints);
+          if (!(total > 0)) return null;
+          return (Number(g?.score) / total) * 100;
+        })
+        .filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+      const gradeAverage = gradePercents.length
+        ? gradePercents.reduce((a, b) => a + b, 0) / gradePercents.length
+        : 0;
+      rosterRows.push({
+        studentId: sid,
+        studentName: name,
+        gradeAverage: Number(gradeAverage.toFixed(1)),
+        attendanceRate: Number(parseFloat(attendance.attendanceRate).toFixed(1)),
+        categories: categoryAverages.map((c) => ({
+          category: c.category,
+          average: c.average,
+          trend: c.trend,
+        })),
+        recentGradesCount: grades.length,
+      });
+    } catch {
+      // Skip failing students instead of failing the whole analysis.
+    }
+  }
+
+  const userPrompt = buildEarlyWarningPrompt(rosterRows);
+  const text = await runGemini({
+    systemPrompt: EARLY_WARNING_SYSTEM_PROMPT,
+    userPrompt,
+    role,
+    modelName: AI_MODEL_CONFIG.proModel,
+    label: 'Early Warning',
+    maxOutputTokens: 3000,
+  });
+  const alerts = parseJsonOrThrow<any[]>(text, 'Early Warning');
+  return {
+    alerts: Array.isArray(alerts) ? alerts : [],
+    studentsAnalyzed: rosterRows.length,
+    generatedAt: new Date().toISOString(),
+  };
+});
+
+/**
+ * AI Voice Command parser (Teacher/Admin). Returns structured action JSON.
+ */
+export const aiVoiceCommand = onCall({ timeoutSeconds: 60, memory: '256MiB' }, async (request) => {
+  const { role } = await requireAuthenticatedPrivileged(request);
+  const { transcript, contextHint } = request.data || {};
+  if (!transcript || typeof transcript !== 'string' || !transcript.trim()) {
+    throw new HttpsError('invalid-argument', 'transcript is required');
+  }
+  const userPrompt = buildVoiceCommandPrompt(transcript, contextHint);
+  const text = await runGemini({
+    systemPrompt: VOICE_COMMAND_SYSTEM_PROMPT,
+    userPrompt,
+    role,
+    label: 'Voice Command',
+    maxOutputTokens: 800,
+    temperature: 0.2,
+  });
+  const parsed = parseJsonOrThrow<any>(text, 'Voice Command');
+  return {
+    action: typeof parsed?.action === 'string' ? parsed.action : 'unknown',
+    parameters:
+      parsed && typeof parsed.parameters === 'object' && parsed.parameters !== null
+        ? parsed.parameters
+        : {},
+    confirmationMessage:
+      typeof parsed?.confirmationMessage === 'string' ? parsed.confirmationMessage : '',
+    requiresConfirmation: Boolean(parsed?.requiresConfirmation),
+    generatedAt: new Date().toISOString(),
+  };
+});
+
+/**
+ * Exam Paper scanner (Teacher/Admin). Accepts image base64 + mime and returns
+ * structured questions and detected student answers via Gemini Vision.
+ */
+export const parseExamPaper = onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+  const { role } = await requireAuthenticatedPrivileged(request);
+  const { imageBase64, mimeType, hints } = request.data || {};
+  if (!imageBase64 || typeof imageBase64 !== 'string') {
+    throw new HttpsError('invalid-argument', 'imageBase64 is required');
+  }
+  const mt = typeof mimeType === 'string' && mimeType ? mimeType : 'image/jpeg';
+  if (!/^image\/(png|jpeg|jpg|webp)$/i.test(mt)) {
+    throw new HttpsError('invalid-argument', 'Unsupported image mimeType');
+  }
+  // Enforce a reasonable upload cap (~6MB base64 ≈ ~4.5MB image).
+  if (imageBase64.length > 6_500_000) {
+    throw new HttpsError('invalid-argument', 'Image too large (max ~5MB)');
+  }
+  if (!genAI) {
+    throw new HttpsError('failed-precondition', aiNotConfiguredMessage());
+  }
+  const model = genAI.getGenerativeModel({
+    model: AI_MODEL_CONFIG.visionModel,
+    safetySettings: getSafetySettings(role) as any,
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 3000,
+      responseMimeType: 'application/json',
+    },
+  });
+  const prompt = `${EXAM_SCANNER_SYSTEM_PROMPT}\n\nAdditional hints from the teacher: ${
+    typeof hints === 'string' ? hints : '(none)'
+  }`;
+
+  const result = await withTimeout(
+    model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }, { inlineData: { data: imageBase64, mimeType: mt } }],
+        },
+      ],
+    }),
+    180_000,
+    'Gemini API (Exam Scanner)'
+  );
+  const text = result.response.text();
+  const parsed = parseJsonOrThrow<any>(text, 'Exam Scanner');
+  return {
+    ...parsed,
+    generatedAt: new Date().toISOString(),
+  };
+});
 
 // ==================== ADMIN FUNCTIONS ====================
 

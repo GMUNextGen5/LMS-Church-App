@@ -14,6 +14,9 @@ export default tseslint.config(
       '**/*.cjs',
       'scripts/**',
       'src/ui/templates.part.ts',
+      // Imported reference-only package; its logic has been ported into
+      // `firebase-functions/src` + `src/core/ai-client.ts`.
+      'AI FEATUES/**',
     ],
   },
   eslint.configs.recommended,

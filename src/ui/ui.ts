@@ -84,10 +84,31 @@ export function sanitizeHTML(html: string): string {
       'value',
       'readonly',
       'aria-label',
+      'aria-hidden',
+      'aria-live',
+      'role',
+      // Form-like primitives used by the AI tools panel (no <form> tag is ever
+      // allowed, so these cannot submit or navigate on their own):
+      'name',
+      'placeholder',
+      'accept',
+      'min',
+      'max',
+      'step',
+      'pattern',
+      'disabled',
+      'required',
+      'multiple',
+      'alt',
+      'src',
+      'for',
     ],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z.+.-]+(?:[^a-z+.:-]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|data):|[^a-z]|[a-z.+.-]+(?:[^a-z+.:-]|$))/i,
     FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+    // Allow `data-*` hooks so the AI tool modal can identify its own inputs.
+    // DOMPurify strips any data-on* style hooks regardless of this flag.
+    ALLOW_DATA_ATTR: true,
   });
 }
 
