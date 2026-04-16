@@ -53,6 +53,8 @@ Cloudflare’s Git-connected **v2** build has intermittently failed with an inte
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | |
 | `VITE_FIREBASE_APP_ID` | |
 
+**Important:** Variables you set under **Cloudflare → Pages → Settings → Variables** only apply when **Cloudflare** runs the build. They are **not** visible to **GitHub Actions**. The `deploy-pages` job runs `npm run build` on GitHub’s runners, so you must **copy the same `VITE_*` values** (and add `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`, which only exist in GitHub) into **GitHub → Settings → Secrets and variables → Actions**. Use the same names so the workflow `env:` block matches.
+
 After these are set, pushes to `main` run **verify** then **deploy-pages** for `GMUNextGen5/LMS-Church-App` only.
 
 **Cloudflare dashboard:** To avoid duplicate builds and a wall of failed Git-based deployments, open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git (or disconnect the Git repository). Rely on the GitHub Action for production uploads until Cloudflare resolves the v2 Git integration issue.
