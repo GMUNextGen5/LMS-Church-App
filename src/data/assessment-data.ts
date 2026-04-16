@@ -64,9 +64,7 @@ function studentProfileMatchesAssessmentVisibility(
     (assessment.assignedMode !== 'class' && assignedIds.length > 0);
   if (!treatsAsIndividual) return true;
   const uid = getCurrentUser()?.uid;
-  return assignedIds.some(
-    (id) => studentProfileIds.includes(id) || (uid != null && id === uid)
-  );
+  return assignedIds.some((id) => studentProfileIds.includes(id) || (uid != null && id === uid));
 }
 
 function requireTeacherOrAdmin() {

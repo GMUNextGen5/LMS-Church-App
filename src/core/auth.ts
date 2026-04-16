@@ -720,7 +720,10 @@ export async function resetPassword(email: string): Promise<{ ok: boolean; messa
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code ?? '';
     if (code === 'auth/user-not-found') {
-      return { ok: true, message: 'If an account exists for this email, a reset link has been sent.' };
+      return {
+        ok: true,
+        message: 'If an account exists for this email, a reset link has been sent.',
+      };
     }
     if (code === 'auth/too-many-requests') {
       return { ok: false, message: 'Too many attempts. Please try again later.' };
