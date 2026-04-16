@@ -1,0 +1,20 @@
+# Cloudflare Pages configuration for the LMS frontend.
+#
+# Background: Cloudflare Pages' "v2 root directory strategy" currently runs a
+# BETA pre-build step that checks for a Wrangler configuration file. When no
+# configuration file is present that BETA path can hit an "internal error"
+# before npm install runs. Providing an explicit, minimal Pages configuration
+# gives the v2 strategy a deterministic config to follow and avoids that path.
+#
+# Docs: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+#
+# - pages_build_output_dir: directory produced by `npm run build` (Vite default)
+# - compatibility_date: locks the Workers runtime compatibility for any Pages
+#   Functions added later. We don't ship Pages Functions today, but this is
+#   required by the schema.
+#
+# The Pages project name is intentionally omitted so the dashboard remains the
+# source of truth for the project name and any bindings/env vars.
+
+pages_build_output_dir = "./dist"
+compatibility_date = "2025-04-01"
