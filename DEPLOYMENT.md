@@ -36,6 +36,27 @@ Root `.gitignore` excludes `dist/`, `.env*`, `firebase-functions/lib/`, and `.wr
 
 `public/_redirects` and `public/_headers` are copied into `dist` by Vite for SPA routing and security headers.
 
+### 3.1 GitHub Actions deploy (recommended when Pages Git integration fails)
+
+Cloudflare’s Git-connected **v2** build has intermittently failed with an internal error after reading `wrangler.toml`, before `npm install` runs. The repo ships a **`deploy-pages` job** in `.github/workflows/ci.yml` that builds on GitHub Actions and uploads `dist` with the official Pages API (equivalent to `wrangler pages deploy`).
+
+**Repository secrets** (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret | Purpose |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | API token with **Account → Cloudflare Pages → Edit** (and read account if prompted). |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID from the Cloudflare dashboard sidebar. |
+| `VITE_FIREBASE_API_KEY` | Same values as in Pages → Settings → Environment variables (production). |
+| `VITE_FIREBASE_AUTH_DOMAIN` | |
+| `VITE_FIREBASE_PROJECT_ID` | |
+| `VITE_FIREBASE_STORAGE_BUCKET` | |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | |
+| `VITE_FIREBASE_APP_ID` | |
+
+After these are set, pushes to `main` run **verify** then **deploy-pages** for `GMUNextGen5/LMS-Church-App` only.
+
+**Cloudflare dashboard:** To avoid duplicate builds and a wall of failed Git-based deployments, open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git (or disconnect the Git repository). Rely on the GitHub Action for production uploads until Cloudflare resolves the v2 Git integration issue.
+
 ## 4. Firebase console (Auth)
 
 Add your Pages hostname under **Authentication → Settings → Authorized domains** (e.g. `*.pages.dev` or your custom domain). Omitting this breaks sign-in on the deployed URL.
