@@ -401,6 +401,11 @@ async function renderStudentList(_uid: string): Promise<void> {
   const allRows = await fetchStudentAssessmentsCached(profileIds);
   const nowMs = Date.now();
   const upcomingRows = allRows.filter((r) => isStudentAssessmentUpcoming(r, nowMs));
+
+  // Auto-fallthrough: if Upcoming is empty but the student has assessments, show All
+  if (studentListMode === 'upcoming' && upcomingRows.length === 0 && allRows.length > 0) {
+    studentListMode = 'all';
+  }
   const baseRows = studentListMode === 'upcoming' ? upcomingRows : allRows;
   const hasMoreInMode = baseRows.length > studentListLimit;
   const rows = baseRows.slice(0, studentListLimit);
@@ -482,7 +487,7 @@ async function renderStudentList(_uid: string): Promise<void> {
                 ? 'No upcoming assessments'
                 : 'No assessments assigned',
               studentListMode === 'upcoming'
-                ? 'Upcoming assessments match the dashboard list: published, due in the future, and still actionable.'
+                ? 'Assessments you still need to complete will appear here — including late-allowed work past its due date.'
                 : 'Assessments will appear here when your teacher publishes them.',
               `<button type="button" data-action="goto-classes-tab" class="px-4 py-2 rounded-lg bg-primary-500/20 text-primary-400 text-sm font-semibold hover:bg-primary-500/30 border border-primary-500/30">View my classes</button>`
             )

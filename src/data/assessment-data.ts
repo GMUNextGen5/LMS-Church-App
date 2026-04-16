@@ -49,7 +49,11 @@ function requireAuth() {
   return user;
 }
 
-/** Whether any of `studentProfileIds` may see this assessment (entire class vs individual / legacy ID lists). */
+/**
+ * Whether any of `studentProfileIds` may see this assessment (entire class vs individual / legacy ID lists).
+ * Mirrors Firestore `assessmentAssignedToCaller`: accepts profile doc ID **or** auth UID in the array
+ * so legacy documents that stored UIDs are not silently hidden on the client.
+ */
 function studentProfileMatchesAssessmentVisibility(
   assessment: Assessment,
   studentProfileIds: string[]
@@ -59,7 +63,10 @@ function studentProfileMatchesAssessmentVisibility(
     assessment.assignedMode === 'individual' ||
     (assessment.assignedMode !== 'class' && assignedIds.length > 0);
   if (!treatsAsIndividual) return true;
-  return assignedIds.some((id) => studentProfileIds.includes(id));
+  const uid = getCurrentUser()?.uid;
+  return assignedIds.some(
+    (id) => studentProfileIds.includes(id) || (uid != null && id === uid)
+  );
 }
 
 function requireTeacherOrAdmin() {
@@ -202,12 +209,24 @@ function parseDueMs(isoDue: string): number {
 
 /**
  * Single source of truth for the learner "Upcoming" definition (Dashboard + Assessments tab).
- * Upcoming means: due date is in the future AND the submission is still actionable.
+ *
+ * An assessment is "upcoming" (actionable) when:
+ *  1. Due in the future and the submission is still actionable, OR
+ *  2. Due has passed but late submissions are allowed and the learner can still submit, OR
+ *  3. Due has passed and the learner has an in-progress attempt they should finish.
+ *
+ * Effectively closed (past due, no late, no in-progress) rows are excluded.
  */
 export function isStudentAssessmentUpcoming(row: StudentAssessmentRow, nowMs: number): boolean {
   const dueMs = parseDueMs(row.assessment?.dueDateTime || '');
-  if (!dueMs || dueMs <= nowMs) return false;
-  return submissionStillActionable(row.submission);
+  if (!dueMs) return false;
+  const actionable = submissionStillActionable(row.submission);
+  if (dueMs > nowMs) return actionable;
+  // Past due: still show if late submissions allowed, or if already in progress
+  if (!actionable) return false;
+  if (row.assessment.allowLate) return true;
+  if (row.submission?.status === 'in_progress') return true;
+  return false;
 }
 
 /** Fetch assessments visible to the current student. */
