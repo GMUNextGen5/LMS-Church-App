@@ -329,16 +329,28 @@ service cloud.firestore {
           return c.keys().hasAll(['studentIds']) && c.studentIds.hasAny([studentProfileId]);
         }
 
-        allow read: if isAuthenticated() && (
+        // Single-document reads: full per-document checks (published + enrolled + assigned).
+        allow get: if isAuthenticated() && (
           isAssessmentTeacher() ||
           (assessmentPublished(courseId, assessmentId) &&
             isStudentEnrolledInCourse(courseId) &&
             assessmentAssignedToCaller(courseId, assessmentId))
         );
 
+        // Collection queries: use resource.data (not get-on-self) so Firestore can prove the
+        // rule from query constraints. Individual-assignment filtering is enforced by get rules
+        // and client-side studentProfileMatchesAssessmentVisibility.
+        allow list: if isAuthenticated() && (
+          isAssessmentTeacher() ||
+          (resource.data.status == 'published' &&
+            isStudentEnrolledInCourse(courseId))
+        );
+
         allow create, update, delete: if isAssessmentTeacher();
 
         match /questions/{questionId} {
+          // Questions reads use get() on the PARENT assessment (a different doc), which is fine
+          // for both get and list operations.
           allow read: if isAuthenticated() && (
             isAssessmentTeacher() ||
             (assessmentPublished(courseId, assessmentId) &&
