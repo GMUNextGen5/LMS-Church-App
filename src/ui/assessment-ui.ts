@@ -192,6 +192,9 @@ export async function loadAssessments(): Promise<void> {
     teacherListLimit = 30;
     studentListLimit = 20;
     studentListMode = 'upcoming';
+    // Invalidate caches so fresh data is always fetched on tab entry
+    studentAssessmentsCache = null;
+    teacherAssessmentsCache = null;
     await renderCurrentView();
   })().finally(() => {
     assessmentsTabLoadPromise = null;
