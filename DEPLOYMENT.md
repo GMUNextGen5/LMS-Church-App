@@ -42,16 +42,16 @@ Cloudflare’s Git-connected **v2** build has intermittently failed with an inte
 
 **Repository secrets** (GitHub → Settings → Secrets and variables → Actions):
 
-| Secret | Purpose |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | API token with **Account → Cloudflare Pages → Edit** (and read account if prompted). |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID from the Cloudflare dashboard sidebar. |
-| `VITE_FIREBASE_API_KEY` | Same values as in Pages → Settings → Environment variables (production). |
-| `VITE_FIREBASE_AUTH_DOMAIN` | |
-| `VITE_FIREBASE_PROJECT_ID` | |
-| `VITE_FIREBASE_STORAGE_BUCKET` | |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | |
-| `VITE_FIREBASE_APP_ID` | |
+| Secret                              | Purpose                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------------------ |
+| `CLOUDFLARE_API_TOKEN`              | API token with **Account → Cloudflare Pages → Edit** (and read account if prompted). |
+| `CLOUDFLARE_ACCOUNT_ID`             | Account ID from the Cloudflare dashboard sidebar.                                    |
+| `VITE_FIREBASE_API_KEY`             | Same values as in Pages → Settings → Environment variables (production).             |
+| `VITE_FIREBASE_AUTH_DOMAIN`         |                                                                                      |
+| `VITE_FIREBASE_PROJECT_ID`          |                                                                                      |
+| `VITE_FIREBASE_STORAGE_BUCKET`      |                                                                                      |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` |                                                                                      |
+| `VITE_FIREBASE_APP_ID`              |                                                                                      |
 
 **Important:** Variables you set under **Cloudflare → Pages → Settings → Variables** only apply when **Cloudflare** runs the build. They are **not** visible to **GitHub Actions**. The `deploy-pages` job runs `npm run build` on GitHub’s runners, so you must **copy the same `VITE_*` values** (and add `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`, which only exist in GitHub) into **GitHub → Settings → Secrets and variables → Actions**. Use the same names so the workflow `env:` block matches.
 
