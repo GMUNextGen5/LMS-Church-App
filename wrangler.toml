@@ -1,8 +1,0 @@
-# Cloudflare Pages — Wrangler config required for Git-integrated builds.
-# The dashboard must still define the build command (e.g. `npm run build`).
-# See: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
-
-name = "lms-church-app"
-pages_build_output_dir = "./dist"
-# Align with Pages → Settings → Runtime compatibility date when possible.
-compatibility_date = "2026-01-24"

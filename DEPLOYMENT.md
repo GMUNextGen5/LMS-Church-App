@@ -36,7 +36,9 @@ Root `.gitignore` excludes `dist/`, `.env*`, `firebase-functions/lib/`, and `.wr
 
 `public/_redirects` and `public/_headers` are copied into `dist` by Vite for SPA routing and security headers.
 
-**Root `wrangler.toml`:** Cloudflare’s Git builder **requires** a valid `wrangler.toml` that includes **`pages_build_output_dir`** (for example `./dist`). If the file is present but missing that property, the log shows _“Skipping file and continuing”_ and the build can still fail. This repo commits **`name`**, **`pages_build_output_dir`**, and **`compatibility_date`** (keep `compatibility_date` in sync with **Pages → Settings → Runtime → Compatibility date** when you change it in the dashboard).
+**Root Wrangler file (`wrangler.json`):** Cloudflare’s Git-integrated Pages build looks for **`wrangler.toml`**, **`wrangler.json`**, or **`wrangler.jsonc`**. This repo commits a minimal **`wrangler.json`** with **`name`** and **`pages_build_output_dir`** (`./dist`) only. Runtime **compatibility date** stays in the dashboard (**Settings → Runtime**) so it cannot conflict with a second date in Git.
+
+If the log says the Wrangler file is invalid, it must include **`pages_build_output_dir`**; otherwise Pages skips the file and may still fail.
 
 **Node on Pages:** `.node-version` pins **Node 20** to match GitHub Actions (`setup-node`). You can also set **`NODE_VERSION`** to `20` under Variables (optional duplicate).
 
@@ -44,7 +46,7 @@ Root `.gitignore` excludes `dist/`, `.env*`, `firebase-functions/lib/`, and `.wr
 
 Under **Pages → Settings → Variables and Secrets**, each row has a **Name** and a **Value**. The name must be a single identifier, for example **`GEMINI_API_KEY`**.
 
-- **Wrong:** a variable whose **name** is `GEMINI_API_KEY=`, `GEMINI_API_KEY =`, or `GEMINI_API_KEY =` (spaces or `=` belong in the value field, not the name). Duplicate or malformed names can break the build and show up as a generic **internal error** after the Wrangler step.
+- **Wrong:** a variable whose **name** is `GEMINI_API_KEY=`, `GEMINI_API_KEY =`, or any name containing spaces or `=` (those belong in the value field, not the name). Duplicate or malformed names can break the build and show up as a generic **internal error** after the Wrangler step.
 - **Right:** name `GEMINI_API_KEY`, type Secret, value = your API key only.
 
 This frontend is static **Vite** output; **`GEMINI_API_KEY` is not required on Cloudflare Pages** unless you add Pages Functions that call Gemini. Prefer **removing** unused Gemini secrets from the Pages project to reduce risk. Keep **`GEMINI_API_KEY`** for **Firebase Cloud Functions** (see §1).
@@ -54,12 +56,26 @@ This frontend is static **Vite** output; **`GEMINI_API_KEY` is not required on C
 Work through these in order:
 
 1. Fix **Variables and Secrets** as in §3.1 (delete bad names, dedupe).
-2. **Build command / output directory** — non-empty: e.g. `npm run build` or `npm ci && npm run build`, output **`dist`**. **`wrangler.toml` must include `pages_build_output_dir`** (see above).
+2. **Build command / output directory** — non-empty: e.g. `npm run build` or `npm ci && npm run build`, output **`dist`**. **`wrangler.json` must include `pages_build_output_dir`** (see above).
 3. **Workers & Pages → Settings → Builds & deployments → Build system version** — **v3** ([changelog](https://developers.cloudflare.com/changelog/2025-05-30-pages-build-image-v3/)).
-4. **Disable Git production builds** and rely on the **`deploy-pages`** GitHub Action (§3.3) if Cloudflare’s Git container keeps failing.
+4. **Disable Git production builds** and rely on the **`deploy-pages`** GitHub Action (§3.4) if Cloudflare’s Git container keeps failing — see **§3.3** below (this is the reliable fix when logs show _internal error_ right after _Successfully read the Wrangler configuration file_).
 5. If it still fails, contact Cloudflare support with the **deployment id** from the build log.
 
-### 3.3 GitHub Actions deploy (recommended)
+### 3.3 Stop using Cloudflare Git builds (when every deploy ends in “internal error”)
+
+Some Pages projects hit a **generic internal error** immediately after Wrangler config is read, **before** `npm install`. That is a **Cloudflare-side** failure; the app repo cannot repair it from source code.
+
+**Do this once:**
+
+1. In **GitHub** → your repository → **Settings** → **Branches** → branch protection on `main`: if **“Cloudflare Pages”** (or similar) is a **required status check**, **remove** it so merges are not blocked by a broken Cloudflare Git build. You can keep **CI / verify** required.
+2. In **Cloudflare** → **Workers & Pages** → **lms-church-app** → **Settings** → **Builds & deployments**:
+   - Under **Production branch** / **Automatic deployments**, **disable** automatic production deployments from Git, **or**
+   - **Disconnect** the Git repository from this Pages project (create a new Pages project later if you need a fresh link).
+3. Keep shipping production by pushing to `main` with **`deploy-pages`** (§3.4) only — it uploads `dist` via the Pages API and does **not** use the failing Git build container.
+
+After Git builds are off, the site still updates whenever **`deploy-pages`** succeeds; you only lose Cloudflare’s redundant Git-based build.
+
+### 3.4 GitHub Actions deploy (recommended)
 
 The repo ships a **`deploy-pages` job** in `.github/workflows/ci.yml` that builds on GitHub Actions and uploads `dist` with the official Pages API (equivalent to `wrangler pages deploy`). Use it whenever you want production deploys without relying on Cloudflare’s Git builder.
 
@@ -80,7 +96,7 @@ The repo ships a **`deploy-pages` job** in `.github/workflows/ci.yml` that build
 
 After these are set, pushes to `main` run **verify** then **deploy-pages** for `GMUNextGen5/LMS-Church-App` only.
 
-**Cloudflare dashboard:** To avoid duplicate builds (one from Cloudflare Git, one from GitHub Actions), open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git if you rely entirely on **`deploy-pages`**. If you keep Git builds enabled, keep **`wrangler.toml` valid** (includes `pages_build_output_dir`) and keep the dashboard **build command** set (Wrangler does not replace the dashboard build command for this setup).
+**Cloudflare dashboard:** To avoid duplicate builds (one from Cloudflare Git, one from GitHub Actions), open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git if you rely entirely on **`deploy-pages`**. If you keep Git builds enabled, keep **`wrangler.json` valid** (includes `pages_build_output_dir`) and keep the dashboard **build command** set.
 
 ## 4. Firebase console (Auth)
 

@@ -34,9 +34,8 @@ jobs:
         working-directory: firebase-functions
         run: npm run lint && npm test && npm run build
 
-  # Cloudflare Pages Git requires a valid wrangler.toml with pages_build_output_dir;
-  # malformed dashboard env names can still cause opaque "internal error" there.
-  # This job uploads ./dist via the Pages API (same mechanism as `wrangler pages deploy`).
+  # Cloudflare Pages Git can still fail with an internal error after reading Wrangler
+  # config; deploy-pages uploads ./dist via the Pages API (wrangler pages deploy).
   #
   # Optional: Pages → Settings → Builds → disable duplicate Git production builds
   # if this workflow is the only deploy path you want.
