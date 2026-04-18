@@ -8,6 +8,10 @@ firebase-functions/lib/
 
 # Cloudflare Wrangler (local state; never commit)
 .wrangler/
+# Root `wrangler.toml` is gitignored so Cloudflare Pages Git builds do not load
+# the Wrangler v2 BETA path that fails after config validation. See
+# `wrangler.example.toml` and DEPLOYMENT.md.
+wrangler.toml
 coverage/
 firebase-functions/coverage/
 

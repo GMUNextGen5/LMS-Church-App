@@ -30,15 +30,17 @@ Root `.gitignore` excludes `dist/`, `.env*`, `firebase-functions/lib/`, and `.wr
 
 ## 3. Cloudflare Pages (frontend)
 
-1. **Build command:** `npm run build`
+1. **Build command:** `npm ci && npm run build` (or `npm install && npm run build` if you do not use a lockfile in CI)
 2. **Output directory:** `dist`
 3. **Root directory:** repository root (default).
 
 `public/_redirects` and `public/_headers` are copied into `dist` by Vite for SPA routing and security headers.
 
-### 3.1 GitHub Actions deploy (recommended when Pages Git integration fails)
+**Do not commit a root `wrangler.toml`:** When that file exists and sets `pages_build_output_dir`, Cloudflare Pages’ Git-connected **v2** builder treats Wrangler as the source of truth and has repeatedly failed with an **internal error immediately after** “Successfully read the Wrangler configuration file” (often before `npm install` runs). This repository intentionally omits `wrangler.toml` from Git and provides **`wrangler.example.toml`** instead. For local `wrangler pages dev`, copy the example to `wrangler.toml` (ignored by Git).
 
-Cloudflare’s Git-connected **v2** build has intermittently failed with an internal error after reading `wrangler.toml`, before `npm install` runs. The repo ships a **`deploy-pages` job** in `.github/workflows/ci.yml` that builds on GitHub Actions and uploads `dist` with the official Pages API (equivalent to `wrangler pages deploy`).
+### 3.1 GitHub Actions deploy (recommended)
+
+The repo ships a **`deploy-pages` job** in `.github/workflows/ci.yml` that builds on GitHub Actions and uploads `dist` with the official Pages API (equivalent to `wrangler pages deploy`). Use it whenever you want production deploys without relying on Cloudflare’s Git builder.
 
 **Repository secrets** (GitHub → Settings → Secrets and variables → Actions):
 
@@ -57,7 +59,7 @@ Cloudflare’s Git-connected **v2** build has intermittently failed with an inte
 
 After these are set, pushes to `main` run **verify** then **deploy-pages** for `GMUNextGen5/LMS-Church-App` only.
 
-**Cloudflare dashboard:** To avoid duplicate builds and a wall of failed Git-based deployments, open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git (or disconnect the Git repository). Rely on the GitHub Action for production uploads until Cloudflare resolves the v2 Git integration issue.
+**Cloudflare dashboard:** To avoid duplicate builds (one from Cloudflare Git, one from GitHub Actions), open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git if you rely entirely on **`deploy-pages`**. If you keep Git builds enabled, leave **no** committed root `wrangler.toml` so the dashboard **build command** and **output directory** above drive the build.
 
 ## 4. Firebase console (Auth)
 

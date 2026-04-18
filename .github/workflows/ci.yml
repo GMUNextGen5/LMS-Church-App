@@ -34,14 +34,13 @@ jobs:
         working-directory: firebase-functions
         run: npm run lint && npm test && npm run build
 
-  # Cloudflare Pages "Git integration" + v2 root directory strategy has been
-  # failing with an internal error immediately after wrangler.toml validates
-  # (no npm install runs). This job bypasses that path by uploading ./dist via
-  # the Pages API (same mechanism as `wrangler pages deploy`).
+  # Cloudflare Pages Git + Wrangler v2 can fail with an internal error when a
+  # root wrangler.toml sets pages_build_output_dir. The repo omits wrangler.toml
+  # from Git (see wrangler.example.toml + DEPLOYMENT.md). This job uploads ./dist
+  # via the Pages API (same mechanism as `wrangler pages deploy`).
   #
-  # In Cloudflare: Pages → lms-church-app → Settings → Builds:
-  # disable automatic builds on push (or disconnect Git) so failed Git builds do
-  # not spam the dashboard; this workflow becomes the source of truth.
+  # Optional: Pages → Settings → Builds → disable duplicate Git production builds
+  # if this workflow is the only deploy path you want.
   deploy-pages:
     needs: verify
     if: >-
