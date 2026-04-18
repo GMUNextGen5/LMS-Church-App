@@ -36,9 +36,20 @@ Root `.gitignore` excludes `dist/`, `.env*`, `firebase-functions/lib/`, and `.wr
 
 `public/_redirects` and `public/_headers` are copied into `dist` by Vite for SPA routing and security headers.
 
-**Do not commit a root `wrangler.toml`:** When that file exists and sets `pages_build_output_dir`, Cloudflare Pages’ Git-connected **v2** builder treats Wrangler as the source of truth and has repeatedly failed with an **internal error immediately after** “Successfully read the Wrangler configuration file” (often before `npm install` runs). This repository intentionally omits `wrangler.toml` from Git and provides **`wrangler.example.toml`** instead. For local `wrangler pages dev`, copy the example to `wrangler.toml` (ignored by Git).
+**Root `wrangler.toml`:** The repo commits a **minimal** `wrangler.toml` (`name` + `compatibility_date` only). **Do not add `pages_build_output_dir` to that file:** when that key is present in a committed Wrangler file, Cloudflare Pages’ Git builder has intermittently failed with an **internal error right after** config validation (often before `npm install`). Build command and output directory must remain set in the **Pages dashboard**. For local `wrangler pages dev` with an output directory, see **`wrangler.example.toml`** (or run `npx wrangler pages dev dist` after `npm run build`).
 
-### 3.1 GitHub Actions deploy (recommended)
+**Node on Pages:** `.node-version` pins **Node 20** to match GitHub Actions (`setup-node`). Cloudflare’s build image reads this file automatically.
+
+### 3.1 If Cloudflare Git still shows “internal error”
+
+That message is returned by **Cloudflare’s build orchestration** (often before `npm install` runs), not by your app code. Work through these in order:
+
+1. **Workers & Pages → your project → Settings → Builds & deployments → Build system version** — set to **v3 (Latest)** if the project is still on an older image ([changelog](https://developers.cloudflare.com/changelog/2025-05-30-pages-build-image-v3/)).
+2. **Build command / output directory** — confirm they are non-empty: `npm ci && npm run build` and **`dist`**. Re-save the settings once if you previously used Wrangler-only configuration.
+3. **Disable Git production builds** and rely on the **`deploy-pages`** GitHub Action (below) so production uploads do not depend on Cloudflare’s Git container.
+4. If it still fails, open a ticket with Cloudflare support and include the **deployment id** from the failed build log.
+
+### 3.2 GitHub Actions deploy (recommended)
 
 The repo ships a **`deploy-pages` job** in `.github/workflows/ci.yml` that builds on GitHub Actions and uploads `dist` with the official Pages API (equivalent to `wrangler pages deploy`). Use it whenever you want production deploys without relying on Cloudflare’s Git builder.
 
@@ -59,7 +70,7 @@ The repo ships a **`deploy-pages` job** in `.github/workflows/ci.yml` that build
 
 After these are set, pushes to `main` run **verify** then **deploy-pages** for `GMUNextGen5/LMS-Church-App` only.
 
-**Cloudflare dashboard:** To avoid duplicate builds (one from Cloudflare Git, one from GitHub Actions), open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git if you rely entirely on **`deploy-pages`**. If you keep Git builds enabled, leave **no** committed root `wrangler.toml` so the dashboard **build command** and **output directory** above drive the build.
+**Cloudflare dashboard:** To avoid duplicate builds (one from Cloudflare Git, one from GitHub Actions), open **Pages → lms-church-app → Settings → Builds** and **disable** automatic production builds from Git if you rely entirely on **`deploy-pages`**. If you keep Git builds enabled, keep the committed **`wrangler.toml` minimal** (no `pages_build_output_dir`) so the dashboard **build command** and **output directory** above still apply.
 
 ## 4. Firebase console (Auth)
 

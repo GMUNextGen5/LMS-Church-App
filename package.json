@@ -2,6 +2,9 @@
   "name": "lms-firebase",
   "version": "1.0.0",
   "description": "Learning Management System — frontend for Cloudflare Pages, backend on Firebase",
+  "engines": {
+    "node": ">=20 <25"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

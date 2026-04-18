@@ -1,0 +1,10 @@
+# Minimal Wrangler metadata for Cloudflare Pages Git builds.
+#
+# Do NOT add `pages_build_output_dir` here: when that key is present in a
+# committed file, Cloudflare’s Pages Git builder has intermittently failed with
+# an internal error right after validating Wrangler config (often before
+# `npm install`). Keep the build command and output directory in the Pages
+# dashboard (see DEPLOYMENT.md).
+
+name = "lms-church-app"
+compatibility_date = "2026-04-18"

@@ -34,10 +34,9 @@ jobs:
         working-directory: firebase-functions
         run: npm run lint && npm test && npm run build
 
-  # Cloudflare Pages Git + Wrangler v2 can fail with an internal error when a
-  # root wrangler.toml sets pages_build_output_dir. The repo omits wrangler.toml
-  # from Git (see wrangler.example.toml + DEPLOYMENT.md). This job uploads ./dist
-  # via the Pages API (same mechanism as `wrangler pages deploy`).
+  # Cloudflare Pages Git can fail with an internal error when wrangler.toml sets
+  # pages_build_output_dir. The repo keeps a minimal wrangler.toml (see DEPLOYMENT.md).
+  # This job uploads ./dist via the Pages API (same mechanism as `wrangler pages deploy`).
   #
   # Optional: Pages → Settings → Builds → disable duplicate Git production builds
   # if this workflow is the only deploy path you want.

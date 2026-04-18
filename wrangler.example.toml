@@ -1,13 +1,10 @@
-# Optional local Cloudflare Pages / Wrangler development only.
-#
-# Copy to `wrangler.toml` in the repo root (that filename is gitignored).
-# Do not commit `wrangler.toml`: Cloudflare Pages Git builds use a BETA Wrangler
-# reader that can fail with an internal error after validating a committed file
-# that sets `pages_build_output_dir`, before `npm install` runs.
-#
-# Production deploys: use Cloudflare dashboard build settings and/or the
-# `deploy-pages` job in `.github/workflows/ci.yml`.
+# Optional: extra Wrangler fields for local `wrangler pages dev` / experiments.
+# The committed `wrangler.toml` stays minimal (no `pages_build_output_dir`) so
+# Cloudflare Pages Git builds stay stable. If you need a local-only output dir,
+# either merge the line below into `wrangler.toml` temporarily (do not commit
+# that change) or run: `npx wrangler pages dev dist --compatibility-date=2026-04-18`
+# after `npm run build`.
 
 name = "lms-church-app"
 pages_build_output_dir = "./dist"
-compatibility_date = "2026-04-16"
+compatibility_date = "2026-04-18"
