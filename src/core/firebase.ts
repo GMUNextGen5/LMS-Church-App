@@ -48,16 +48,26 @@ export let functions!: Functions;
 
 const REQUIRED_FIREBASE_KEYS = ['apiKey', 'authDomain', 'projectId', 'appId'] as const;
 
+/** Vite `import.meta.env` keys that populate each Firebase config field. */
+const FIREBASE_ENV_BY_CONFIG_KEY: Record<(typeof REQUIRED_FIREBASE_KEYS)[number], string> = {
+  apiKey: 'VITE_FIREBASE_API_KEY',
+  authDomain: 'VITE_FIREBASE_AUTH_DOMAIN',
+  projectId: 'VITE_FIREBASE_PROJECT_ID',
+  appId: 'VITE_FIREBASE_APP_ID',
+};
+
 /** Ensures required Vite env vars are present before calling `initializeApp`. */
 function assertFirebaseEnv(): void {
-  const missing = REQUIRED_FIREBASE_KEYS.filter((k) => {
+  const missingKeys = REQUIRED_FIREBASE_KEYS.filter((k) => {
     const v = firebaseConfig[k];
     return typeof v !== 'string' || v.trim() === '';
   });
-  if (missing.length > 0) {
+  if (missingKeys.length > 0) {
+    const missingEnv = missingKeys.map((k) => FIREBASE_ENV_BY_CONFIG_KEY[k]);
     throw new Error(
-      `Firebase configuration incomplete (missing: ${missing.join(', ')}). ` +
-        'Copy .env.example to .env and set the VITE_FIREBASE_* variables for your project.'
+      `Firebase configuration incomplete (empty or missing: ${missingEnv.join(', ')}). ` +
+        'Local dev: copy `.env.example` to `.env` in the project root, set those variables, then restart `npm run dev`. ' +
+        'Hosted builds: set the same variable names in Cloudflare Pages (or GitHub Actions secrets for deploy-pages).'
     );
   }
 }
