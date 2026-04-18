@@ -1,10 +1,6 @@
-# Optional: extra Wrangler fields for local `wrangler pages dev` / experiments.
-# The committed `wrangler.toml` stays minimal (no `pages_build_output_dir`) so
-# Cloudflare Pages Git builds stay stable. If you need a local-only output dir,
-# either merge the line below into `wrangler.toml` temporarily (do not commit
-# that change) or run: `npx wrangler pages dev dist --compatibility-date=2026-04-18`
-# after `npm run build`.
+# Same as committed `wrangler.toml` — kept for local experiments / copy-paste.
+# For `wrangler pages dev`, the committed root `wrangler.toml` is enough.
 
 name = "lms-church-app"
 pages_build_output_dir = "./dist"
-compatibility_date = "2026-04-18"
+compatibility_date = "2026-01-24"
