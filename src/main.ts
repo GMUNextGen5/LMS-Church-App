@@ -10,7 +10,7 @@ import './styles/app.css';
 
 
 import './firebase';
-import { initAuth } from './auth';
+import { initAuth } from './features/auth/auth';
 import { ParticleSystem } from './particles';
 import {
   initUI,

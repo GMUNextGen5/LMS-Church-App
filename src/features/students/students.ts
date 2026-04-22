@@ -7,8 +7,7 @@ import { functions, httpsCallable } from '../../firebase';
 import {
   getStudents, setStudents, setSelectedStudentId, getSelectedStudentId
 } from '../../state';
-import { fetchStudents } from '../../data';
-import { deleteStudent, createStudent } from '../../data';
+import { fetchStudents, deleteStudent, createStudent } from './student-data';
 import { displayGrades } from '../grades/grades';
 import { loadStudentGrades } from '../grades/grades';
 import { loadStudentAttendance } from '../attendance/attendance';

@@ -2,7 +2,7 @@
  * Grades — Grade display, charts, and management
  */
 
-import { listenToGrades, deleteGrade, exportGradesToCSV, addGrade } from '../../data';
+import { listenToGrades, deleteGrade, addGrade, exportGradesToCSV } from './grades-data';
 import { getCurrentUserRole } from '../../ui';
 import {
   getStudents, getGrades, setGrades,

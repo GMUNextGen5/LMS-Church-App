@@ -2,7 +2,7 @@
  * Student Profile — Profile view, UID display, and password toggle
  */
 
-import { getCurrentUser } from '../../auth';
+import { getCurrentUser } from '../auth/auth';
 import { getCurrentUserRole, showModal } from '../../ui';
 import { getStudents, getGrades, getAttendance } from '../../state';
 import { getLetterGrade, getLetterGradeColor } from '../grades/grades';

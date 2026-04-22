@@ -9,9 +9,9 @@ import {
   auth, db,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
   onAuthStateChanged, doc, getDoc, setDoc, FirebaseUser
-} from './firebase';
-import { User, UserRole } from './types';
-import { showLoading, hideLoading } from './ui';
+} from '../../firebase';
+import { User, UserRole } from '../../types';
+import { showLoading, hideLoading } from '../../ui';
 
 /** Current authenticated user (in-memory cache). Null = not authenticated. */
 let currentUser: User | null = null;

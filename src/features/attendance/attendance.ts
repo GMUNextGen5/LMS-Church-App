@@ -2,7 +2,7 @@
  * Attendance — Attendance tracking, display, and stats
  */
 
-import { fetchAttendance, markAttendance } from '../../data';
+import { fetchAttendance, markAttendance } from './attendance-data';
 import { showLoading, hideLoading } from '../../ui';
 import { getStudents, setAttendance, getSelectedStudentId } from '../../state';
 import { Attendance } from '../../types';

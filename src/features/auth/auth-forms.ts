@@ -2,7 +2,7 @@
  * Auth Forms — Login, signup, and logout form handlers
  */
 
-import { signUp, signIn, logout } from '../../auth';
+import { signUp, signIn, logout } from './auth';
 import {
   showError,
   clearError,

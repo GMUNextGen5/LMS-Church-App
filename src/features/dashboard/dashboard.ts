@@ -7,7 +7,7 @@ import {
   getStudents, getGrades, getAttendance,
   getSelectedStudentId, setStudents
 } from '../../state';
-import { fetchStudents } from '../../data';
+import { fetchStudents } from '../students/student-data';
 import { getLetterGrade, getLetterGradeColor, loadStudentGrades } from '../grades/grades';
 import { loadStudentAttendance } from '../attendance/attendance';
 import { updateStudentSelect, loadRegisteredStudents, populateStudentAccountDropdown } from '../students/students';
